@@ -1,0 +1,5 @@
+﻿{% extends "storefront/base.html" %}
+{% block content %}<h2>Account — {{ user.email }}</h2>
+<h3>Recent orders</h3>
+{% for order in orders %}<div><a href="{% url 'storefront:order_detail' order.number %}">{{ order.number }}</a> — {{ order.status }} — {{ order.total }}</div>{% empty %}<p>No orders yet.</p>{% endfor %}
+{% endblock %}

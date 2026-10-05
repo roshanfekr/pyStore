@@ -1,0 +1,10 @@
+{
+    "id": "payment_dummy",
+    "name": "Dummy Payment Gateway",
+    "version": "1.0.0",
+    "author": "pyStore",
+    "description": "Reference payment gateway plugin for testing and development.",
+    "dependencies": [],
+    "minimum_core_version": "1.0.0",
+    "entry_point": "plugin:PaymentDummyPlugin"
+}

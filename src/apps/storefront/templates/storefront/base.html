@@ -1,0 +1,25 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>{% block title %}{{ storefront.branding.site_name }}{% endblock %}</title>
+    <style>body { font-family: sans-serif; margin: 2rem; } nav a { margin-right: 1rem; } .price { font-weight: bold; }</style>
+</head>
+<body>
+<header>
+    <h1><a href="/">{{ storefront.branding.site_name }}</a></h1>
+    {% include "storefront/theme_banner.html" %}
+    <nav>
+        {% for item in storefront.menu_items %}<a href="{{ item.url }}">{{ item.title }}</a>{% endfor %}
+        <a href="{% url 'storefront:cart' %}">Cart</a>
+        <a href="{% url 'storefront:compare' %}">Compare</a>
+        <a href="{% url 'storefront:wishlist' %}">Wishlist</a>
+        {% if user.is_authenticated %}<a href="{% url 'storefront:account' %}">Account</a>
+        {% else %}<a href="{% url 'storefront:login' %}">Login</a> <a href="{% url 'storefront:register' %}">Register</a>{% endif %}
+    </nav>
+    <form action="/search/" method="get"><input type="text" name="q" placeholder="Search..."><button>Search</button></form>
+</header>
+<main>{% block content %}{% endblock %}</main>
+<footer><p>{% include "storefront/theme_footer.html" %}</p></footer>
+</body>
+</html>

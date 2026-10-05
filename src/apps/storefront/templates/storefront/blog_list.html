@@ -1,0 +1,4 @@
+﻿{% extends "storefront/base.html" %}
+{% block content %}<h2>Blog</h2>
+{% for post in posts %}<div><a href="{% url 'storefront:blog_detail' post.slug %}">{{ post.title }}</a></div>{% endfor %}
+{% endblock %}

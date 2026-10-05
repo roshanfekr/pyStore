@@ -1,0 +1,4 @@
+﻿{% extends "storefront/base.html" %}
+{% block content %}<h2>Compare</h2>
+<table><tr>{% for item in items %}<th>{{ item.product.name }}</th>{% endfor %}</tr></table>
+{% endblock %}

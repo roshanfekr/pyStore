@@ -1,0 +1,9 @@
+{
+    "name": "Alternative Theme",
+    "version": "1.0.0",
+    "author": "pyStore",
+    "config": {
+        "site_name": "pyStore Alt",
+        "primary_color": "#c0392b"
+    }
+}

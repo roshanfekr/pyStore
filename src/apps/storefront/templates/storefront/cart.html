@@ -1,0 +1,13 @@
+﻿{% extends "storefront/base.html" %}
+{% block content %}
+<h2>Cart</h2>
+{% if cart %}
+<ul>
+{% for item in cart.items.all %}<li>{{ item.product.name }} x{{ item.quantity }}</li>{% endfor %}
+</ul>
+<p>Subtotal: {{ calculation.subtotal }}</p>
+<p>Discount: {{ calculation.discount_amount }}</p>
+<p>Total: {{ calculation.total }}</p>
+<a href="{% url 'storefront:checkout' %}">Checkout</a>
+{% else %}<p>Your cart is empty.</p>{% endif %}
+{% endblock %}

@@ -1,0 +1,5 @@
+﻿{% extends "storefront/base.html" %}
+{% block content %}
+<h2>Search{% if query %}: {{ query }}{% endif %}</h2>
+{% for product in products %}<div><a href="{% url 'storefront:product' product.slug %}">{{ product.name }}</a></div>{% empty %}<p>No results.</p>{% endfor %}
+{% endblock %}

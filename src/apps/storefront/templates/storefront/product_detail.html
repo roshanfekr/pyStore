@@ -1,0 +1,9 @@
+﻿{% extends "storefront/base.html" %}
+{% block title %}{{ product.name }}{% endblock %}
+{% block content %}
+<h2>{{ product.name }}</h2>
+<p>{{ product.description }}</p>
+<p class="price">{{ price }}</p>
+{% if variants %}<ul>{% for v in variants %}<li>{{ v.sku }} — {{ v.price }}</li>{% endfor %}</ul>{% endif %}
+<a href="{% url 'storefront:add_to_cart' product.id %}">Add to cart</a>
+{% endblock %}

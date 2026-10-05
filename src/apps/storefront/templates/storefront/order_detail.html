@@ -1,0 +1,7 @@
+﻿{% extends "storefront/base.html" %}
+{% block content %}<h2>Order {{ order.number }}</h2>
+<p>Status: {{ order.status }} / Payment: {{ order.payment_status }}</p>
+<ul>{% for item in order.items.all %}<li>{{ item.product_name }} x{{ item.quantity }} — {{ item.line_total }}</li>{% endfor %}</ul>
+<p>Total: {{ order.total }}</p>
+{% if order.invoice_number %}<p>Invoice: {{ order.invoice_number }}</p>{% endif %}
+{% endblock %}

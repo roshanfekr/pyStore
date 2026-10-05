@@ -1,0 +1,20 @@
+﻿{% extends "storefront/base.html" %}
+{% block content %}
+<h2>Checkout</h2>
+{% if error %}<p style="color:red">{{ error }}</p>{% endif %}
+<p>Total: {{ calculation.total }}</p>
+<form method="post">{% csrf_token %}
+    <input name="email" placeholder="Email" value="{{ user.email }}">
+    <input name="first_name" placeholder="First name">
+    <input name="last_name" placeholder="Last name">
+    <input name="country" placeholder="Country (IR)">
+    <input name="state" placeholder="State">
+    <input name="city" placeholder="City">
+    <input name="postal_code" placeholder="Postal code">
+    <input name="address_line" placeholder="Address">
+    <input name="phone" placeholder="Phone">
+    <select name="shipping_method">{% for m in shipping_methods %}<option value="{{ m.code }}">{{ m.name }}</option>{% endfor %}</select>
+    <select name="payment_method">{% for m in payment_methods %}<option value="{{ m.code }}">{{ m.name }}</option>{% endfor %}</select>
+    <button>Place order</button>
+</form>
+{% endblock %}

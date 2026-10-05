@@ -1,0 +1,17 @@
+{% extends "admin/base_site.html" %}
+{% block content %}
+<h2>Discovered plugins</h2>
+<table>
+    <thead><tr><th>Plugin</th><th>Version</th><th>Status</th></tr></thead>
+    <tbody>
+    {% for plugin in plugins %}<tr><td>{{ plugin.plugin_id }}</td><td>{{ plugin.version }}</td><td>{{ plugin.status }}</td></tr>{% endfor %}
+    </tbody>
+</table>
+{% if errors %}<h3>Discovery errors</h3><ul>{% for error in errors %}<li>{{ error }}</li>{% endfor %}</ul>{% endif %}
+
+<h2>Registered payment gateways</h2>
+<ul>{% for gateway in gateways %}<li>{{ gateway.code }} — {{ gateway.name }}</li>{% endfor %}</ul>
+
+<h2>Registered shipping providers</h2>
+<ul>{% for provider in shipping_providers %}<li>{{ provider.code }} — {{ provider.name }}</li>{% endfor %}</ul>
+{% endblock %}

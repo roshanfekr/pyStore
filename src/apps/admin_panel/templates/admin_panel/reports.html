@@ -1,0 +1,24 @@
+{% extends "admin/base_site.html" %}
+{% block content %}
+<h2>Revenue</h2>
+<ul>
+    <li>Total revenue: {{ revenue }}</li>
+    <li>Refunded: {{ refunded }}</li>
+</ul>
+
+<h2>Orders by status</h2>
+<table>
+    <thead><tr><th>Status</th><th>Count</th></tr></thead>
+    <tbody>
+    {% for entry in orders_by_status %}<tr><td>{{ entry.status }}</td><td>{{ entry.count }}</td></tr>{% endfor %}
+    </tbody>
+</table>
+
+<h2>Most used discounts</h2>
+<table>
+    <thead><tr><th>Discount</th><th>Type</th><th>Used</th></tr></thead>
+    <tbody>
+    {% for discount in top_discounts %}<tr><td>{{ discount.name }}</td><td>{{ discount.discount_type }}</td><td>{{ discount.used_count }}</td></tr>{% endfor %}
+    </tbody>
+</table>
+{% endblock %}

@@ -1,0 +1,6 @@
+﻿{% extends "storefront/base.html" %}
+{% block content %}<h2>Wishlist</h2>
+{% for item in items %}<div>{{ item.product.name }}
+    <form method="post" action="{% url 'storefront:wishlist_move' item.product.id %}">{% csrf_token %}<button>Move to cart</button></form>
+</div>{% empty %}<p>Wishlist is empty.</p>{% endfor %}
+{% endblock %}

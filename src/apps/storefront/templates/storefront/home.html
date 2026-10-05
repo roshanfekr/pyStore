@@ -1,0 +1,7 @@
+﻿{% extends "storefront/base.html" %}
+{% block content %}
+<h2>Products</h2>
+{% for product in products %}
+    <div><a href="{% url 'storefront:product' product.slug %}">{{ product.name }}</a> — <span class="price">{{ product.price }}</span></div>
+{% empty %}<p>No products yet.</p>{% endfor %}
+{% endblock %}

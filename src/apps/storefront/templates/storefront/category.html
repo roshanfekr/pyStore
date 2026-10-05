@@ -1,0 +1,6 @@
+﻿{% extends "storefront/base.html" %}
+{% block title %}{{ category.name }}{% endblock %}
+{% block content %}
+<h2>{{ category.name }}</h2>
+{% for product in products %}<div><a href="{% url 'storefront:product' product.slug %}">{{ product.name }}</a></div>{% empty %}<p>Empty category.</p>{% endfor %}
+{% endblock %}

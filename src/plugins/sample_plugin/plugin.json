@@ -1,0 +1,10 @@
+{
+    "id": "sample_plugin",
+    "name": "Sample Plugin",
+    "version": "1.0.0",
+    "author": "pyStore",
+    "description": "Reference implementation of a pyStore plugin.",
+    "dependencies": [],
+    "minimum_core_version": "1.0.0",
+    "entry_point": "plugin:SamplePlugin"
+}

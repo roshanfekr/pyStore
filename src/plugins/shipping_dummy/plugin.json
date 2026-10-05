@@ -1,0 +1,10 @@
+{
+    "id": "shipping_dummy",
+    "name": "Dummy Shipping Provider",
+    "version": "1.0.0",
+    "author": "pyStore",
+    "description": "Reference shipping provider plugin for testing and development.",
+    "dependencies": [],
+    "minimum_core_version": "1.0.0",
+    "entry_point": "plugin:ShippingDummyPlugin"
+}

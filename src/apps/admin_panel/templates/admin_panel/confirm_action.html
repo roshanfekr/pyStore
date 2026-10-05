@@ -1,0 +1,21 @@
+{% extends "admin/base_site.html" %}
+{% block content %}
+<h2>{{ title }}</h2>
+<p style="color: #b00">{{ warning }}</p>
+<p>The following items will be affected:</p>
+<ul>
+    {% for item in queryset %}<li>{{ item }}</li>{% endfor %}
+</ul>
+<form method="post">
+    {% csrf_token %}
+    {% for item in queryset %}
+        <input type="hidden" name="_selected_action" value="{{ item.pk }}">
+    {% endfor %}
+    <input type="hidden" name="action" value="{{ action_name }}">
+    <input type="hidden" name="confirm" value="yes">
+    <button type="submit" style="background:#b00;color:#fff;padding:.5rem 1rem;border:none;border-radius:4px">
+        Yes, proceed
+    </button>
+    <a href="javascript:history.back()">Cancel</a>
+</form>
+{% endblock %}
