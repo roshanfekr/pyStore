@@ -1,4 +1,4 @@
-from dataclasses import dataclass, field
+﻿from dataclasses import dataclass, field
 from pathlib import Path
 
 from django.conf import settings
@@ -57,6 +57,7 @@ class PluginManager:
         self._permission_plugins: set[str] = set()
         self._gateway_codes: dict[str, list[str]] = {}
         self._shipping_provider_codes: dict[str, list[str]] = {}
+        self._notification_provider_codes: dict[str, list[str]] = {}
 
     def discover_plugins(self) -> list[str]:
         self.registry.clear()
@@ -120,7 +121,7 @@ class PluginManager:
                 return info
         raise PluginNotFoundError(f"Plugin {plugin_id!r} is not discovered")
 
-    def install_plugin(self, plugin_id: str) -> PluginState:
+    def install_plugin(self, plugin_id: str, *, actor=None) -> PluginState:
         record = self._require_record(plugin_id)
         manifest = record.manifest
 
@@ -145,14 +146,16 @@ class PluginManager:
         except Exception as exc:
             raise PluginError(f"Installation of plugin {plugin_id!r} failed: {exc}") from exc
 
-        return PluginState.objects.create(
+        state = PluginState.objects.create(
             plugin_id=plugin_id,
             name=manifest.name,
             version=str(manifest.version),
             status=STATUS_INSTALLED,
         )
+        self._audit(actor, "plugin.installed", plugin_id)
+        return state
 
-    def uninstall_plugin(self, plugin_id: str) -> None:
+    def uninstall_plugin(self, plugin_id: str, *, actor=None) -> None:
         state = self._require_state(plugin_id)
 
         if state.status != STATUS_DISABLED:
@@ -176,8 +179,9 @@ class PluginManager:
 
         self._unregister_runtime(plugin_id)
         state.delete()
+        self._audit(actor, "plugin.uninstalled", plugin_id)
 
-    def enable_plugin(self, plugin_id: str) -> PluginState:
+    def enable_plugin(self, plugin_id: str, *, actor=None) -> PluginState:
         state = self._require_state(plugin_id)
 
         if state.status == STATUS_ENABLED:
@@ -199,9 +203,10 @@ class PluginManager:
         self._register_runtime(plugin_id, plugin)
         state.status = STATUS_ENABLED
         state.save()
+        self._audit(actor, "plugin.enabled", plugin_id)
         return state
 
-    def disable_plugin(self, plugin_id: str) -> PluginState:
+    def disable_plugin(self, plugin_id: str, *, actor=None) -> PluginState:
         state = self._require_state(plugin_id)
 
         if state.status != STATUS_ENABLED:
@@ -224,9 +229,10 @@ class PluginManager:
         self._unregister_runtime(plugin_id)
         state.status = STATUS_DISABLED
         state.save()
+        self._audit(actor, "plugin.disabled", plugin_id)
         return state
 
-    def upgrade_plugin(self, plugin_id: str) -> PluginState:
+    def upgrade_plugin(self, plugin_id: str, *, actor=None) -> PluginState:
         state = self._require_state(plugin_id)
         manifest = self._require_record(plugin_id).manifest
         old_version = Version(state.version)
@@ -245,6 +251,13 @@ class PluginManager:
 
         state.version = str(manifest.version)
         state.save()
+        self._audit(
+            actor,
+            "plugin.upgraded",
+            plugin_id,
+            before={"version": str(old_version)},
+            after={"version": str(manifest.version)},
+        )
         return state
 
     def get_settings(self, plugin_id: str) -> dict:
@@ -259,6 +272,11 @@ class PluginManager:
         state.settings = {**(state.settings or {}), **values}
         state.save()
         return self.get_settings(plugin_id)
+
+    def _audit(self, actor, action: str, plugin_id: str, before=None, after=None) -> None:
+        from core.audit.service import audit
+
+        audit(action, "plugin", plugin_id, actor=actor, before=before, after=after)
 
     def _require_record(self, plugin_id: str) -> PluginRecord:
         record = self.registry.get(plugin_id)
@@ -316,6 +334,13 @@ class PluginManager:
             shipping_provider_registry.register(provider)
             provider_codes.append(provider.code)
 
+        notification_codes = self._notification_provider_codes.setdefault(plugin_id, [])
+        for provider in plugin.get_notification_providers():
+            from core.notifications.registry import notification_provider_registry
+
+            notification_provider_registry.register(provider)
+            notification_codes.append(provider.code)
+
     def _unregister_runtime(self, plugin_id: str) -> None:
         for event_type, handler in self._event_registrations.pop(plugin_id, []):
             self.event_dispatcher.unsubscribe(event_type, handler)
@@ -333,6 +358,11 @@ class PluginManager:
             from core.shipping.registry import shipping_provider_registry
 
             shipping_provider_registry.unregister(code)
+
+        for code in self._notification_provider_codes.pop(plugin_id, []):
+            from core.notifications.registry import notification_provider_registry
+
+            notification_provider_registry.unregister(code)
 
 
 def core_version() -> str:

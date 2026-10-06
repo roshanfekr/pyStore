@@ -6,6 +6,7 @@ from core.health.views import health_check
 urlpatterns = [
     path("admin/", admin_site.urls),
     path("health/", health_check, name="health"),
+    path("api/<str:version>/", include("config.api_urls")),
     path("plugins/", include("core.plugins.urls")),
     path("", include("apps.storefront.urls")),
 ]

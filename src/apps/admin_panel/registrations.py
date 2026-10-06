@@ -21,6 +21,12 @@ from apps.checkout.models import PaymentMethod, ShippingMethod
 from apps.cms.models import BlogCategory, BlogPost, ContentBlock, Menu, MenuItem, Page, Widget
 from apps.identity.models import Customer, Permission, Role, User
 from apps.inventory.models import InventoryItem, InventoryTransaction, Warehouse, WarehouseLocation
+from apps.notifications.models import (
+    Notification,
+    NotificationMessage,
+    NotificationTemplate,
+    WebhookEndpoint,
+)
 from apps.orders.models import (
     Order,
     OrderAddress,
@@ -49,8 +55,10 @@ from apps.pricing.models import (
     TaxClass,
     TaxRate,
 )
+from apps.reviews.models import ProductReview
 from apps.stores.models import Store, StoreDomain
 from apps.vendors.models import Vendor, VendorUser
+from core.audit.models import AuditLog
 from core.exceptions import ValidationError
 
 CANCELLABLE_STATUSES = (Order.STATUS_PENDING, Order.STATUS_PROCESSING, Order.STATUS_PAID)
@@ -432,6 +440,113 @@ class MediaFileAdmin(admin.ModelAdmin):
         return False
 
 
+class NotificationTemplateAdmin(admin.ModelAdmin):
+    list_display = ("code", "event_name", "channel", "store", "is_active")
+    list_filter = ("channel", "is_active", "store")
+    search_fields = ("code", "name", "event_name")
+
+
+class WebhookEndpointAdmin(admin.ModelAdmin):
+    list_display = ("target_url", "is_active", "display_events", "description")
+    list_filter = ("is_active",)
+    search_fields = ("target_url",)
+
+    @admin.display(description="Events")
+    def display_events(self, obj):
+        return ", ".join(obj.event_names or []) or "*"
+
+
+class NotificationMessageAdmin(ReadOnlyAdmin):
+    list_display = (
+        "event_name", "channel", "provider_code", "recipient", "status",
+        "attempts", "created_at",
+    )
+    list_filter = ("channel", "status")
+    search_fields = ("recipient", "event_name")
+    date_hierarchy = "created_at"
+
+
+class NotificationAdmin(admin.ModelAdmin):
+    list_display = ("user", "title", "level", "is_read", "read_at", "created_at")
+    list_filter = ("level", "is_read")
+    search_fields = ("title", "user__email")
+    actions = ["mark_as_read"]
+
+    @admin.action(description="Mark selected notifications as read")
+    def mark_as_read(self, request, queryset):
+        from apps.notifications.services import mark_notification_read
+
+        count = 0
+        for notification in queryset.filter(is_read=False):
+            mark_notification_read(notification)
+            count += 1
+        self.message_user(request, f"{count} notification(s) marked as read.")
+
+
+class ProductReviewAdmin(admin.ModelAdmin):
+    list_display = (
+        "product", "user", "rating", "status", "is_verified_purchase",
+        "moderated_by", "created_at",
+    )
+    list_filter = ("status", "rating", "is_verified_purchase")
+    search_fields = ("product__name", "user__email", "title", "content")
+    readonly_fields = ("is_verified_purchase", "ip_address")
+    actions = ["approve_reviews", "reject_reviews"]
+
+    @admin.action(description="Approve selected reviews (confirmation required)")
+    def approve_reviews(self, request, queryset):
+        from apps.reviews.permissions import REVIEWS_PERMISSIONS
+
+        if not request.user.has_perm(REVIEWS_PERMISSIONS[0][0]):
+            messages.error(request, "Permission denied: 'reviews.review.moderate' required.")
+            return None
+        if request.POST.get("confirm") != "yes":
+            return confirm_action(
+                request, self, queryset, "approve_reviews",
+                "Approve selected reviews?",
+                "Approved reviews become publicly visible on the storefront.",
+            )
+        approved = 0
+        for review in queryset.filter(status=ProductReview.STATUS_PENDING):
+            from apps.reviews.services import approve_review
+
+            approve_review(review, actor=request.user)
+            approved += 1
+        self.message_user(request, f"{approved} review(s) approved.")
+        return None
+
+    @admin.action(description="Reject selected reviews (confirmation required)")
+    def reject_reviews(self, request, queryset):
+        from apps.reviews.permissions import REVIEWS_PERMISSIONS
+
+        if not request.user.has_perm(REVIEWS_PERMISSIONS[0][0]):
+            messages.error(request, "Permission denied: 'reviews.review.moderate' required.")
+            return None
+        if request.POST.get("confirm") != "yes":
+            return confirm_action(
+                request, self, queryset, "reject_reviews",
+                "Reject selected reviews?",
+                "Rejected reviews are hidden from the storefront.",
+            )
+        rejected = 0
+        for review in queryset.filter(status=ProductReview.STATUS_PENDING):
+            from apps.reviews.services import reject_review
+
+            reject_review(review, actor=request.user, reason="Rejected from admin panel")
+            rejected += 1
+        self.message_user(request, f"{rejected} review(s) rejected.")
+        return None
+
+
+class AuditLogAdmin(ReadOnlyAdmin):
+    list_display = (
+        "action", "resource", "resource_id", "actor_email", "ip_address", "created_at",
+    )
+    list_filter = ("action", "resource")
+    search_fields = ("resource_id", "actor_email", "action")
+    date_hierarchy = "created_at"
+
+
 def register_all(admin_site):
     registrations = {
         Category: CategoryAdmin,
@@ -485,6 +600,12 @@ def register_all(admin_site):
         CartItem: admin.ModelAdmin,
         WishlistItem: admin.ModelAdmin,
         CompareItem: admin.ModelAdmin,
+        NotificationTemplate: NotificationTemplateAdmin,
+        WebhookEndpoint: WebhookEndpointAdmin,
+        NotificationMessage: NotificationMessageAdmin,
+        Notification: NotificationAdmin,
+        ProductReview: ProductReviewAdmin,
+        AuditLog: AuditLogAdmin,
     }
 
     from apps.media.models import MediaFile

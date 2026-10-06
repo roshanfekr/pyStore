@@ -8,6 +8,7 @@ from apps.catalog.models import DIGITAL_TYPES
 from apps.identity.services.roles import ensure_permission
 from apps.inventory.models import InventoryItem
 from apps.inventory.services import release_stock
+from apps.orders.events import OrderCancelled, OrderPaid, OrderShipped
 from apps.orders.models import (
     Order,
     OrderItem,
@@ -22,6 +23,7 @@ from apps.orders.state_machine import (
     validate_payment_transition,
     validate_shipment_transition,
 )
+from core.events import dispatcher
 from core.exceptions import ConflictError, NotFoundError, ValidationError
 
 ORDER_PERMISSIONS = [
@@ -48,6 +50,34 @@ def _log_status(order, *, status_type, from_value, to_value, actor=None, note=""
     )
 
 
+def _order_event_fields(order: Order) -> dict:
+    return {
+        "order_id": str(order.id),
+        "order_number": order.number,
+        "email": order.email,
+        "user_id": str(order.user_id) if order.user_id else "",
+        "total": str(order.total),
+        "currency": order.currency,
+    }
+
+
+def _dispatch_order_event(event_class, order: Order) -> None:
+    dispatcher.dispatch_async(event_class(**_order_event_fields(order)))
+
+
+def _audit_order_transition(action: str, order: Order, from_value: str, to_value: str, *, actor=None) -> None:
+    from core.audit.service import audit
+
+    audit(
+        action,
+        "order",
+        order.number,
+        actor=actor,
+        before={"status": from_value},
+        after={"status": to_value},
+    )
+
+
 def transition_order_status(order: Order, to_status: str, *, actor=None, note: str = "") -> Order:
     OrderStateMachine.validate_transition(order.status, to_status)
     from_status = order.status
@@ -57,6 +87,9 @@ def transition_order_status(order: Order, to_status: str, *, actor=None, note: s
         order, status_type=OrderStatusLog.TYPE_ORDER, from_value=from_status,
         to_value=to_status, actor=actor, note=note,
     )
+    _audit_order_transition("order.status_changed", order, from_status, to_status, actor=actor)
+    if to_status == Order.STATUS_CANCELLED:
+        _dispatch_order_event(OrderCancelled, order)
     return order
 
 
@@ -69,6 +102,11 @@ def set_payment_status(order: Order, to_status: str, *, actor=None, note: str = 
         order, status_type=OrderStatusLog.TYPE_PAYMENT, from_value=from_status,
         to_value=to_status, actor=actor, note=note,
     )
+    _audit_order_transition(
+        "order.payment_status_changed", order, from_status, to_status, actor=actor
+    )
+    if to_status == Order.PAYMENT_PAID:
+        _dispatch_order_event(OrderPaid, order)
     return order
 
 
@@ -81,6 +119,11 @@ def set_shipment_status(order: Order, to_status: str, *, actor=None, note: str =
         order, status_type=OrderStatusLog.TYPE_SHIPMENT, from_value=from_status,
         to_value=to_status, actor=actor, note=note,
     )
+    _audit_order_transition(
+        "order.shipment_status_changed", order, from_status, to_status, actor=actor
+    )
+    if to_status == Order.SHIPMENT_SHIPPED:
+        _dispatch_order_event(OrderShipped, order)
     return order
 
 
@@ -204,6 +247,9 @@ def refund_order(order: Order, amount, *, actor=None, reason: str = "") -> Refun
 
     refund = Refund.objects.create(
         order=order, amount=amount, reason=reason, actor=actor
+    )
+    _audit_order_transition(
+        "order.refunded", order, order.payment_status, order.payment_status, actor=actor
     )
 
     if amount == refundable:

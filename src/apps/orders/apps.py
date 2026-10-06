@@ -6,3 +6,8 @@ class OrdersConfig(AppConfig):
     name = "apps.orders"
     label = "orders"
     verbose_name = "Orders"
+
+    def ready(self):
+        # Import for side effect: register order domain events with the
+        # event registry so async dispatch can rebuild them from payloads.
+        from apps.orders import events  # noqa: F401

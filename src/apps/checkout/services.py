@@ -3,6 +3,8 @@ from apps.cart.models import Cart
 from apps.checkout.context import CheckoutContext
 from apps.checkout.models import ensure_default_payment_methods
 from apps.checkout.pipeline import CheckoutPipeline
+from apps.orders.events import OrderCreated
+from core.events import dispatcher
 from core.infrastructure import atomic
 
 
@@ -28,7 +30,22 @@ def execute_checkout(
     )
     pipeline = pipeline if pipeline is not None else CheckoutPipeline()
     pipeline.run(context)
+    if context.order is not None:
+        _notify_order_created(context.order)
     return context.order
+
+
+def _notify_order_created(order) -> None:
+    dispatcher.dispatch_async(
+        OrderCreated(
+            order_id=str(order.id),
+            order_number=order.number,
+            email=order.email,
+            user_id=str(order.user_id) if order.user_id else "",
+            total=str(order.total),
+            currency=order.currency,
+        )
+    )
 
 
 def ensure_checkout_defaults() -> None:

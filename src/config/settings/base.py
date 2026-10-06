@@ -44,6 +44,8 @@ BUSINESS_APPS = [
     "apps.cart",
     "apps.orders",
     "apps.checkout",
+    "apps.notifications",
+    "apps.reviews",
     "apps.cms",
     "apps.media",
     "apps.storefront",
@@ -67,6 +69,8 @@ MIDDLEWARE = [
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
+    "core.security.headers.SecurityHeadersMiddleware",
+    "core.security.cors.CORSMiddleware",
 ]
 
 ROOT_URLCONF = "config.urls"
@@ -125,6 +129,24 @@ REST_FRAMEWORK = {
         "rest_framework.authentication.TokenAuthentication",
         "rest_framework.authentication.SessionAuthentication",
     ],
+    "DEFAULT_PERMISSION_CLASSES": [
+        "rest_framework.permissions.AllowAny",
+    ],
+    "DEFAULT_VERSIONING_CLASS": "rest_framework.versioning.URLPathVersioning",
+    "DEFAULT_VERSION": "v1",
+    "ALLOWED_VERSIONS": ["v1"],
+    "VERSION_PARAM": "version",
+    "DEFAULT_PAGINATION_CLASS": "core.api.pagination.StandardPagination",
+    "PAGE_SIZE": 20,
+    "DEFAULT_THROTTLE_CLASSES": [
+        "rest_framework.throttling.AnonRateThrottle",
+        "rest_framework.throttling.UserRateThrottle",
+    ],
+    "DEFAULT_THROTTLE_RATES": {
+        "anon": env.str("API_ANON_THROTTLE", default="120/min"),
+        "user": env.str("API_USER_THROTTLE", default="600/min"),
+        "auth": env.str("API_AUTH_THROTTLE", default="10/min"),
+    },
 }
 
 AUTH_USER_MODEL = "identity.User"
@@ -147,6 +169,38 @@ CELERY_TASK_DEFAULT_QUEUE = "default"
 CELERY_BEAT_SCHEDULE = env.json("CELERY_BEAT_SCHEDULE", default={})
 
 SETTINGS_ENCRYPTION_KEY = env.str("SETTINGS_ENCRYPTION_KEY", default=None)
+
+EMAIL_BACKEND = env.str(
+    "EMAIL_BACKEND", default="django.core.mail.backends.console.EmailBackend"
+)
+DEFAULT_FROM_EMAIL = env.str("DEFAULT_FROM_EMAIL", default="no-reply@pystore.local")
+EMAIL_HOST = env.str("EMAIL_HOST", default="")
+EMAIL_PORT = env.int("EMAIL_PORT", default=587)
+EMAIL_HOST_USER = env.str("EMAIL_HOST_USER", default="")
+EMAIL_HOST_PASSWORD = env.str("EMAIL_HOST_PASSWORD", default="")
+EMAIL_USE_TLS = env.bool("EMAIL_USE_TLS", default=True)
+
+# --- Security hardening -------------------------------------------------
+SESSION_COOKIE_HTTPONLY = True
+SESSION_COOKIE_SAMESITE = "Lax"
+SESSION_COOKIE_AGE = env.int("SESSION_COOKIE_AGE", default=14 * 24 * 3600)
+CSRF_COOKIE_SAMESITE = "Lax"
+X_FRAME_OPTIONS = "DENY"
+SECURE_CONTENT_TYPE_NOSNIFF = True
+SECURE_REFERRER_POLICY = "strict-origin-when-cross-origin"
+CONTENT_SECURITY_POLICY = env.str(
+    "CONTENT_SECURITY_POLICY",
+    default="default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; "
+    "script-src 'self'; object-src 'none'; frame-ancestors 'none'",
+)
+CORS_ALLOWED_ORIGINS = env.list("CORS_ALLOWED_ORIGINS", default=[])
+
+# Upload safety (apps.media)
+MEDIA_MAX_UPLOAD_SIZE = env.int("MEDIA_MAX_UPLOAD_SIZE", default=10 * 1024 * 1024)
+MEDIA_ALLOWED_EXTENSIONS = env.list(
+    "MEDIA_ALLOWED_EXTENSIONS",
+    default=["png", "jpg", "jpeg", "gif", "webp", "mp4", "webm", "mov", "pdf", "zip"],
+)
 
 LANGUAGE_CODE = "en-us"
 

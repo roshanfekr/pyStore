@@ -1,37 +1,37 @@
-import pytest
+﻿import pytest
 
 from core.events import DomainEvent, dispatcher, event_registry, register_event
 
 
 @register_event
-class OrderPaid(DomainEvent):
+class AsyncOrderPaid(DomainEvent):
     pass
 
 
 @register_event
-class CustomerRegistered(DomainEvent):
+class AsyncCustomerRegistered(DomainEvent):
     pass
 
 
 @register_event
-class InventoryReserved(DomainEvent):
+class AsyncInventoryReserved(DomainEvent):
     pass
 
 
 def test_register_event_decorator():
-    assert event_registry.get("InventoryReserved") is InventoryReserved
+    assert event_registry.get("AsyncInventoryReserved") is AsyncInventoryReserved
     assert event_registry.get("Unknown") is None
 
 
 def test_payload_round_trip_preserves_fields():
-    event = CustomerRegistered()
+    event = AsyncCustomerRegistered()
     payload = event.to_payload()
 
-    rebuilt = CustomerRegistered.from_payload(payload)
+    rebuilt = AsyncCustomerRegistered.from_payload(payload)
 
     assert rebuilt.event_id == event.event_id
     assert rebuilt.occurred_at == event.occurred_at
-    assert rebuilt.event_name == "CustomerRegistered"
+    assert rebuilt.event_name == "AsyncCustomerRegistered"
 
 
 def test_payload_with_extra_fields_round_trip():
@@ -53,11 +53,11 @@ def test_dispatch_async_executes_handlers_in_worker(settings, caplog):
     def handler(event):
         received.append(event.event_id)
 
-    dispatcher.subscribe(OrderPaid, handler)
+    dispatcher.subscribe(AsyncOrderPaid, handler)
     try:
-        dispatcher.dispatch_async(OrderPaid())
+        dispatcher.dispatch_async(AsyncOrderPaid())
     finally:
-        dispatcher.unsubscribe(OrderPaid, handler)
+        dispatcher.unsubscribe(AsyncOrderPaid, handler)
 
     assert received, "eager mode should execute the task synchronously"
 

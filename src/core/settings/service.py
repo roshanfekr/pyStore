@@ -96,6 +96,11 @@ class SettingsService:
             stored = value
             is_sensitive = bool(definition and definition.sensitive)
 
+        previous = Setting.objects.filter(namespace=namespace, key=key).first()
+        if previous is not None:
+            before_value = self._read_value(previous)
+        else:
+            before_value = definition.default if definition is not None else None
         Setting.objects.update_or_create(
             namespace=namespace,
             key=key,
@@ -103,6 +108,16 @@ class SettingsService:
         )
         self._cache.pop((namespace, key), None)
         logger.info("Setting %s:%s updated", namespace, key)
+
+        from core.audit.service import audit
+
+        audit(
+            "settings.updated",
+            "setting",
+            f"{namespace}:{key}",
+            before={"value": before_value},
+            after={"value": value, "is_sensitive": is_sensitive},
+        )
         return value
 
     def all(self, namespace: str, *, mask_sensitive: bool = True) -> dict[str, Any]:

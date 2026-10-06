@@ -43,3 +43,6 @@ class Plugin:
 
     def get_shipping_providers(self):
         return []
+
+    def get_notification_providers(self):
+        return []
