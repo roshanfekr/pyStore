@@ -1,0 +1,10 @@
+{
+    "id": "theme_pacific",
+    "name": "Pacific Theme",
+    "version": "1.0.0",
+    "author": "pyStore",
+    "description": "Pacific storefront theme: ocean palette, hero showcase, feature strip and rich footer.",
+    "dependencies": [],
+    "minimum_core_version": "1.0.0",
+    "entry_point": "plugin:PacificThemePlugin"
+}

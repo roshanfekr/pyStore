@@ -1,0 +1,175 @@
+/* ============================================================
+   Pacific theme — ocean palette, hero, features, footer
+   Loaded after storefront/css/main.css and overrides its tokens.
+   ============================================================ */
+
+:root {
+    --primary: #0e7490;
+    --primary-strong: #155e75;
+    --primary-soft: #e0f7fb;
+    --accent: #22d3ee;
+    --pacific-deep: #0b2536;
+    --pacific-deep-soft: #103c52;
+}
+
+body.pacific {
+    background: linear-gradient(180deg, #f2fbfd 0%, #f6f7fb 320px);
+}
+
+body.pacific a { color: var(--primary); }
+body.pacific a:hover { color: var(--primary-strong); }
+
+/* ---------- Announcement bar ---------- */
+body.pacific .pacific-announcement {
+    background: linear-gradient(90deg, var(--pacific-deep), var(--primary) 60%, var(--accent));
+    letter-spacing: 0.02em;
+}
+
+/* ---------- Header ---------- */
+body.pacific .pacific-header {
+    background: rgba(11, 37, 54, 0.92);
+    border-bottom: 3px solid var(--accent);
+}
+
+body.pacific .pacific-header .logo { color: #f0fdff; }
+body.pacific .pacific-header .logo:hover { color: var(--accent); }
+
+body.pacific .pacific-logo-mark {
+    background: linear-gradient(135deg, var(--primary), var(--accent));
+}
+
+body.pacific .pacific-header .main-nav a,
+body.pacific .pacific-header .header-actions a {
+    color: #b8d8e3;
+}
+
+body.pacific .pacific-header .main-nav a:hover,
+body.pacific .pacific-header .header-actions a:hover {
+    background: rgba(34, 211, 238, 0.14);
+    color: var(--accent);
+}
+
+body.pacific .pacific-header .search-form input {
+    background: rgba(255, 255, 255, 0.94);
+}
+
+/* ---------- Hero ---------- */
+.pacific-hero {
+    position: relative;
+    background: linear-gradient(120deg, var(--pacific-deep) 0%, var(--primary) 55%, var(--accent) 100%);
+    color: #fff;
+    padding: 4.5rem 2rem 5.5rem;
+    margin: -2rem -1.25rem 1.5rem;
+    text-align: center;
+}
+
+.pacific-hero-inner {
+    max-width: 720px;
+    margin: 0 auto;
+}
+
+.pacific-hero h1 {
+    font-size: 2.4rem;
+    letter-spacing: 0.01em;
+    text-shadow: 0 2px 18px rgba(4, 36, 54, 0.45);
+}
+
+.pacific-hero p {
+    font-size: 1.1rem;
+    opacity: 0.92;
+    margin: 0.5rem 0 1.5rem;
+}
+
+.pacific-hero-cta {
+    background: #fff;
+    color: var(--primary-strong);
+    font-weight: 700;
+    padding: 0.7rem 2.2rem;
+    border-radius: 999px;
+    box-shadow: 0 8px 24px rgba(4, 36, 54, 0.35);
+}
+
+.pacific-hero-cta:hover {
+    background: var(--primary-soft);
+    color: var(--primary-strong);
+}
+
+.pacific-wave {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: -1px;
+    width: 100%;
+    height: 48px;
+    color: #f6f7fb;
+    display: block;
+}
+
+/* ---------- Feature strip ---------- */
+.pacific-features {
+    display: flex;
+    justify-content: center;
+    gap: 2.5rem;
+    flex-wrap: wrap;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow-sm);
+    padding: 1rem 1.5rem;
+    margin-bottom: 2rem;
+    color: var(--primary-strong);
+    font-weight: 600;
+    font-size: 0.92rem;
+}
+
+.pacific-feature { display: inline-flex; align-items: center; gap: 0.5rem; }
+.pacific-feature span { font-size: 1.2rem; }
+
+/* ---------- Product cards ---------- */
+body.pacific .pacific-card { border-top: 3px solid var(--accent); }
+body.pacific .pacific-card:hover { box-shadow: 0 12px 28px rgba(14, 116, 144, 0.18); }
+
+.pacific-card-media {
+    background: linear-gradient(135deg, var(--pacific-deep-soft), var(--primary) 55%, var(--accent));
+}
+
+/* ---------- Footer ---------- */
+body.pacific .pacific-footer {
+    background: var(--pacific-deep);
+    border-top: 3px solid var(--accent);
+}
+
+.pacific-footer-inner {
+    display: grid;
+    grid-template-columns: 2fr 1fr 1fr;
+    gap: 2rem;
+}
+
+.pacific-footer-col h4 {
+    color: #fff;
+    font-size: 0.95rem;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    margin-bottom: 0.6rem;
+}
+
+.pacific-footer-about p {
+    color: #9fc3d2;
+    font-size: 0.92rem;
+    margin: 0;
+    max-width: 420px;
+}
+
+body.pacific .pacific-footer-links { display: flex; flex-direction: column; gap: 0.35rem; }
+body.pacific .pacific-footer .footer-links a { color: #b8d8e3; }
+body.pacific .pacific-footer .footer-links a:hover { color: var(--accent); }
+
+.pacific-footer-note { color: #7ea6b8; }
+
+/* ---------- Responsive ---------- */
+@media (max-width: 720px) {
+    .pacific-hero { padding: 3rem 1rem 4rem; margin: -1.25rem -1rem 1.5rem; }
+    .pacific-hero h1 { font-size: 1.8rem; }
+    .pacific-features { gap: 1rem; }
+    .pacific-footer-inner { grid-template-columns: 1fr; }
+}

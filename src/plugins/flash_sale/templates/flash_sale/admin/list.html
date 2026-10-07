@@ -1,0 +1,41 @@
+{% extends "admin/base_site.html" %}
+{% load strings %}
+{% block content %}
+<h1>{% tr 'Flash sales' %}</h1>
+<p class="ps-plugin-meta">
+    {% tr 'Products on sale get their price reduced automatically while the sale window is open and stock remains.' %}
+    {% tr 'Remaining units are counted from orders placed during the sale window.' %}
+</p>
+<div class="ps-actions" style="margin-bottom:1rem"><a class="ps-btn" href="{{ add_url }}">{% tr 'Add flash sale' %}</a></div>
+
+{% for group_name, group in groups %}
+    {% if group %}
+        <div class="ps-panel">
+            <h2>{% tr group_name %}</h2>
+            <table class="ps-table">
+                <thead><tr><th>{% tr 'Product' %}</th><th>{% tr 'Discount' %}</th><th>{% tr 'Window' %}</th><th>{% tr 'Limit / Left' %}</th><th></th></tr></thead>
+                <tbody>
+                    {% for sale in group %}
+                        <tr>
+                            <td>{{ sale.product.name }}</td>
+                            <td><span class="ps-badge ps-red">-{{ sale.discount_percent }}%</span></td>
+                            <td>{{ sale.start_at|date:"Y-m-d H:i" }} → {{ sale.end_at|date:"Y-m-d H:i" }}</td>
+                            <td>
+                                {% if sale.quantity == 0 %}{% tr 'Unlimited stock' %}
+                                {% else %}{{ sale.quantity }} / {{ sale.remaining_quantity }} {% tr 'left' %}{% endif %}
+                            </td>
+                            <td class="ps-actions">
+                                <a class="ps-btn ps-ghost" href="{% url 'pystore_admin:flash_sale_edit' sale.id %}">{% tr 'Edit' %}</a>
+                                <form method="post" action="{% url 'pystore_admin:flash_sale_delete' sale.id %}" onsubmit="return confirm('{% tr 'Delete' %} {{ sale.product.name }}?');">
+                                    {% csrf_token %}
+                                    <button class="ps-btn ps-danger" type="submit">{% tr 'Delete' %}</button>
+                                </form>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    {% endif %}
+{% endfor %}
+{% endblock %}

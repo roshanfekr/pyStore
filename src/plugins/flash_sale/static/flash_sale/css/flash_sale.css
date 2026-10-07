@@ -1,0 +1,15 @@
+/* ============================================================
+   Flash Sale plugin — home section
+   ============================================================ */
+
+.flash-sale-title h2 { color: #b91c1c; }
+
+.flash-sale-card { border-top: 3px solid #dc2626; }
+
+.flash-sale-media {
+    background: linear-gradient(135deg, #7f1d1d, #dc2626 55%, #f87171);
+}
+
+.flash-sale-price { color: #b91c1c; font-size: 1.1rem; }
+
+.flash-sale-old { text-decoration: line-through; margin: 0 0.4rem; }

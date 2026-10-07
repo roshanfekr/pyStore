@@ -1,2 +1,8 @@
-body { font-family: sans-serif; }
-.theme-banner { color: #2d6cdf; }
+/* Theme-level overrides (loaded from /static/css/theme.css) */
+:root {
+    --primary: #2d6cdf;
+    --primary-strong: #1e54b8;
+    --primary-soft: #e8f0fd;
+}
+
+.announcement { background: linear-gradient(90deg, var(--primary), #06b6d4); }

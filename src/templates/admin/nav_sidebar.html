@@ -1,0 +1,108 @@
+{% load i18n %}
+{% load strings %}
+<button class="sticky toggle-nav-sidebar" id="toggle-nav-sidebar" aria-label="{% translate 'Toggle navigation' %}"></button>
+<nav class="sticky" id="nav-sidebar" aria-label="{% translate 'Sidebar' %}">
+    <div class="psnav-brand">
+        <span class="psnav-logo">py</span>
+        <span class="psnav-brand-text">
+            <strong>pyStore</strong>
+            <small>{% tr 'Administration' %}</small>
+        </span>
+    </div>
+
+    <input type="search" id="nav-filter"
+           placeholder="{% tr 'Start typing to filter…' %}"
+           aria-label="{% tr 'Filter navigation items' %}">
+
+    <table class="psnav-table psnav-collapsible" id="psnav-group-overview">
+        <caption class="psnav-group-caption" aria-expanded="true">
+            <span class="psnav-group-name">{% tr 'Overview' %}</span>
+            <span class="psnav-caret" aria-hidden="true"></span>
+        </caption>
+        <tbody>
+        {% url 'pystore_admin:index' as admin_home %}
+        <tr class="psnav-row{% if admin_home == request.path %} is-current{% endif %}">
+            <th scope="row">
+                <a class="psnav-item" href="{{ admin_home }}">
+                    <svg class="psnav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 3h7v7H3zM14 3h7v7h-7zM3 14h7v7H3zM14 14h7v7h-7z"/></svg>
+                    <span>{% tr 'Dashboard' %}</span>
+                </a>
+            </th>
+        </tr>
+        {% url 'pystore_admin:reports' as reports_url %}
+        <tr class="psnav-row{% if reports_url == request.path %} is-current{% endif %}">
+            <th scope="row">
+                <a class="psnav-item" href="{{ reports_url }}">
+                    <svg class="psnav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20V12M10 20V6M16 20v-9M21 20H3"/></svg>
+                    <span>{% tr 'Reports' %}</span>
+                </a>
+            </th>
+        </tr>
+        {% url 'pystore_admin:plugins' as plugins_url %}
+        <tr class="psnav-row{% if plugins_url == request.path %} is-current{% endif %}">
+            <th scope="row">
+                <a class="psnav-item" href="{{ plugins_url }}">
+                    <svg class="psnav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 7V3M15 7V3M7 7h10v4a5 5 0 0 1-5 5 5 5 0 0 1-5-5V7zM12 16v5"/></svg>
+                    <span>{% tr 'Plugins' %}</span>
+                </a>
+            </th>
+        </tr>
+        </tbody>
+    </table>
+
+    {% if plugin_settings_items %}
+        <table class="psnav-table psnav-collapsible" id="psnav-group-plugin-settings">
+            <caption class="psnav-group-caption" aria-expanded="true">
+                <span class="psnav-group-name">{% tr 'Plugin settings' %}</span>
+                <span class="psnav-caret" aria-hidden="true"></span>
+            </caption>
+            <tbody>
+            {% for item in plugin_settings_items %}
+                <tr class="psnav-row{% if item.url == request.path %} is-current{% endif %}">
+                    <th scope="row">
+                        <a class="psnav-item psnav-sub" href="{{ item.url }}">
+                            <span class="psnav-dot"></span>
+                            <span>{{ item.name }}</span>
+                        </a>
+                    </th>
+                </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    {% endif %}
+
+    {% for app in available_apps %}
+        {% if app.models %}
+            <table class="psnav-table psnav-collapsible" id="psnav-group-app-{{ app.app_label }}">
+                <caption class="psnav-group-caption" aria-expanded="true">
+                    <span class="psnav-mono psnav-mono-{% cycle 'a' 'b' 'c' 'd' 'e' 'f' %}">{{ app.name|slice:":2" }}</span>
+                    <span class="psnav-group-name">{% tr app.name %}</span>
+                    <span class="psnav-caret" aria-hidden="true"></span>
+                </caption>
+                <tbody>
+                {% for model in app.models %}
+                    {% if model.admin_url %}
+                        <tr class="psnav-row{% if model.admin_url in request.path %} is-current{% endif %}">
+                            <th scope="row">
+                                <a class="psnav-item psnav-sub" href="{{ model.admin_url }}">
+                                    <span class="psnav-dot"></span>
+                                    <span>{% tr model.name %}</span>
+                                </a>
+                            </th>
+                        </tr>
+                    {% else %}
+                        <tr class="psnav-row">
+                            <th scope="row">
+                                <span class="psnav-item psnav-sub is-disabled">
+                                    <span class="psnav-dot"></span>
+                                    <span>{% tr model.name %}</span>
+                                </span>
+                            </th>
+                        </tr>
+                    {% endif %}
+                {% endfor %}
+                </tbody>
+            </table>
+        {% endif %}
+    {% endfor %}
+</nav>

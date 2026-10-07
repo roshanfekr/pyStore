@@ -1,7 +1,25 @@
 ﻿{% extends "storefront/base.html" %}
-{% block content %}<h2>Order {{ order.number }}</h2>
-<p>Status: {{ order.status }} / Payment: {{ order.payment_status }}</p>
-<ul>{% for item in order.items.all %}<li>{{ item.product_name }} x{{ item.quantity }} — {{ item.line_total }}</li>{% endfor %}</ul>
-<p>Total: {{ order.total }}</p>
-{% if order.invoice_number %}<p>Invoice: {{ order.invoice_number }}</p>{% endif %}
+{% block title %}Order {{ order.number }}{% endblock %}
+{% block content %}
+<div class="page-title">
+    <h2>Order {{ order.number }}</h2>
+    <span class="badge">{{ order.status }}</span>
+    <span class="badge {% if order.payment_status == 'paid' %}badge-success{% else %}badge-danger{% endif %}">{{ order.payment_status }}</span>
+</div>
+<div class="panel">
+    <div class="table-wrap">
+        <table class="data">
+            <thead><tr><th>Item</th><th>Qty</th><th>Total</th></tr></thead>
+            <tbody>
+                {% for item in order.items.all %}
+                    <tr><td>{{ item.product_name }}</td><td>x{{ item.quantity }}</td><td>{{ item.line_total }}</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    <div class="totals" style="margin-top:1.25rem">
+        <div class="totals-row grand"><span>Total</span><span>{{ order.total }}</span></div>
+    </div>
+    {% if order.invoice_number %}<p class="price-muted" style="margin-top:1rem">Invoice: {{ order.invoice_number }}</p>{% endif %}
+</div>
 {% endblock %}

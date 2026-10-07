@@ -1,0 +1,27 @@
+{% load static %}
+{% if sales %}
+<link rel="stylesheet" href="{% static 'flash_sale/css/flash_sale.css' %}">
+<div class="page-title flash-sale-title">
+    <h2>&#9889; {{ heading }}</h2>
+    <span class="count">Ends in {{ next_end }}</span>
+</div>
+<div class="product-grid">
+    {% for sale in sales %}
+        <article class="product-card flash-sale-card">
+            <div class="product-card-media flash-sale-media">%</div>
+            <div class="product-card-body">
+                <div class="product-card-title"><a href="{% url 'storefront:product' sale.product.slug %}">{{ sale.product.name }}</a></div>
+                <div>
+                    <span class="price flash-sale-price">{{ sale.sale_price }}</span>
+                    <span class="price-muted flash-sale-old">{{ sale.original_price }}</span>
+                    <span class="ps-badge ps-red">-{{ sale.discount_percent }}%</span>
+                </div>
+                <div class="price-muted">
+                    {% if sale.remaining == -1 %}Unlimited stock
+                    {% else %}{{ sale.remaining }} left{% endif %}
+                </div>
+            </div>
+        </article>
+    {% endfor %}
+</div>
+{% endif %}

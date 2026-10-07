@@ -1,0 +1,33 @@
+{% extends "admin/base_site.html" %}
+{% load strings %}
+{% block content %}
+<h1>{{ plugin.name }} — {% tr 'Settings' %}</h1>
+<p class="ps-plugin-meta">
+    <code>{{ plugin.plugin_id }}</code> · v{{ plugin.version }} — {% tr 'values are stored per plugin and override its defaults.' %}
+</p>
+
+<div class="ps-panel">
+    <form method="post">
+        {% csrf_token %}
+        {% for field in fields %}
+            <div class="ps-field">
+                <label for="id_{{ field.key }}">{{ field.label }}</label>
+                {% if field.type == "text" %}
+                    <textarea id="id_{{ field.key }}" name="{{ field.key }}" rows="5">{{ field.value }}</textarea>
+                {% elif field.type == "integer" %}
+                    <input type="number" id="id_{{ field.key }}" name="{{ field.key }}" value="{{ field.value }}">
+                {% elif field.type == "boolean" %}
+                    <input type="checkbox" id="id_{{ field.key }}" name="{{ field.key }}" {% if field.value %}checked{% endif %}>
+                {% else %}
+                    <input type="text" id="id_{{ field.key }}" name="{{ field.key }}" value="{{ field.value }}">
+                {% endif %}
+                {% if field.help %}<p class="ps-field-help">{{ field.help }}</p>{% endif %}
+            </div>
+        {% endfor %}
+        <div class="ps-actions">
+            <button class="ps-btn" type="submit">{% tr 'Save settings' %}</button>
+            <a class="ps-btn ps-outline" href="{% url 'pystore_admin:plugins' %}">{% tr 'Back to plugins' %}</a>
+        </div>
+    </form>
+</div>
+{% endblock %}

@@ -1,1 +1,1 @@
-<p class="theme-banner">Welcome to {{ storefront.branding.site_name }} — default theme</p>
+{% load strings %}<div class="announcement">{% tr 'Welcome to {site_name} — free shipping on orders over $50' site_name=storefront.branding.site_name %}</div>

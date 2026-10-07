@@ -1,0 +1,40 @@
+{% extends "storefront/base.html" %}
+{% load strings %}
+{% load plugin_hooks %}
+{% block content %}
+{% plugin_hook 'home_top' %}
+<section class="pacific-hero">
+    <div class="pacific-hero-inner">
+        <h1>{{ storefront.branding.hero_title }}</h1>
+        <p>{{ storefront.branding.hero_subtitle }}</p>
+        <a class="btn btn-primary pacific-hero-cta" href="#products">{% tr 'Shop now' %}</a>
+    </div>
+    <svg class="pacific-wave" viewBox="0 0 1440 80" preserveAspectRatio="none" aria-hidden="true">
+        <path d="M0,40 C240,80 480,0 720,30 C960,60 1200,10 1440,45 L1440,80 L0,80 Z" fill="currentColor"></path>
+    </svg>
+</section>
+<section class="pacific-features">
+    <div class="pacific-feature"><span>&#128666;</span> {% tr 'Fast & free shipping' %}</div>
+    <div class="pacific-feature"><span>&#128222;</span> {% tr '24/7 support' %}</div>
+    <div class="pacific-feature"><span>&#8634;</span> {% tr '30-day returns' %}</div>
+</section>
+<div class="page-title" id="products">
+    <h2>{% tr 'Products' %}</h2>
+    <span class="count">{{ products|length }} {% tr 'items' %}</span>
+</div>
+{% plugin_hook 'home_middle' %}
+<div class="product-grid">
+    {% for product in products %}
+        <article class="product-card pacific-card">
+            <div class="product-card-media pacific-card-media">{{ product.name|slice:":1"|upper }}</div>
+            <div class="product-card-body">
+                <div class="product-card-title"><a href="{% url 'storefront:product' product.slug %}">{{ product.name }}</a></div>
+                <div class="price">{{ product.price }}</div>
+            </div>
+        </article>
+    {% empty %}
+        <div class="empty-state"><span class="icon">&#127966;</span>{% tr 'No products yet.' %}</div>
+    {% endfor %}
+</div>
+{% plugin_hook 'home_bottom' %}
+{% endblock %}

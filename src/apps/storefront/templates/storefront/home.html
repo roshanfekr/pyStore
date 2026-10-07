@@ -1,7 +1,29 @@
 ﻿{% extends "storefront/base.html" %}
+{% load strings %}
+{% load plugin_hooks %}
 {% block content %}
-<h2>Products</h2>
-{% for product in products %}
-    <div><a href="{% url 'storefront:product' product.slug %}">{{ product.name }}</a> — <span class="price">{{ product.price }}</span></div>
-{% empty %}<p>No products yet.</p>{% endfor %}
+{% plugin_hook 'home_top' %}
+<section class="hero">
+    <h1>{{ storefront.branding.site_name }}</h1>
+    <p>{% tr 'Discover our latest products at the best prices.' %}</p>
+</section>
+{% plugin_hook 'home_middle' %}
+<div class="page-title">
+    <h2>{% tr 'Products' %}</h2>
+    <span class="count">{{ products|length }} {% tr 'items' %}</span>
+</div>
+<div class="product-grid">
+    {% for product in products %}
+        <article class="product-card">
+            <div class="product-card-media">{{ product.name|slice:":1"|upper }}</div>
+            <div class="product-card-body">
+                <div class="product-card-title"><a href="{% url 'storefront:product' product.slug %}">{{ product.name }}</a></div>
+                <div class="price">{{ product.price }}</div>
+            </div>
+        </article>
+    {% empty %}
+        <div class="empty-state"><span class="icon">&#128230;</span>{% tr 'No products yet.' %}</div>
+    {% endfor %}
+</div>
+{% plugin_hook 'home_bottom' %}
 {% endblock %}

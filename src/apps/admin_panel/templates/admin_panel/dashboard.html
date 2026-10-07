@@ -1,42 +1,69 @@
 {% extends "admin/base_site.html" %}
+{% load strings %}
 {% block content %}
-<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:1rem;margin-bottom:2rem">
-    <div style="border:1px solid #ddd;padding:1rem;border-radius:6px">
-        <h3>{{ stats.total_orders }}</h3><p>Total orders</p>
-        <p>{{ stats.pending_orders }} pending</p>
+<h1>{% tr 'Dashboard' %}</h1>
+
+<div class="ps-grid">
+    <div class="ps-card ps-accent">
+        <p class="ps-number">{{ stats.total_orders }}</p>
+        <p class="ps-label">{% tr 'Total orders' %}</p>
+        <p class="ps-label" style="text-transform:none">{{ stats.pending_orders }} {% tr 'pending' %}</p>
     </div>
-    <div style="border:1px solid #ddd;padding:1rem;border-radius:6px">
-        <h3>{{ stats.revenue }}</h3><p>Revenue</p>
+    <div class="ps-card ps-green">
+        <p class="ps-number">{{ stats.revenue }}</p>
+        <p class="ps-label">{% tr 'Revenue' %}</p>
     </div>
-    <div style="border:1px solid #ddd;padding:1rem;border-radius:6px">
-        <h3>{{ stats.published_products }} / {{ stats.total_products }}</h3><p>Published products</p>
+    <div class="ps-card ps-cyan">
+        <p class="ps-number">{{ stats.published_products }} / {{ stats.total_products }}</p>
+        <p class="ps-label">{% tr 'Published products' %}</p>
     </div>
-    <div style="border:1px solid #ddd;padding:1rem;border-radius:6px">
-        <h3>{{ stats.total_customers }}</h3><p>Customers</p>
+    <div class="ps-card ps-accent">
+        <p class="ps-number">{{ stats.total_customers }}</p>
+        <p class="ps-label">{% tr 'Customers' %}</p>
     </div>
-    <div style="border:1px solid #ddd;padding:1rem;border-radius:6px">
-        <h3>{{ stats.active_carts }}</h3><p>Active carts</p>
+    <div class="ps-card ps-green">
+        <p class="ps-number">{{ stats.active_carts }}</p>
+        <p class="ps-label">{% tr 'Active carts' %}</p>
     </div>
-    <div style="border:1px solid #ddd;padding:1rem;border-radius:6px">
-        <a href="{% url 'pystore_admin:reports' %}">View reports</a> ·
-        <a href="{% url 'pystore_admin:plugins' %}">Plugins</a>
+    <div class="ps-card">
+        <p class="ps-label">{% tr 'Quick links' %}</p>
+        <div class="ps-actions" style="margin-top:.4rem">
+            <a class="ps-btn" href="{% url 'pystore_admin:reports' %}">{% tr 'Reports' %}</a>
+            <a class="ps-btn ps-outline" href="{% url 'pystore_admin:plugins' %}">{% tr 'Plugins' %}</a>
+        </div>
     </div>
 </div>
 
-<h2>Low stock alerts</h2>
-{% if stats.low_stock_items %}
-<table>
-    <thead><tr><th>Item</th><th>Stock</th><th>Reserved</th><th>Status</th></tr></thead>
-    <tbody>
-    {% for item in stats.low_stock_items %}
-        <tr><td>{{ item }}</td><td>{{ item.stock_quantity }}</td><td>{{ item.reserved_quantity }}</td><td>{{ item.stock_status }}</td></tr>
-    {% endfor %}
-    </tbody>
-</table>
-{% else %}<p>All stock levels are healthy.</p>{% endif %}
+<div class="ps-columns">
+    <div class="ps-panel">
+        <h2>{% tr 'Low stock alerts' %}</h2>
+        {% if stats.low_stock_items %}
+            <table class="ps-table">
+                <thead><tr><th>{% tr 'Item' %}</th><th>{% tr 'Stock' %}</th><th>{% tr 'Reserved' %}</th><th>{% tr 'Status' %}</th></tr></thead>
+                <tbody>
+                {% for item in stats.low_stock_items %}
+                    <tr>
+                        <td>{{ item }}</td>
+                        <td>{{ item.stock_quantity }}</td>
+                        <td>{{ item.reserved_quantity }}</td>
+                        <td><span class="ps-badge {% if item.stock_status == 'out_of_stock' %}ps-red{% else %}ps-amber{% endif %}">{{ item.stock_status }}</span></td>
+                    </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        {% else %}<p class="ps-plugin-meta">{% tr 'All stock levels are healthy.' %}</p>{% endif %}
+    </div>
 
-<h2>Orders by status</h2>
-<ul>
-{% for entry in orders_by_status %}<li>{{ entry.status }}: {{ entry.count }}</li>{% endfor %}
-</ul>
+    <div class="ps-panel">
+        <h2>{% tr 'Orders by status' %}</h2>
+        {% if orders_by_status %}
+            <table class="ps-table">
+                <thead><tr><th>{% tr 'Status' %}</th><th>{% tr 'Count' %}</th></tr></thead>
+                <tbody>
+                {% for entry in orders_by_status %}<tr><td>{{ entry.status }}</td><td>{{ entry.count }}</td></tr>{% endfor %}
+                </tbody>
+            </table>
+        {% else %}<p class="ps-plugin-meta">{% tr 'No orders yet.' %}</p>{% endif %}
+    </div>
+</div>
 {% endblock %}

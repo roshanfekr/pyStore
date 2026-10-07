@@ -1,20 +1,33 @@
 ﻿{% extends "storefront/base.html" %}
+{% load strings %}
 {% block content %}
-<h2>Checkout</h2>
-{% if error %}<p style="color:red">{{ error }}</p>{% endif %}
-<p>Total: {{ calculation.total }}</p>
-<form method="post">{% csrf_token %}
-    <input name="email" placeholder="Email" value="{{ user.email }}">
-    <input name="first_name" placeholder="First name">
-    <input name="last_name" placeholder="Last name">
-    <input name="country" placeholder="Country (IR)">
-    <input name="state" placeholder="State">
-    <input name="city" placeholder="City">
-    <input name="postal_code" placeholder="Postal code">
-    <input name="address_line" placeholder="Address">
-    <input name="phone" placeholder="Phone">
-    <select name="shipping_method">{% for m in shipping_methods %}<option value="{{ m.code }}">{{ m.name }}</option>{% endfor %}</select>
-    <select name="payment_method">{% for m in payment_methods %}<option value="{{ m.code }}">{{ m.name }}</option>{% endfor %}</select>
-    <button>Place order</button>
+<div class="page-title"><h2>{% tr 'Checkout' %}</h2></div>
+{% if error %}<div class="alert alert-danger">{{ error }}</div>{% endif %}
+<form method="post" class="panel">
+    {% csrf_token %}
+    <h3>{% tr 'Shipping details' %}</h3>
+    <div class="form-grid">
+        <div class="form-field full"><label for="id-email">{% tr 'Email' %}</label><input id="id-email" name="email" type="email" value="{{ user.email }}"></div>
+        <div class="form-field"><label for="id-fname">{% tr 'First name' %}</label><input id="id-fname" name="first_name"></div>
+        <div class="form-field"><label for="id-lname">{% tr 'Last name' %}</label><input id="id-lname" name="last_name"></div>
+        <div class="form-field"><label for="id-country">{% tr 'Country' %}</label><input id="id-country" name="country" placeholder="IR"></div>
+        <div class="form-field"><label for="id-state">{% tr 'State' %}</label><input id="id-state" name="state"></div>
+        <div class="form-field"><label for="id-city">{% tr 'City' %}</label><input id="id-city" name="city"></div>
+        <div class="form-field"><label for="id-postal">{% tr 'Postal code' %}</label><input id="id-postal" name="postal_code"></div>
+        <div class="form-field full"><label for="id-address">{% tr 'Address' %}</label><input id="id-address" name="address_line"></div>
+        <div class="form-field"><label for="id-phone">{% tr 'Phone' %}</label><input id="id-phone" name="phone"></div>
+        <div class="form-field">
+            <label for="id-shipping">{% tr 'Shipping method' %}</label>
+            <select id="id-shipping" name="shipping_method">{% for m in shipping_methods %}<option value="{{ m.code }}">{{ m.name }}</option>{% endfor %}</select>
+        </div>
+        <div class="form-field">
+            <label for="id-payment">{% tr 'Payment method' %}</label>
+            <select id="id-payment" name="payment_method">{% for m in payment_methods %}<option value="{{ m.code }}">{{ m.name }}</option>{% endfor %}</select>
+        </div>
+    </div>
+    <div class="totals" style="margin-top:1.25rem">
+        <div class="totals-row grand"><span>{% tr 'Total' %}</span><span>{{ calculation.total }}</span></div>
+    </div>
+    <button class="btn btn-primary" style="margin-top:1rem" type="submit">{% tr 'Place order' %}</button>
 </form>
 {% endblock %}

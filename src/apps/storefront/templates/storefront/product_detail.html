@@ -1,9 +1,29 @@
 ﻿{% extends "storefront/base.html" %}
-{% block title %}{{ product.name }}{% endblock %}
+{% load strings %}
 {% block content %}
-<h2>{{ product.name }}</h2>
-<p>{{ product.description }}</p>
-<p class="price">{{ price }}</p>
-{% if variants %}<ul>{% for v in variants %}<li>{{ v.sku }} — {{ v.price }}</li>{% endfor %}</ul>{% endif %}
-<a href="{% url 'storefront:add_to_cart' product.id %}">Add to cart</a>
+<div class="cart-layout">
+    <div class="panel">
+        <h1>{{ product.name }}</h1>
+        <p>{{ product.description }}</p>
+        {% if variants %}
+            <h3>{% tr 'Variants' %}</h3>
+            <div class="table-wrap">
+                <table class="data">
+                    <thead><tr><th>{% tr 'SKU' %}</th><th>{% tr 'Price' %}</th></tr></thead>
+                    <tbody>
+                        {% for v in variants %}<tr><td>{{ v.sku }}</td><td>{{ v.price }}</td></tr>{% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% endif %}
+    </div>
+    <div class="panel">
+        <div class="price" style="font-size:1.5rem">{{ price }}</div>
+        <p class="price-muted">{% tr 'Incl. applicable taxes' %}</p>
+        <a class="btn btn-primary" href="{% url 'storefront:add_to_cart' product.id %}">{% tr 'Add to cart' %}</a>
+        {% if user.is_authenticated %}
+            <a class="btn btn-ghost" style="margin-top:.5rem" href="{% url 'storefront:wishlist_add' product.id %}">{% tr 'Add to wishlist' %}</a>
+        {% endif %}
+    </div>
+</div>
 {% endblock %}

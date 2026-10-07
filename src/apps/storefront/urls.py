@@ -34,5 +34,6 @@ urlpatterns = [
     path("blog/<slug:slug>/", views.blog_detail_view, name="blog_detail"),
     path("robots.txt", views.robots_txt_view, name="robots"),
     path("sitemap.xml", views.sitemap_xml_view, name="sitemap"),
+    path("i18n/setlang/", views.set_language_view, name="set_language"),
     path("<slug:slug>/", views.cms_page_view, name="cms_page"),
 ]

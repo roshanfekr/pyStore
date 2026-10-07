@@ -333,6 +333,26 @@ def blog_detail_view(request, slug):
     return render(request, "storefront/blog_detail.html", {"post": post, "seo": seo})
 
 
+def set_language_view(request):
+    from django.conf import settings
+
+    from apps.stores.services import get_language
+
+    if request.method == "POST":
+        code = (request.POST.get("language") or "").strip().split("-")[0].lower()
+        response = redirect(request.POST.get("next") or "/")
+        if get_language(code) is not None:
+            response.set_cookie(
+                settings.LANGUAGE_COOKIE_NAME,
+                code,
+                max_age=365 * 24 * 3600,
+                samesite="Lax",
+                httponly=True,
+            )
+        return response
+    return redirect("/")
+
+
 def robots_txt_view(request):
     return HttpResponse(
         build_robots_txt(request.build_absolute_uri("/").rstrip("/")),

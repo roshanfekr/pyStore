@@ -1,25 +1,72 @@
-﻿<!DOCTYPE html>
-<html lang="en">
+﻿{% load static %}
+{% load strings %}
+<!DOCTYPE html>
+<html lang="{{ storefront.active_language.code }}" dir="{{ storefront.active_language.direction|default:'ltr' }}">
 <head>
     <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>{% block title %}{{ storefront.branding.site_name }}{% endblock %}</title>
-    <style>body { font-family: sans-serif; margin: 2rem; } nav a { margin-right: 1rem; } .price { font-weight: bold; }</style>
+    <link rel="stylesheet" href="{% static 'storefront/css/main.css' %}">
+    {% block extra_head %}{% endblock %}
 </head>
 <body>
-<header>
-    <h1><a href="/">{{ storefront.branding.site_name }}</a></h1>
-    {% include "storefront/theme_banner.html" %}
-    <nav>
-        {% for item in storefront.menu_items %}<a href="{{ item.url }}">{{ item.title }}</a>{% endfor %}
-        <a href="{% url 'storefront:cart' %}">Cart</a>
-        <a href="{% url 'storefront:compare' %}">Compare</a>
-        <a href="{% url 'storefront:wishlist' %}">Wishlist</a>
-        {% if user.is_authenticated %}<a href="{% url 'storefront:account' %}">Account</a>
-        {% else %}<a href="{% url 'storefront:login' %}">Login</a> <a href="{% url 'storefront:register' %}">Register</a>{% endif %}
-    </nav>
-    <form action="/search/" method="get"><input type="text" name="q" placeholder="Search..."><button>Search</button></form>
+{% include "storefront/theme_banner.html" %}
+<header class="site-header">
+    <div class="header-inner">
+        <a class="logo" href="/"><span class="logo-mark">py</span>{{ storefront.branding.site_name }}</a>
+        <nav class="main-nav">
+            {% for item in storefront.menu_items %}<a href="{{ item.url }}">{{ item.title }}</a>{% endfor %}
+        </nav>
+        <form class="search-form" action="{% url 'storefront:search' %}" method="get">
+            <input type="text" name="q" placeholder="{% tr 'Search products…' %}" aria-label="{% tr 'Search' %}">
+            <button type="submit">{% tr 'Search' %}</button>
+        </form>
+        <div class="header-actions">
+            <a href="{% url 'storefront:wishlist' %}">{% tr 'Wishlist' %}</a>
+            <a href="{% url 'storefront:compare' %}">{% tr 'Compare' %}</a>
+            <a href="{% url 'storefront:cart' %}">{% tr 'Cart' %}</a>
+            {% if user.is_staff %}
+                <a href="{% url 'pystore_admin:index' %}">{% tr 'Admin' %}</a>
+            {% endif %}
+            {% if user.is_authenticated %}
+                <a href="{% url 'storefront:account' %}">{% tr 'Account' %}</a>
+                <a href="{% url 'storefront:logout' %}">{% tr 'Logout' %}</a>
+            {% else %}
+                <a href="{% url 'storefront:login' %}">{% tr 'Login' %}</a>
+                <a href="{% url 'storefront:register' %}">{% tr 'Register' %}</a>
+            {% endif %}
+        </div>
+        {% if storefront.languages|length > 1 %}
+        <form class="lang-form" action="{% url 'storefront:set_language' %}" method="post">
+            {% csrf_token %}
+            <input type="hidden" name="next" value="{{ request.path }}">
+            <select name="language" onchange="this.form.submit()" aria-label="{% tr 'Language' %}">
+                {% for lang in storefront.languages %}
+                    <option value="{{ lang.code }}" {% if lang.is_current %}selected{% endif %}>
+                        {% if lang.flag %}{{ lang.flag }} {% endif %}{{ lang.name }}
+                    </option>
+                {% endfor %}
+            </select>
+        </form>
+        {% endif %}
+    </div>
 </header>
-<main>{% block content %}{% endblock %}</main>
-<footer><p>{% include "storefront/theme_footer.html" %}</p></footer>
+<main>
+    {% block content %}{% endblock %}
+</main>
+<footer class="site-footer">
+    <div class="footer-inner">
+        <div>
+            <div class="footer-brand">{{ storefront.branding.site_name }}</div>
+            <div>{% tr 'Modern e-commerce platform' %}</div>
+        </div>
+        <div class="footer-links">
+            <a href="{% url 'storefront:home' %}">{% tr 'Home' %}</a>
+            <a href="{% url 'storefront:cart' %}">{% tr 'Cart' %}</a>
+            <a href="{% url 'storefront:account' %}">{% tr 'Account' %}</a>
+        </div>
+    </div>
+    <div class="footer-note">{% include "storefront/theme_footer.html" %}</div>
+</footer>
 </body>
 </html>

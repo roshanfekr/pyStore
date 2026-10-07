@@ -91,6 +91,15 @@ def test_dashboard_shows_stats(client, admin_user, paid_order):
     assert "Low stock alerts" in content
 
 
+def test_admin_sidebar_links_plugins_and_reports(client, admin_user):
+    client.force_login(admin_user)
+    for page in ("/admin/", "/admin/plugins/", "/admin/reports/"):
+        response = client.get(page)
+        content = response.content.decode()
+        assert 'href="/admin/plugins/"' in content, f"Plugins sidebar link missing on {page}"
+        assert 'href="/admin/reports/"' in content, f"Reports sidebar link missing on {page}"
+
+
 def test_all_sections_load_for_superuser(client, admin_user, paid_order, store):
     client.force_login(admin_user)
     sections = [
@@ -125,6 +134,7 @@ def test_all_sections_load_for_superuser(client, admin_user, paid_order, store):
         "/admin/cms/contentblock/",
         "/admin/media/mediafile/",
         "/admin/cart/cart/",
+        "/admin/core/pluginstate/",
     ]
     for path in sections:
         response = client.get(path)
@@ -238,7 +248,7 @@ def test_reports_view(client, admin_user, paid_order):
     client.force_login(admin_user)
     response = client.get("/admin/reports/")
     content = response.content.decode()
-    assert "Revenue" in content
+    assert "Total revenue" in content
     assert "Orders by status" in content
     assert "Most used discounts" in content
 
@@ -249,6 +259,51 @@ def test_plugins_view_lists_plugins(client, admin_user):
     content = response.content.decode()
     assert "payment_dummy" in content
     assert "shipping_dummy" in content
+
+
+def test_plugin_lifecycle_through_admin(client, admin_user, db):
+    from core.plugins.models import PluginState
+
+    client.force_login(admin_user)
+
+    response = client.post(
+        "/admin/plugins/", {"action": "install", "plugin_id": "payment_dummy"}, follow=True
+    )
+    assert "installed successfully" in response.content.decode()
+    assert PluginState.objects.get(plugin_id="payment_dummy").status == "installed"
+
+    client.post("/admin/plugins/", {"action": "enable", "plugin_id": "payment_dummy"})
+    assert PluginState.objects.get(plugin_id="payment_dummy").status == "enabled"
+
+    client.post("/admin/plugins/", {"action": "disable", "plugin_id": "payment_dummy"})
+    assert PluginState.objects.get(plugin_id="payment_dummy").status == "disabled"
+
+    client.post("/admin/plugins/", {"action": "uninstall", "plugin_id": "payment_dummy"}, follow=True)
+    assert not PluginState.objects.filter(plugin_id="payment_dummy").exists()
+
+
+def test_plugin_action_blocked_for_non_superuser(client, limited_staff):
+    from core.plugins.models import PluginState
+
+    client.force_login(limited_staff)
+    response = client.post(
+        "/admin/plugins/", {"action": "install", "plugin_id": "payment_dummy"}, follow=True
+    )
+    assert "Only superusers can manage plugins" in response.content.decode()
+    assert not PluginState.objects.filter(plugin_id="payment_dummy").exists()
+
+
+def test_uninstall_requires_disabled_plugin(client, admin_user, db):
+    from core.plugins.models import PluginState
+
+    client.force_login(admin_user)
+    client.post("/admin/plugins/", {"action": "install", "plugin_id": "payment_dummy"})
+
+    response = client.post(
+        "/admin/plugins/", {"action": "uninstall", "plugin_id": "payment_dummy"}, follow=True
+    )
+    assert "must be disabled" in response.content.decode()
+    assert PluginState.objects.filter(plugin_id="payment_dummy").exists()
 
 
 def test_pagination_in_changelist(client, admin_user, store):

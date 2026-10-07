@@ -1,4 +1,4 @@
-from django.contrib import admin, messages
+﻿from django.contrib import admin, messages
 from django.template.response import TemplateResponse
 
 from apps.cart.models import Cart, CartItem, CompareItem, WishlistItem
@@ -56,15 +56,71 @@ from apps.pricing.models import (
     TaxRate,
 )
 from apps.reviews.models import ProductReview
-from apps.stores.models import Store, StoreDomain
+from apps.stores.models import Language, LocaleStringResource, Store, StoreDomain
 from apps.vendors.models import Vendor, VendorUser
 from core.audit.models import AuditLog
 from core.exceptions import ValidationError
+from core.plugins.models import PluginState
 
 CANCELLABLE_STATUSES = (Order.STATUS_PENDING, Order.STATUS_PROCESSING, Order.STATUS_PAID)
 
 
-class ReadOnlyAdmin(admin.ModelAdmin):
+class DeletedListFilter(admin.SimpleListFilter):
+    title = "deleted state"
+    parameter_name = "deleted"
+
+    def lookups(self, request, model_admin):
+        return (("no", "Active only"), ("yes", "Deleted"))
+
+    def queryset(self, request, queryset):
+        model = queryset.model
+        if self.value() == "yes":
+            if hasattr(model, "all_objects"):
+                return model.all_objects.filter(is_deleted=True)
+            return queryset.none()
+        if self.value() == "no":
+            if hasattr(model, "is_deleted"):
+                return queryset.filter(is_deleted=False)
+            return queryset
+        return queryset
+
+
+class PyStoreModelAdmin(admin.ModelAdmin):
+    """Base admin for soft-delete models.
+
+    Hides the is_deleted bookkeeping fields from forms (deleting is done
+    with the standard Delete button — the model's delete() is a soft delete)
+    and adds a deleted-state filter plus a restore bulk action.
+    """
+
+    exclude = ("is_deleted", "deleted_at")
+
+    def get_list_filter(self, request):
+        return tuple(super().get_list_filter(request)) + (DeletedListFilter,)
+
+    def get_actions(self, request):
+        actions = dict(super().get_actions(request))
+        actions.setdefault(
+            "restore_selected",
+            (
+                PyStoreModelAdmin.restore_selected,
+                "restore_selected",
+                "Restore selected (undo delete)",
+            ),
+        )
+        return actions
+
+    @admin.action(description="Restore selected (undo delete)")
+    def restore_selected(self, request, queryset):
+        restored = 0
+        for obj in queryset:
+            if getattr(obj, "is_deleted", False):
+                obj.restore()
+                restored += 1
+        self.message_user(request, f"{restored} item(s) restored.")
+
+
+class ReadOnlyAdmin(PyStoreModelAdmin):
     def has_add_permission(self, request):
         return False
 
@@ -73,6 +129,29 @@ class ReadOnlyAdmin(admin.ModelAdmin):
 
     def has_delete_permission(self, request, obj=None):
         return False
+
+
+class GranularPermissionAdmin(PyStoreModelAdmin):
+    """Gates write actions on granular dotted permissions.
+
+    perm_map keys: add / change / delete. Superusers pass through the
+    identity PermissionBackend (they hold every seeded codename).
+    """
+
+    perm_map: dict[str, str] = {}
+
+    def _perm(self, request, action: str) -> bool:
+        codename = self.perm_map.get(action)
+        return bool(codename) and request.user.has_perm(codename)
+
+    def has_add_permission(self, request):
+        return self._perm(request, "add")
+
+    def has_change_permission(self, request, obj=None):
+        return self._perm(request, "change")
+
+    def has_delete_permission(self, request, obj=None):
+        return self._perm(request, "delete")
 
 
 def confirm_action(request, model_admin, queryset, action_name, title, warning):
@@ -87,19 +166,19 @@ def confirm_action(request, model_admin, queryset, action_name, title, warning):
     return TemplateResponse(request, "admin_panel/confirm_action.html", context)
 
 
-class CategoryAdmin(admin.ModelAdmin):
+class CategoryAdmin(PyStoreModelAdmin):
     list_display = ("name", "slug", "parent", "is_active", "ordering")
     list_filter = ("is_active", "parent")
     search_fields = ("name", "slug")
 
 
-class BrandAdmin(admin.ModelAdmin):
+class BrandAdmin(PyStoreModelAdmin):
     list_display = ("name", "slug", "is_active")
     search_fields = ("name",)
     list_filter = ("is_active",)
 
 
-class TagAdmin(admin.ModelAdmin):
+class TagAdmin(PyStoreModelAdmin):
     list_display = ("name", "slug")
     search_fields = ("name",)
 
@@ -124,7 +203,7 @@ class ProductSEOInline(admin.StackedInline):
     extra = 0
 
 
-class ProductAdmin(admin.ModelAdmin):
+class ProductAdmin(PyStoreModelAdmin):
     list_display = ("name", "slug", "store", "product_type", "price", "stock_quantity", "is_published")
     list_filter = ("product_type", "is_published", "store", "brand")
     search_fields = ("name", "slug", "sku", "description")
@@ -144,28 +223,28 @@ class ProductAdmin(admin.ModelAdmin):
         self.message_user(request, f"{updated} product(s) unpublished.")
 
 
-class ProductAttributeAdmin(admin.ModelAdmin):
+class ProductAttributeAdmin(PyStoreModelAdmin):
     list_display = ("name", "slug", "value_type", "is_variant_option")
     list_filter = ("value_type",)
     search_fields = ("name", "slug")
 
 
-class ProductAttributeValueAdmin(admin.ModelAdmin):
+class ProductAttributeValueAdmin(PyStoreModelAdmin):
     list_display = ("attribute", "value", "position")
     list_filter = ("attribute",)
 
 
-class WarehouseAdmin(admin.ModelAdmin):
+class WarehouseAdmin(PyStoreModelAdmin):
     list_display = ("name", "code", "store", "city", "is_default")
     search_fields = ("name", "code")
 
 
-class WarehouseLocationAdmin(admin.ModelAdmin):
+class WarehouseLocationAdmin(PyStoreModelAdmin):
     list_display = ("warehouse", "code")
     search_fields = ("code",)
 
 
-class InventoryItemAdmin(admin.ModelAdmin):
+class InventoryItemAdmin(PyStoreModelAdmin):
     list_display = (
         "__str__", "warehouse", "stock_quantity", "reserved_quantity",
         "low_stock_threshold", "stock_status",
@@ -183,7 +262,8 @@ class InventoryTransactionAdmin(ReadOnlyAdmin):
     date_hierarchy = "created_at"
 
 
-class UserAdmin(admin.ModelAdmin):
+class UserAdmin(GranularPermissionAdmin):
+    perm_map = {"add": "identity.users.manage", "change": "identity.users.manage", "delete": "identity.users.manage"}
     list_display = ("email", "user_type", "is_active", "is_staff", "email_verified", "date_joined")
     list_filter = ("user_type", "is_active", "is_staff", "email_verified")
     search_fields = ("email", "first_name", "last_name")
@@ -200,13 +280,13 @@ class UserAdmin(admin.ModelAdmin):
         return form
 
 
-class CustomerAdmin(admin.ModelAdmin):
-    list_display = ("id", "user", "phone", "is_deleted")
+class CustomerAdmin(PyStoreModelAdmin):
+    list_display = ("id", "user", "phone")
     search_fields = ("user__email", "phone")
-    list_filter = ("is_deleted",)
 
 
-class RoleAdmin(admin.ModelAdmin):
+class RoleAdmin(GranularPermissionAdmin):
+    perm_map = {"add": "identity.roles.manage", "change": "identity.roles.manage", "delete": "identity.roles.manage"}
     list_display = ("name", "is_system", "display_permissions")
     search_fields = ("name",)
     filter_horizontal = ("permissions", "users")
@@ -216,13 +296,14 @@ class RoleAdmin(admin.ModelAdmin):
         return ", ".join(p.codename for p in obj.permissions.all()[:5])
 
 
-class PermissionAdmin(admin.ModelAdmin):
+class PermissionAdmin(GranularPermissionAdmin):
+    perm_map = {"add": "identity.roles.manage", "change": "identity.roles.manage", "delete": "identity.roles.manage"}
     list_display = ("codename", "source", "display_name")
     list_filter = ("source",)
     search_fields = ("codename",)
 
 
-class OrderAdmin(admin.ModelAdmin):
+class OrderAdmin(PyStoreModelAdmin):
     list_display = (
         "number", "store", "email", "status", "payment_status", "shipment_status", "total", "created_at",
     )
@@ -234,7 +315,7 @@ class OrderAdmin(admin.ModelAdmin):
 
     @admin.action(description="Cancel selected orders (confirmation required)")
     def cancel_orders(self, request, queryset):
-        if not request.user.has_perm("orders.cancel"):
+        if not request.user.has_perm("order.cancel"):
             messages.error(request, "Permission denied: 'order.cancel' permission required.")
             return None
 
@@ -295,7 +376,7 @@ class OrderAdmin(admin.ModelAdmin):
         return None
 
 
-class OrderItemAdmin(admin.ModelAdmin):
+class OrderItemAdmin(PyStoreModelAdmin):
     list_display = ("order", "product_name", "sku", "quantity", "unit_price", "line_total")
     search_fields = ("product_name", "sku", "order__number")
 
@@ -311,7 +392,7 @@ class RefundAdmin(ReadOnlyAdmin):
     date_hierarchy = "created_at"
 
 
-class ReturnRequestAdmin(admin.ModelAdmin):
+class ReturnRequestAdmin(PyStoreModelAdmin):
     list_display = ("order", "status", "reason", "user", "created_at")
     list_filter = ("status",)
     actions = ["approve_requests", "reject_requests"]
@@ -329,22 +410,24 @@ class ReturnRequestAdmin(admin.ModelAdmin):
         self.message_user(request, "Requested returns rejected.")
 
 
-class PriceListAdmin(admin.ModelAdmin):
+class PriceListAdmin(GranularPermissionAdmin):
+    perm_map = {"add": "pricing.manage", "change": "pricing.manage", "delete": "pricing.manage"}
     list_display = ("name", "store", "role", "customer", "priority", "is_active")
     list_filter = ("is_active",)
     inlines = []
 
 
-class PriceListEntryAdmin(admin.ModelAdmin):
+class PriceListEntryAdmin(PyStoreModelAdmin):
     list_display = ("price_list", "product", "variant", "price", "min_quantity", "max_quantity")
 
 
-class ScheduledPriceAdmin(admin.ModelAdmin):
+class ScheduledPriceAdmin(PyStoreModelAdmin):
     list_display = ("product", "variant", "price", "start_at", "end_at", "is_active")
     list_filter = ("is_active",)
 
 
-class DiscountAdmin(admin.ModelAdmin):
+class DiscountAdmin(GranularPermissionAdmin):
+    perm_map = {"add": "discounts.manage", "change": "discounts.manage", "delete": "discounts.manage"}
     list_display = ("name", "coupon_code", "discount_type", "value", "scope", "used_count", "is_active")
     list_filter = ("discount_type", "scope", "is_active")
     search_fields = ("name", "coupon_code")
@@ -365,73 +448,102 @@ class DiscountUsageAdmin(ReadOnlyAdmin):
     list_display = ("discount", "user", "reference", "used_at")
 
 
-class TaxClassAdmin(admin.ModelAdmin):
+class TaxClassAdmin(GranularPermissionAdmin):
+    perm_map = {"add": "taxes.manage", "change": "taxes.manage", "delete": "taxes.manage"}
     list_display = ("name", "is_default")
 
 
-class TaxRateAdmin(admin.ModelAdmin):
+class TaxRateAdmin(GranularPermissionAdmin):
+    perm_map = {"add": "taxes.manage", "change": "taxes.manage", "delete": "taxes.manage"}
     list_display = ("name", "tax_class", "rate", "country", "state", "is_active")
     list_filter = ("tax_class", "is_active")
 
 
-class StoreAdmin(admin.ModelAdmin):
+class LanguageAdmin(GranularPermissionAdmin):
+    perm_map = {"add": "stores.manage", "change": "stores.manage", "delete": "stores.manage"}
+    list_display = ("name", "code", "direction", "is_active", "is_default", "ordering")
+    list_editable = ("is_active", "ordering")
+    list_filter = ("is_active", "direction", "is_default")
+    search_fields = ("name", "code")
+    fields = ("name", "code", "is_active", "is_default", "direction", "flag", "ordering")
+
+
+class LocaleStringResourceAdmin(GranularPermissionAdmin):
+    perm_map = {"add": "stores.manage", "change": "stores.manage", "delete": "stores.manage"}
+    list_display = ("key", "language", "value_snippet")
+    list_filter = ("language",)
+    search_fields = ("key", "value")
+    list_select_related = ("language",)
+
+    @admin.display(description="Value")
+    def value_snippet(self, obj):
+        return obj.value[:80]
+
+    def get_queryset(self, request):
+        return super().get_queryset(request).filter(language__is_active=True)
+
+
+class StoreAdmin(GranularPermissionAdmin):
+    perm_map = {"add": "stores.manage", "change": "stores.manage", "delete": "stores.manage"}
     list_display = ("name", "slug", "is_default", "is_active", "default_currency")
     search_fields = ("name", "slug")
 
 
-class StoreDomainAdmin(admin.ModelAdmin):
+class StoreDomainAdmin(GranularPermissionAdmin):
+    perm_map = {"add": "stores.manage", "change": "stores.manage", "delete": "stores.manage"}
     list_display = ("domain", "store", "is_primary", "ssl_enabled")
     search_fields = ("domain",)
 
 
-class VendorAdmin(admin.ModelAdmin):
+class VendorAdmin(GranularPermissionAdmin):
+    perm_map = {"add": "vendor.manage", "change": "vendor.manage", "delete": "vendor.manage"}
     list_display = ("name", "slug", "status", "store", "owner")
     list_filter = ("status",)
     search_fields = ("name", "slug")
 
 
-class VendorUserAdmin(admin.ModelAdmin):
+class VendorUserAdmin(PyStoreModelAdmin):
     list_display = ("vendor", "user", "is_admin")
 
 
-class PaymentMethodAdmin(admin.ModelAdmin):
+class PaymentMethodAdmin(PyStoreModelAdmin):
     list_display = ("name", "code", "is_active")
     list_filter = ("is_active",)
 
 
-class ShippingMethodAdmin(admin.ModelAdmin):
+class ShippingMethodAdmin(PyStoreModelAdmin):
     list_display = ("name", "code", "store", "flat_price", "is_active")
     list_filter = ("store", "is_active")
 
 
-class PageAdmin(admin.ModelAdmin):
+class PageAdmin(PyStoreModelAdmin):
     list_display = ("title", "slug", "is_published")
     search_fields = ("title", "slug")
     list_filter = ("is_published",)
 
 
-class BlogPostAdmin(admin.ModelAdmin):
+class BlogPostAdmin(PyStoreModelAdmin):
     list_display = ("title", "slug", "author", "is_published", "published_at")
     search_fields = ("title",)
     list_filter = ("is_published",)
 
 
-class MenuAdmin(admin.ModelAdmin):
+class MenuAdmin(PyStoreModelAdmin):
     list_display = ("name", "slug")
     search_fields = ("name",)
 
 
-class WidgetAdmin(admin.ModelAdmin):
+class WidgetAdmin(PyStoreModelAdmin):
     list_display = ("name", "slug", "widget_type", "is_active")
     list_filter = ("widget_type", "is_active")
 
 
-class ContentBlockAdmin(admin.ModelAdmin):
+class ContentBlockAdmin(PyStoreModelAdmin):
     list_display = ("name", "slug", "is_active")
     search_fields = ("name", "slug")
 
 
-class MediaFileAdmin(admin.ModelAdmin):
+class MediaFileAdmin(PyStoreModelAdmin):
     list_display = ("original_name", "media_type", "size", "uploaded_by", "created_at")
     list_filter = ("media_type",)
     search_fields = ("original_name",)
@@ -440,13 +552,13 @@ class MediaFileAdmin(admin.ModelAdmin):
         return False
 
 
-class NotificationTemplateAdmin(admin.ModelAdmin):
+class NotificationTemplateAdmin(PyStoreModelAdmin):
     list_display = ("code", "event_name", "channel", "store", "is_active")
     list_filter = ("channel", "is_active", "store")
     search_fields = ("code", "name", "event_name")
 
 
-class WebhookEndpointAdmin(admin.ModelAdmin):
+class WebhookEndpointAdmin(PyStoreModelAdmin):
     list_display = ("target_url", "is_active", "display_events", "description")
     list_filter = ("is_active",)
     search_fields = ("target_url",)
@@ -466,7 +578,7 @@ class NotificationMessageAdmin(ReadOnlyAdmin):
     date_hierarchy = "created_at"
 
 
-class NotificationAdmin(admin.ModelAdmin):
+class NotificationAdmin(PyStoreModelAdmin):
     list_display = ("user", "title", "level", "is_read", "read_at", "created_at")
     list_filter = ("level", "is_read")
     search_fields = ("title", "user__email")
@@ -483,7 +595,7 @@ class NotificationAdmin(admin.ModelAdmin):
         self.message_user(request, f"{count} notification(s) marked as read.")
 
 
-class ProductReviewAdmin(admin.ModelAdmin):
+class ProductReviewAdmin(PyStoreModelAdmin):
     list_display = (
         "product", "user", "rating", "status", "is_verified_purchase",
         "moderated_by", "created_at",
@@ -547,6 +659,12 @@ class AuditLogAdmin(ReadOnlyAdmin):
     date_hierarchy = "created_at"
 
 
+class PluginStateAdmin(PyStoreModelAdmin):
+    list_display = ("plugin_id", "name", "version", "status", "installed_at", "updated_at")
+    list_filter = ("status",)
+    search_fields = ("plugin_id", "name")
+
+
 def register_all(admin_site):
     registrations = {
         Category: CategoryAdmin,
@@ -555,9 +673,9 @@ def register_all(admin_site):
         Product: ProductAdmin,
         ProductAttribute: ProductAttributeAdmin,
         ProductAttributeValue: ProductAttributeValueAdmin,
-        ProductBundleItem: admin.ModelAdmin,
-        ProductDownload: admin.ModelAdmin,
-        ProductRelation: admin.ModelAdmin,
+        ProductBundleItem: PyStoreModelAdmin,
+        ProductDownload: PyStoreModelAdmin,
+        ProductRelation: PyStoreModelAdmin,
         Warehouse: WarehouseAdmin,
         WarehouseLocation: WarehouseLocationAdmin,
         InventoryItem: InventoryItemAdmin,
@@ -571,9 +689,9 @@ def register_all(admin_site):
         OrderStatusLog: OrderStatusLogAdmin,
         Refund: RefundAdmin,
         ReturnRequest: ReturnRequestAdmin,
-        ReturnRequestItem: admin.ModelAdmin,
-        OrderNote: admin.ModelAdmin,
-        OrderAddress: admin.ModelAdmin,
+        ReturnRequestItem: PyStoreModelAdmin,
+        OrderNote: PyStoreModelAdmin,
+        OrderAddress: PyStoreModelAdmin,
         PriceList: PriceListAdmin,
         PriceListEntry: PriceListEntryAdmin,
         ScheduledPrice: ScheduledPriceAdmin,
@@ -581,31 +699,34 @@ def register_all(admin_site):
         DiscountUsage: DiscountUsageAdmin,
         TaxClass: TaxClassAdmin,
         TaxRate: TaxRateAdmin,
-        CustomerTaxInfo: admin.ModelAdmin,
-        ProductTaxSetting: admin.ModelAdmin,
+        CustomerTaxInfo: PyStoreModelAdmin,
+        ProductTaxSetting: PyStoreModelAdmin,
         Store: StoreAdmin,
         StoreDomain: StoreDomainAdmin,
+        Language: LanguageAdmin,
+        LocaleStringResource: LocaleStringResourceAdmin,
         Vendor: VendorAdmin,
         VendorUser: VendorUserAdmin,
         PaymentMethod: PaymentMethodAdmin,
         ShippingMethod: ShippingMethodAdmin,
         Page: PageAdmin,
-        BlogCategory: admin.ModelAdmin,
+        BlogCategory: PyStoreModelAdmin,
         BlogPost: BlogPostAdmin,
         Menu: MenuAdmin,
-        MenuItem: admin.ModelAdmin,
+        MenuItem: PyStoreModelAdmin,
         Widget: WidgetAdmin,
         ContentBlock: ContentBlockAdmin,
-        Cart: admin.ModelAdmin,
-        CartItem: admin.ModelAdmin,
-        WishlistItem: admin.ModelAdmin,
-        CompareItem: admin.ModelAdmin,
+        Cart: PyStoreModelAdmin,
+        CartItem: PyStoreModelAdmin,
+        WishlistItem: PyStoreModelAdmin,
+        CompareItem: PyStoreModelAdmin,
         NotificationTemplate: NotificationTemplateAdmin,
         WebhookEndpoint: WebhookEndpointAdmin,
         NotificationMessage: NotificationMessageAdmin,
         Notification: NotificationAdmin,
         ProductReview: ProductReviewAdmin,
         AuditLog: AuditLogAdmin,
+        PluginState: PluginStateAdmin,
     }
 
     from apps.media.models import MediaFile
@@ -617,3 +738,4 @@ def register_all(admin_site):
             admin_site.register(model, admin_class)
         except admin.sites.AlreadyRegistered:
             pass
+

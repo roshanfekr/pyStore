@@ -70,7 +70,10 @@ def test_registration_creates_customer_and_assigns_role(with_default_roles):
 def test_role_and_permission_models(db, role):
     from apps.identity.models import Permission
 
-    perm = Permission.objects.create(codename="catalog.product.view", source="core")
+    perm, _ = Permission.objects.get_or_create(
+        codename="catalog.product.view",
+        defaults={"source": "core"},
+    )
     role.permissions.add(perm)
     assert list(role.permissions.all()) == [perm]
     assert perm.source == "core"

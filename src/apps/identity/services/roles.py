@@ -36,6 +36,42 @@ def ensure_default_roles() -> None:
     ensure_role("Customers", "Default customer role", is_system=True)
 
 
+def sync_default_permissions() -> int:
+    """Seed every default permission codename. Idempotent; returns created count."""
+    from apps.identity.permissions import DEFAULT_PERMISSIONS
+
+    created = 0
+    for codename, display_name in DEFAULT_PERMISSIONS:
+        _, was_created = ensure_permission(codename, display_name=display_name, source="core")
+        if was_created:
+            created += 1
+    return created
+
+
+def sync_default_role_permissions() -> None:
+    """Ensure default roles exist and carry their default permission sets."""
+    from apps.identity.permissions import default_role_permission_map
+
+    ensure_default_roles()
+    permission_by_code = {p.codename: p for p in Permission.objects.all()}
+    for role_name, codenames in default_role_permission_map().items():
+        role = Role.objects.get(name=role_name)
+        if role_name == "Administrators":
+            # Administrators always hold every permission, including ones
+            # added later (e.g. by plugins or future features).
+            role.permissions.set(Permission.objects.all())
+            continue
+        role.permissions.set(
+            [permission_by_code[code] for code in codenames if code in permission_by_code]
+        )
+
+
+def sync_defaults() -> None:
+    """Full default seed: permissions then role assignments."""
+    sync_default_permissions()
+    sync_default_role_permissions()
+
+
 def sync_plugin_permissions() -> int:
     from core.plugins.permissions import permission_registry
 

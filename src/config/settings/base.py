@@ -55,6 +55,7 @@ BUSINESS_APPS = [
 
 SEARCH_BACKEND = env.str("SEARCH_BACKEND", default="database")
 
+from core.plugins import theme_discovery  # noqa: E402
 from core.plugins.loader import get_discovered_plugin_apps  # noqa: E402
 
 PLUGIN_APPS = get_discovered_plugin_apps()
@@ -64,6 +65,7 @@ INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + BUSINESS_APPS + CORE_APPS + PL
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
+    "apps.stores.middleware.DbLocaleMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
@@ -75,10 +77,19 @@ MIDDLEWARE = [
 
 ROOT_URLCONF = "config.urls"
 
+_active_theme = env.str("ACTIVE_THEME", default="default")
+
 TEMPLATES = [
     {
         "BACKEND": "django.template.backends.django.DjangoTemplates",
-        "DIRS": [BASE_DIR / "themes" / env.str("ACTIVE_THEME", default="default") / "templates"],
+        "DIRS": [
+            dir
+            for dir in [
+                BASE_DIR / "templates",
+                theme_discovery.theme_template_dir(_active_theme),
+            ]
+            if dir is not None and dir.exists()
+        ],
         "APP_DIRS": True,
         "OPTIONS": {
             "context_processors": [
@@ -96,7 +107,10 @@ WSGI_APPLICATION = "config.wsgi.application"
 DATABASES = {
     "default": env.db(
         "DATABASE_URL",
-        default="postgres://pystore:pystore@localhost:5432/pystore",
+        default=(
+            "mssql://pystore:pystore@localhost:1433/pystore"
+            "?driver=ODBC+Driver+17+for+SQL+Server&TrustServerCertificate=yes"
+        ),
     )
 }
 
@@ -202,7 +216,12 @@ MEDIA_ALLOWED_EXTENSIONS = env.list(
     default=["png", "jpg", "jpeg", "gif", "webp", "mp4", "webm", "mov", "pdf", "zip"],
 )
 
-LANGUAGE_CODE = "en-us"
+LANGUAGE_CODE = "en"
+
+# Translations resolve from the DB catalog (LocaleStringResource) via the
+# DbLocaleMiddleware; gettext catalogs under src/locale are a fallback.
+LOCALE_PATHS = [BASE_DIR / "locale"]
+LANGUAGE_COOKIE_NAME = "pystore_language"
 
 TIME_ZONE = "UTC"
 
@@ -220,10 +239,12 @@ DEFAULT_FILE_STORAGE = env.str(
     "DEFAULT_FILE_STORAGE", default="django.core.files.storage.FileSystemStorage"
 )
 
-ACTIVE_THEME = env.str("ACTIVE_THEME", default="default")
+ACTIVE_THEME = _active_theme
 
 STATICFILES_DIRS = [
-    dir for dir in [BASE_DIR / "themes" / ACTIVE_THEME / "static"] if dir.exists()
+    dir
+    for dir in [theme_discovery.theme_static_dir(ACTIVE_THEME)]
+    if dir is not None and dir.exists()
 ]
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"

@@ -26,6 +26,35 @@ class Plugin:
     def get_admin_urls(self):
         return []
 
+    def get_storefront_hooks(self):
+        """Map storefront hook names to template partials.
+
+        Example: {"home_middle": ["slider/slider.html"]}
+        """
+        return {}
+
+    def get_hook_context(self, hook_name: str) -> dict:
+        """Extra template context for a storefront hook partial."""
+        return {}
+
+    def get_settings_schema(self):
+        """Declarative settings fields for the admin settings page.
+
+        Example: {"autoplay_ms": {"label": "Autoplay (ms)", "type": "integer"}}
+        Supported types: string, text, integer, boolean.
+        """
+        return {}
+
+    def get_price_modifiers(self):
+        """Callables that can adjust the final sale price of a product.
+
+        Each modifier receives ``(product, variant, price, context)`` and
+        returns either the new price (Decimal) or None to keep the current
+        price. Modifiers of enabled plugins are applied in plugin id order
+        after the pricing provider (price lists, scheduled prices).
+        """
+        return []
+
     def get_event_handlers(self):
         return {}
 

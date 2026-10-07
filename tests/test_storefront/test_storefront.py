@@ -61,7 +61,7 @@ def test_home_shows_published_products(client, store, published_product):
     assert response.status_code == 200
     content = response.content.decode()
     assert "Storefront Product" in content
-    assert "theme-banner" in content
+    assert "announcement" in content
 
 
 def test_theme_template_override_mechanism(client, store, settings):
@@ -80,6 +80,26 @@ def test_theme_template_override_mechanism(client, store, settings):
 def test_theme_branding_in_base(client, settings, store):
     response = client.get("/")
     assert "pyStore" in response.content.decode()
+
+
+def test_admin_link_shown_only_for_staff(client, store):
+    User = get_user_model()
+
+    staff = User.objects.create_user(
+        email="header-staff@example.com", password="Str0ng!Passw0rd", is_staff=True
+    )
+    client.force_login(staff)
+    content = client.get("/").content.decode()
+    assert 'href="/admin/"' in content
+
+    customer = User.objects.create_user(email="header-cust@example.com", password="Str0ng!Passw0rd")
+    client.force_login(customer)
+    content = client.get("/").content.decode()
+    assert 'href="/admin/"' not in content
+
+    client.logout()
+    content = client.get("/").content.decode()
+    assert 'href="/admin/"' not in content
 
 
 def test_category_page_with_descendants(client, store, published_product):

@@ -267,6 +267,80 @@ class PluginManager:
         stored = state.settings if state else {}
         return {**defaults, **stored}
 
+    def enabled_storefront_hooks(self, hook_name: str) -> list[tuple[str, str]]:
+        """(plugin_id, template_name) pairs for enabled plugins on a hook."""
+        pairs: list[tuple[str, str]] = []
+        for info in self.list_plugins():
+            if info.status != STATUS_ENABLED:
+                continue
+            try:
+                plugin = self.get_class(info.plugin_id)()
+                hook_templates = plugin.get_storefront_hooks()
+            except Exception:
+                continue
+            for template_name in dict(hook_templates or {}).get(hook_name, []):
+                pairs.append((info.plugin_id, template_name))
+        return pairs
+
+    def plugin_has_settings_schema(self, plugin_id: str) -> bool:
+        try:
+            plugin = self.get_class(plugin_id)()
+        except PluginError:
+            return False
+        return bool(plugin.get_settings_schema())
+
+    def enabled_price_modifiers(self) -> list[tuple[str, object]]:
+        """(plugin_id, modifier) pairs of enabled plugins, in plugin id order."""
+        modifiers: list[tuple[str, object]] = []
+        for info in self.list_plugins():
+            if info.status != STATUS_ENABLED:
+                continue
+            try:
+                plugin = self.get_class(info.plugin_id)()
+                modifiers.extend(
+                    (info.plugin_id, modifier)
+                    for modifier in plugin.get_price_modifiers()
+                )
+            except Exception:
+                continue
+        return modifiers
+
+    def discovered_admin_urls(self) -> list[tuple[str, list]]:
+        """(plugin_id, urlpatterns) for all discovered plugins exposing admin pages.
+
+        Mounting is independent of the enabled state so URL reversing is stable;
+        views must check `is_plugin_enabled` at request time.
+        """
+        pairs: list[tuple[str, list]] = []
+        for record in self.registry.all():
+            try:
+                plugin = self.get_class(record.plugin_id)()
+                urls = list(plugin.get_admin_urls())
+            except Exception:
+                continue
+            if urls:
+                pairs.append((record.plugin_id, urls))
+        return pairs
+
+    def is_plugin_enabled(self, plugin_id: str) -> bool:
+        state = PluginState.objects.filter(plugin_id=plugin_id).first()
+        return state is not None and state.status == STATUS_ENABLED
+
+    def enabled_admin_urls(self) -> list[tuple[str, list]]:
+        """(plugin_id, urlpatterns) for enabled plugins exposing admin pages."""
+        pairs: list[tuple[str, list]] = []
+        for info in self.list_plugins():
+            if info.status != STATUS_ENABLED:
+                continue
+            try:
+                plugin = self.get_class(info.plugin_id)()
+                urls = list(plugin.get_admin_urls())
+            except Exception:
+                continue
+            if urls:
+                pairs.append((info.plugin_id, urls))
+        return pairs
+
     def set_settings(self, plugin_id: str, values: dict) -> dict:
         state = self._require_state(plugin_id)
         state.settings = {**(state.settings or {}), **values}

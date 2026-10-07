@@ -1,0 +1,34 @@
+{% load static %}
+{% load slider_tags %}
+{% with slides=plugin_settings.images|parse_slides %}
+{% if slides %}
+<link rel="stylesheet" href="{% static 'slider/css/slider.css' %}">
+<section class="pslider"
+         data-autoplay="{{ plugin_settings.autoplay_ms }}"
+         style="--pslider-h: {{ plugin_settings.height }}px">
+    <div class="pslider-viewport">
+        {% for slide in slides %}
+            <figure class="pslider-slide{% if forloop.first %} is-active{% endif %}">
+                <img src="{{ slide.url }}" alt="{{ slide.caption|default:'Slide'|striptags }}" loading="lazy">
+                {% if slide.caption %}<figcaption class="pslider-caption">{{ slide.caption }}</figcaption>{% endif %}
+            </figure>
+        {% endfor %}
+    </div>
+
+    {% if plugin_settings.show_arrows %}
+        <button type="button" class="pslider-arrow is-prev" aria-label="Previous slide">&#10094;</button>
+        <button type="button" class="pslider-arrow is-next" aria-label="Next slide">&#10095;</button>
+    {% endif %}
+
+    {% if plugin_settings.show_indicators %}
+        <div class="pslider-dots" role="tablist">
+            {% for slide in slides %}
+                <button type="button" class="pslider-dot{% if forloop.first %} is-active{% endif %}"
+                        data-index="{{ forloop.counter0 }}" aria-label="Go to slide {{ forloop.counter }}"></button>
+            {% endfor %}
+        </div>
+    {% endif %}
+</section>
+<script src="{% static 'slider/js/slider.js' %}" defer></script>
+{% endif %}
+{% endwith %}

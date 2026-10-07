@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 600" width="1600" height="600">
+    <defs>
+        <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0" stop-color="#064e3b"/>
+            <stop offset="0.55" stop-color="#059669"/>
+            <stop offset="1" stop-color="#34d399"/>
+        </linearGradient>
+    </defs>
+    <rect width="1600" height="600" fill="url(#g)"/>
+    <circle cx="1350" cy="170" r="200" fill="#6ee7b7" opacity="0.18"/>
+    <path d="M0 480 C 320 420 560 560 860 500 C 1160 440 1360 560 1600 500 L1600 600 L0 600 Z" fill="#ffffff" opacity="0.12"/>
+    <path d="M0 530 C 340 490 640 590 940 545 C 1240 500 1420 580 1600 545 L1600 600 L0 600 Z" fill="#ffffff" opacity="0.16"/>
+    <text x="110" y="240" font-family="Segoe UI, sans-serif" font-size="72" font-weight="800" fill="#ffffff">Free shipping over $50</text>
+    <text x="112" y="300" font-family="Segoe UI, sans-serif" font-size="30" fill="#d1fae5">Fast, tracked delivery on every order</text>
+</svg>

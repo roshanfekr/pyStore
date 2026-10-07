@@ -1,4 +1,14 @@
 ﻿{% extends "storefront/base.html" %}
-{% block content %}<h2>Blog</h2>
-{% for post in posts %}<div><a href="{% url 'storefront:blog_detail' post.slug %}">{{ post.title }}</a></div>{% endfor %}
+{% block content %}
+<div class="page-title"><h2>Blog</h2></div>
+<div class="list-rows">
+    {% for post in posts %}
+        <div class="list-row">
+            <div><strong><a href="{% url 'storefront:blog_detail' post.slug %}" style="color:var(--text)">{{ post.title }}</a></strong></div>
+            <span class="badge">Read</span>
+        </div>
+    {% empty %}
+        <div class="empty-state"><span class="icon">&#9997;</span>No posts yet.</div>
+    {% endfor %}
+</div>
 {% endblock %}

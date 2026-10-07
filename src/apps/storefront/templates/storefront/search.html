@@ -1,5 +1,20 @@
 ﻿{% extends "storefront/base.html" %}
+{% load strings %}
 {% block content %}
-<h2>Search{% if query %}: {{ query }}{% endif %}</h2>
-{% for product in products %}<div><a href="{% url 'storefront:product' product.slug %}">{{ product.name }}</a></div>{% empty %}<p>No results.</p>{% endfor %}
+<div class="page-title">
+    <h2>{% tr 'Search' %}{% if query %}: {{ query }}{% endif %}</h2>
+    <span class="count">{{ products|length }} {% tr 'results' %}</span>
+</div>
+<div class="product-grid">
+    {% for product in products %}
+        <article class="product-card">
+            <div class="product-card-media">{{ product.name|slice:":1"|upper }}</div>
+            <div class="product-card-body">
+                <div class="product-card-title"><a href="{% url 'storefront:product' product.slug %}">{{ product.name }}</a></div>
+            </div>
+        </article>
+    {% empty %}
+        <div class="empty-state"><span class="icon">&#128269;</span>{% tr 'No results.' %}</div>
+    {% endfor %}
+</div>
 {% endblock %}

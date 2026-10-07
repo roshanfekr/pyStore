@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 600" width="1600" height="600">
+    <defs>
+        <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0" stop-color="#0b2536"/>
+            <stop offset="0.55" stop-color="#0e7490"/>
+            <stop offset="1" stop-color="#22d3ee"/>
+        </linearGradient>
+    </defs>
+    <rect width="1600" height="600" fill="url(#g)"/>
+    <circle cx="1280" cy="180" r="220" fill="#22d3ee" opacity="0.18"/>
+    <circle cx="1330" cy="140" r="120" fill="#e0f7fb" opacity="0.25"/>
+    <path d="M0 470 C 300 400 500 540 800 480 C 1100 420 1350 540 1600 470 L1600 600 L0 600 Z" fill="#ffffff" opacity="0.12"/>
+    <path d="M0 520 C 350 470 600 580 900 530 C 1200 480 1400 570 1600 530 L1600 600 L0 600 Z" fill="#ffffff" opacity="0.18"/>
+    <text x="110" y="240" font-family="Segoe UI, sans-serif" font-size="72" font-weight="800" fill="#ffffff">Fresh drops every week</text>
+    <text x="112" y="300" font-family="Segoe UI, sans-serif" font-size="30" fill="#d9f6fb">New arrivals, hand-picked for you</text>
+</svg>

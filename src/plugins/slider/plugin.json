@@ -1,0 +1,10 @@
+{
+    "id": "slider",
+    "name": "Slider",
+    "version": "1.0.0",
+    "author": "pyStore",
+    "description": "Homepage image slider. Shows a configurable slideshow in the middle of the storefront home page and adds a settings section to the admin sidebar.",
+    "dependencies": [],
+    "minimum_core_version": "1.0.0",
+    "entry_point": "plugin:SliderPlugin"
+}

@@ -1,0 +1,10 @@
+{
+    "id": "flash_sale",
+    "name": "Flash Sale",
+    "version": "1.0.0",
+    "author": "pyStore",
+    "description": "Special sales: pick products, set discount percent, sale window and quantity limit. Adjusts sale prices through the pricing pipeline and shows a sale section on the home page.",
+    "dependencies": [],
+    "minimum_core_version": "1.0.0",
+    "entry_point": "plugin:FlashSalePlugin"
+}

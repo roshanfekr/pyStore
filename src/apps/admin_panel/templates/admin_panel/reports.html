@@ -1,24 +1,42 @@
 {% extends "admin/base_site.html" %}
+{% load strings %}
 {% block content %}
-<h2>Revenue</h2>
-<ul>
-    <li>Total revenue: {{ revenue }}</li>
-    <li>Refunded: {{ refunded }}</li>
-</ul>
+<h1>{% tr 'Reports' %}</h1>
 
-<h2>Orders by status</h2>
-<table>
-    <thead><tr><th>Status</th><th>Count</th></tr></thead>
-    <tbody>
-    {% for entry in orders_by_status %}<tr><td>{{ entry.status }}</td><td>{{ entry.count }}</td></tr>{% endfor %}
-    </tbody>
-</table>
+<div class="ps-grid">
+    <div class="ps-card ps-green">
+        <p class="ps-number">{{ revenue }}</p>
+        <p class="ps-label">{% tr 'Total revenue' %}</p>
+    </div>
+    <div class="ps-card ps-accent">
+        <p class="ps-number">{{ refunded }}</p>
+        <p class="ps-label">{% tr 'Refunded' %}</p>
+    </div>
+</div>
 
-<h2>Most used discounts</h2>
-<table>
-    <thead><tr><th>Discount</th><th>Type</th><th>Used</th></tr></thead>
-    <tbody>
-    {% for discount in top_discounts %}<tr><td>{{ discount.name }}</td><td>{{ discount.discount_type }}</td><td>{{ discount.used_count }}</td></tr>{% endfor %}
-    </tbody>
-</table>
+<div class="ps-columns">
+    <div class="ps-panel">
+        <h2>{% tr 'Orders by status' %}</h2>
+        {% if orders_by_status %}
+            <table class="ps-table">
+                <thead><tr><th>{% tr 'Status' %}</th><th>{% tr 'Count' %}</th></tr></thead>
+                <tbody>
+                {% for entry in orders_by_status %}<tr><td>{{ entry.status }}</td><td>{{ entry.count }}</td></tr>{% endfor %}
+                </tbody>
+            </table>
+        {% else %}<p class="ps-plugin-meta">{% tr 'No orders yet.' %}</p>{% endif %}
+    </div>
+
+    <div class="ps-panel">
+        <h2>{% tr 'Most used discounts' %}</h2>
+        {% if top_discounts %}
+            <table class="ps-table">
+                <thead><tr><th>{% tr 'Discount' %}</th><th>{% tr 'Type' %}</th><th>{% tr 'Used' %}</th></tr></thead>
+                <tbody>
+                {% for discount in top_discounts %}<tr><td>{{ discount.name }}</td><td>{{ discount.discount_type }}</td><td>{{ discount.used_count }}</td></tr>{% endfor %}
+                </tbody>
+            </table>
+        {% else %}<p class="ps-plugin-meta">{% tr 'No discounts recorded yet.' %}</p>{% endif %}
+    </div>
+</div>
 {% endblock %}
