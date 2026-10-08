@@ -1,6 +1,9 @@
 ﻿from django.contrib import admin, messages
+from django import forms
 from django.template.response import TemplateResponse
+from django.utils.text import slugify
 
+from apps.admin_panel.widgets import TagPickerWidget
 from apps.cart.models import Cart, CartItem, CompareItem, WishlistItem
 from apps.catalog.models import (
     Brand,
@@ -203,14 +206,80 @@ class ProductSEOInline(admin.StackedInline):
     extra = 0
 
 
+class ProductAdminForm(forms.ModelForm):
+    """Product form with a free-text tag picker instead of a select list."""
+
+    tags_input = forms.CharField(
+        required=False,
+        label="Tags",
+        widget=TagPickerWidget,
+        help_text="Type a tag and press Enter. New tags are created automatically.",
+    )
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields.pop("tags", None)
+        if self.instance and self.instance.pk:
+            self.initial["tags_input"] = ", ".join(
+                self.instance.tags.values_list("name", flat=True)
+            )
+
+    def clean_tags_input(self):
+        raw = self.cleaned_data.get("tags_input") or ""
+        seen, names = set(), []
+        for part in raw.split(","):
+            name = part.strip()
+            if not name:
+                continue
+            key = name.casefold()
+            if key not in seen:
+                seen.add(key)
+                names.append(name)
+        return names
+
+    class Meta:
+        model = Product
+        fields = "__all__"
+
+
 class ProductAdmin(PyStoreModelAdmin):
     list_display = ("name", "slug", "store", "product_type", "price", "stock_quantity", "is_published")
     list_filter = ("product_type", "is_published", "store", "brand")
     search_fields = ("name", "slug", "sku", "description")
     date_hierarchy = "created_at"
     ordering = ("-created_at",)
+    form = ProductAdminForm
     inlines = [ProductVariantInline, ProductImageInline, ProductSpecificationInline, ProductSEOInline]
     actions = ["publish_products", "unpublish_products"]
+
+    def get_fieldsets(self, request, obj=None):
+        fieldsets = super().get_fieldsets(request, obj)
+        return [
+            (
+                title,
+                {
+                    **options,
+                    "fields": [
+                        field
+                        for field in options.get("fields", ())
+                        if field != "tags"
+                    ],
+                },
+            )
+            for title, options in fieldsets
+        ]
+
+    def save_related(self, request, form, formsets, change):
+        super().save_related(request, form, formsets, change)
+        names = form.cleaned_data.get("tags_input") or []
+        tags = []
+        for name in names:
+            slug = slugify(name, allow_unicode=True) or slugify(name) or f"tag-{abs(hash(name)) % 10**8}"
+            tag = Tag.objects.filter(name__iexact=name).first() or Tag.objects.filter(slug=slug).first()
+            if tag is None:
+                tag = Tag.objects.create(name=name, slug=slug)
+            tags.append(tag)
+        form.instance.tags.set(tags)
 
     @admin.action(description="Publish selected products")
     def publish_products(self, request, queryset):

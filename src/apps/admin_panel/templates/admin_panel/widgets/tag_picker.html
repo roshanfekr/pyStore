@@ -1,0 +1,180 @@
+{% with widget_id=widget.attrs.id|default:"id_tags_input" data_id=widget_id|add:"_data" %}
+<div class="tag-picker" id="{{ widget_id }}_wrap">
+    <div class="tag-picker-chips" id="{{ widget_id }}_chips"></div>
+    <input type="text" id="{{ widget_id }}_picker" class="tag-picker-input" autocomplete="off"
+           placeholder="Type a tag and press Enter…">
+    <div class="tag-picker-suggestions" id="{{ widget_id }}_suggestions" hidden></div>
+    <input type="hidden" name="{{ widget.name }}" id="{{ widget_id }}"
+           value="{{ widget.value }}" class="tag-picker-value">
+</div>
+{{ all_tags|json_script:data_id }}
+<style>
+    .tag-picker { position: relative; }
+    .tag-picker-chips {
+        display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 4px;
+    }
+    .tag-picker-chips:empty { margin-bottom: 0; }
+    .tag-picker-chip {
+        display: inline-flex; align-items: center; gap: 6px;
+        background: #e6f0ff; color: #1a4d80; border: 1px solid #b3d1f0;
+        border-radius: 12px; padding: 2px 10px; font-size: 12px; line-height: 1.6;
+    }
+    .tag-picker-chip-remove {
+        cursor: pointer; border: 0; background: none; color: #1a4d80;
+        font-weight: bold; padding: 0 2px; font-size: 12px; line-height: 1;
+    }
+    .tag-picker-input { min-width: 240px; }
+    .tag-picker-suggestions {
+        position: absolute; z-index: 1000; top: 100%; left: 0; min-width: 240px;
+        background: #fff; border: 1px solid #ccc; border-radius: 4px;
+        box-shadow: 0 2px 6px rgba(0, 0, 0, .15); max-height: 200px; overflow-y: auto;
+        margin: 2px 0 0; padding: 2px 0; list-style: none;
+    }
+    .tag-picker-suggestions li {
+        padding: 4px 10px; cursor: pointer; font-size: 13px;
+    }
+    .tag-picker-suggestions li:hover, .tag-picker-suggestions li.tag-picker-active {
+        background: #e6f0ff;
+    }
+</style>
+<script>
+(function () {
+    "use strict";
+    var id = "{{ widget_id }}";
+    var wrap = document.getElementById(id + "_wrap");
+    if (!wrap) return;
+    var input = document.getElementById(id + "_picker");
+    var hidden = document.getElementById(id);
+    var chipsBox = document.getElementById(id + "_chips");
+    var suggestions = document.getElementById(id + "_suggestions");
+    var allTags = [];
+    try {
+        allTags = JSON.parse(document.getElementById(id + "_data").textContent);
+    } catch (e) { allTags = []; }
+
+    var selected = [];
+    hidden.value.split(",").forEach(function (name) {
+        name = name.trim();
+        if (name) selected.push(name);
+    });
+
+    function sync() {
+        hidden.value = selected.join(", ");
+    }
+
+    function addChip(name) {
+        name = name.trim();
+        if (!name) return;
+        var exists = selected.some(function (item) {
+            return item.toLowerCase() === name.toLowerCase();
+        });
+        if (!exists) {
+            selected.push(name);
+            render();
+        }
+    }
+
+    function removeChip(name) {
+        selected = selected.filter(function (item) { return item !== name; });
+        render();
+    }
+
+    function render() {
+        chipsBox.textContent = "";
+        selected.forEach(function (name) {
+            var chip = document.createElement("span");
+            chip.className = "tag-picker-chip";
+            var label = document.createElement("span");
+            label.textContent = name;
+            var remove = document.createElement("button");
+            remove.type = "button";
+            remove.className = "tag-picker-chip-remove";
+            remove.textContent = "×";
+            remove.setAttribute("aria-label", "Remove " + name);
+            remove.addEventListener("click", function () { removeChip(name); });
+            chip.appendChild(label);
+            chip.appendChild(remove);
+            chipsBox.appendChild(chip);
+        });
+        sync();
+    }
+
+    var activeIndex = -1;
+
+    function hideSuggestions() {
+        suggestions.hidden = true;
+        activeIndex = -1;
+    }
+
+    function showSuggestions() {
+        var typed = input.value.trim().toLowerCase();
+        var matches = allTags.filter(function (tag) {
+            var already = selected.some(function (item) {
+                return item.toLowerCase() === tag.toLowerCase();
+            });
+            return !already && (!typed || tag.toLowerCase().indexOf(typed) !== -1);
+        }).slice(0, 10);
+        suggestions.textContent = "";
+        if (!matches.length) { hideSuggestions(); return; }
+        matches.forEach(function (tag, index) {
+            var item = document.createElement("li");
+            item.textContent = tag;
+            if (index === activeIndex) item.classList.add("tag-picker-active");
+            item.addEventListener("mousedown", function (event) {
+                event.preventDefault();
+                addChip(tag);
+                input.value = "";
+                hideSuggestions();
+                input.focus();
+            });
+            suggestions.appendChild(item);
+        });
+        suggestions.hidden = false;
+    }
+
+    input.addEventListener("input", function () {
+        activeIndex = -1;
+        showSuggestions();
+    });
+
+    input.addEventListener("keydown", function (event) {
+        var items = suggestions.hidden ? [] : Array.prototype.slice.call(suggestions.children);
+        if (event.key === "Enter" || event.key === ",") {
+            event.preventDefault();
+            if (activeIndex >= 0 && items[activeIndex]) {
+                addChip(items[activeIndex].textContent);
+            } else {
+                addChip(input.value);
+            }
+            input.value = "";
+            hideSuggestions();
+        } else if (event.key === "ArrowDown") {
+            event.preventDefault();
+            if (items.length) {
+                activeIndex = (activeIndex + 1) % items.length;
+                showSuggestions();
+            }
+        } else if (event.key === "ArrowUp") {
+            event.preventDefault();
+            if (items.length) {
+                activeIndex = (activeIndex - 1 + items.length) % items.length;
+                showSuggestions();
+            }
+        } else if (event.key === "Escape") {
+            hideSuggestions();
+        } else if (event.key === "Backspace" && !input.value && selected.length) {
+            selected.pop();
+            render();
+        }
+    });
+
+    input.addEventListener("blur", function () {
+        addChip(input.value);
+        input.value = "";
+        setTimeout(hideSuggestions, 150);
+    });
+
+    render();
+})();
+</script>
+{% endwith %}
