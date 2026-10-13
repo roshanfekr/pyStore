@@ -22,11 +22,12 @@ pyStore/
 │   │   └── health/    # Health check subsystem
 │   ├── apps/          # Business domain apps
 │   │   ├── identity/  # Users, customers, roles, granular permissions (RBAC)
-│   │   ├── stores/    # Store, multi-store, domains, localization
+│   │   ├── stores/    # Store, multi-store, domains, localization (languages/currencies)
 │   │   ├── vendors/   # Vendor domain and memberships
 │   │   ├── catalog/   # Products, variants, categories, brands, SEO
 │   │   └── inventory/ # Warehouses, stock, reservations, audit transactions
 │   └── plugins/       # Plugins (sample_plugin, theme_pacific included)
+│   └── frontend/      # Vue 3 SPA storefront (Vite + Router + Pinia)
 ├── tests/             # Test suite (pytest)
 ├── scripts/           # Helper scripts
 ├── requirements/      # base.txt / dev.txt
@@ -58,6 +59,38 @@ python manage.py runserver
 .\scripts\test.ps1              # run suite
 .\scripts\test.ps1 -Coverage    # with coverage
 ```
+
+## Storefront (hybrid SSR + Vue)
+
+The storefront is a **hybrid**: content pages are server-rendered by Django
+(themes and plugins work unchanged, good for SEO), while interactive flows are a
+Vue 3 SPA (`src/frontend`, Vite + Vue Router + Pinia) that consumes the Django
+REST API.
+
+- Server-rendered (Django templates + themes/plugins): `/`, `/category/<slug>/`,
+  `/product/<slug>/`, `/search/`, `/blog/…`, CMS pages.
+- Vue SPA: `/cart/`, `/checkout/`, `/login/`, `/register/`, `/account/`,
+  `/wishlist/`, `/compare/`, `/orders/<number>/`.
+
+The two share the Django session, so the guest cart and login state are
+consistent across server-rendered and SPA pages (an API login also establishes
+the session). The SPA is used for the interactive routes when
+`STOREFRONT_SPA_ENABLED=True` (the default in `development`); set it to `False`
+to fall back to the server-rendered versions of those pages.
+
+Build and run:
+
+```powershell
+cd src\frontend
+npm install
+npm run build     # emits into src\apps\storefront\static\storefront-spa
+```
+
+Then start Django as usual (`python manage.py runserver`). Until the frontend is
+built, the interactive routes return a short "not built" page instead of failing.
+
+For live development, run `npm run dev` (Vite on http://localhost:5173, proxying
+`/api`, `/static` and `/admin` to Django) alongside `python manage.py runserver`.
 
 ## Theme Plugins
 

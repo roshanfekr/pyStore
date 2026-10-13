@@ -57,6 +57,11 @@ body {
 #nav-sidebar::-webkit-scrollbar { width: 8px; }
 #nav-sidebar::-webkit-scrollbar-thumb { background: rgba(148, 163, 184, 0.3); border-radius: 999px; }
 #nav-sidebar::-webkit-scrollbar-track { background: transparent; }
+
+/* The rail is pinned to the left edge, so keep its internal layout LTR even
+   when the admin language is RTL (e.g. Persian). Otherwise flex rows flip and
+   the collapse caret lands on the left instead of the right. */
+#nav-sidebar { direction: ltr; }
 .main.shifted > #nav-sidebar { margin-left: 0 !important; }
 .main.shifted > #nav-sidebar + .content { max-width: calc(100% - 318px); }
 

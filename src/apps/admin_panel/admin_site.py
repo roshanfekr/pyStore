@@ -91,6 +91,30 @@ class PyStoreAdminSite(admin.AdminSite):
     # Apps hidden from the sidebar; their pages stay reachable by URL.
     hidden_sidebar_app_labels: set[str] = {"notifications"}
 
+    # Sidebar group order: business flow first (catalog → orders), then people,
+    # content and finally store/system settings. Unlisted apps keep their order.
+    sidebar_app_order: list[str] = [
+        "catalog",
+        "inventory",
+        "pricing",
+        "orders",
+        "checkout",
+        "cart",
+        "identity",
+        "vendors",
+        "cms",
+        "media",
+        "reviews",
+        "stores",
+        "core",
+    ]
+
+    def _order_sidebar_apps(self, apps: list[dict]) -> list[dict]:
+        order = {label: index for index, label in enumerate(self.sidebar_app_order)}
+        return sorted(
+            apps, key=lambda app: order.get(app.get("app_label"), len(order))
+        )
+
     def each_context(self, request):
         from apps.stores.services import get_active_language_code, get_active_languages
 
@@ -100,11 +124,12 @@ class PyStoreAdminSite(admin.AdminSite):
         context["admin_active_language"] = get_active_language_code(
             request.COOKIES.get("pystore_language")
         )
-        context["available_apps"] = [
+        visible_apps = [
             app
             for app in context.get("available_apps", [])
             if app.get("app_label") not in self.hidden_sidebar_app_labels
         ]
+        context["available_apps"] = self._order_sidebar_apps(visible_apps)
         return context
 
     def dashboard_stats(self):

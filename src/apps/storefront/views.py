@@ -353,6 +353,26 @@ def set_language_view(request):
     return redirect("/")
 
 
+def set_currency_view(request):
+    from django.conf import settings
+
+    from apps.stores.services import get_currency
+
+    if request.method == "POST":
+        code = (request.POST.get("currency") or "").strip().upper()
+        response = redirect(request.POST.get("next") or "/")
+        if get_currency(code) is not None:
+            response.set_cookie(
+                settings.CURRENCY_COOKIE_NAME,
+                code,
+                max_age=365 * 24 * 3600,
+                samesite="Lax",
+                httponly=True,
+            )
+        return response
+    return redirect("/")
+
+
 def robots_txt_view(request):
     return HttpResponse(
         build_robots_txt(request.build_absolute_uri("/").rstrip("/")),

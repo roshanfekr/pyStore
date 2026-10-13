@@ -4,6 +4,9 @@ DEBUG = True
 
 ALLOWED_HOSTS = ["localhost", "127.0.0.1", "testserver"]
 
+# Serve the Vue storefront SPA by default in development.
+STOREFRONT_SPA_ENABLED = env.bool("STOREFRONT_SPA_ENABLED", default=True)
+
 LOGGING["handlers"]["file"] = {
     "class": "logging.handlers.RotatingFileHandler",
     "filename": str(LOGS_DIR / "pystore.log"),

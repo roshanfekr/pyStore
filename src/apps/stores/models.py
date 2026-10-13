@@ -10,7 +10,7 @@ class Store(BaseModel):
     is_active = models.BooleanField(default=True)
     default_language = models.CharField(max_length=10, default="en")
     supported_languages = models.JSONField(default=list, blank=True)
-    default_currency = models.CharField(max_length=10, default="USD")
+    default_currency = models.CharField(max_length=10, default="IRT")
     supported_currencies = models.JSONField(default=list, blank=True)
     timezone = models.CharField(max_length=64, default="UTC")
     products_per_page = models.PositiveIntegerField(default=20)
@@ -57,6 +57,33 @@ class Language(BaseModel):
             self.direction = "rtl"
         if self.is_default:
             Language.objects.exclude(pk=self.pk).update(is_default=False)
+            self.is_active = True
+        super().save(*args, **kwargs)
+
+
+class Currency(BaseModel):
+    """Site currency defined in the admin (Currencies section)."""
+
+    name = models.CharField(max_length=100)
+    code = models.CharField(max_length=10, unique=True)
+    symbol = models.CharField(max_length=16, blank=True)
+    decimal_places = models.PositiveSmallIntegerField(default=2)
+    is_active = models.BooleanField(default=True)
+    is_default = models.BooleanField(default=False)
+    ordering = models.PositiveIntegerField(default=0)
+
+    class Meta:
+        verbose_name = "Currency"
+        verbose_name_plural = "Currencies"
+        ordering = ["ordering", "code"]
+
+    def __str__(self):
+        return f"{self.name} ({self.code})"
+
+    def save(self, *args, **kwargs):
+        self.code = self.code.upper().strip()
+        if self.is_default:
+            Currency.objects.exclude(pk=self.pk).update(is_default=False)
             self.is_active = True
         super().save(*args, **kwargs)
 

@@ -1,4 +1,6 @@
-﻿from rest_framework import serializers, status
+﻿from django.contrib.auth import login as session_login
+from django.contrib.auth import logout as session_logout
+from rest_framework import serializers, status
 from rest_framework.permissions import BasePermission, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.throttling import ScopedRateThrottle
@@ -78,6 +80,8 @@ class LogoutView(APIView):
 
     def post(self, request, *args, **kwargs):
         revoke_api_token(request.user)
+        # Also end the Django session so server-rendered pages reflect logout.
+        session_logout(request._request)
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
@@ -115,6 +119,11 @@ class LoginView(APIView):
             email=serializer.validated_data["email"],
             password=serializer.validated_data["password"],
             request=request,
+        )
+        # Establish a Django session too, so server-rendered storefront pages
+        # share the authenticated state with the SPA.
+        session_login(
+            request._request, user, backend="django.contrib.auth.backends.ModelBackend"
         )
         token = issue_api_token(user)
         return Response({"token": token.key, "user_id": str(user.id)})

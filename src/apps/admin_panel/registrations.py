@@ -59,7 +59,7 @@ from apps.pricing.models import (
     TaxRate,
 )
 from apps.reviews.models import ProductReview
-from apps.stores.models import Language, LocaleStringResource, Store, StoreDomain
+from apps.stores.models import Currency, Language, LocaleStringResource, Store, StoreDomain
 from apps.vendors.models import Vendor, VendorUser
 from core.audit.models import AuditLog
 from core.exceptions import ValidationError
@@ -537,6 +537,15 @@ class LanguageAdmin(GranularPermissionAdmin):
     fields = ("name", "code", "is_active", "is_default", "direction", "flag", "ordering")
 
 
+class CurrencyAdmin(GranularPermissionAdmin):
+    perm_map = {"add": "stores.manage", "change": "stores.manage", "delete": "stores.manage"}
+    list_display = ("name", "code", "symbol", "decimal_places", "is_active", "is_default", "ordering")
+    list_editable = ("is_active", "ordering")
+    list_filter = ("is_active", "is_default")
+    search_fields = ("name", "code")
+    fields = ("name", "code", "symbol", "decimal_places", "is_active", "is_default", "ordering")
+
+
 class LocaleStringResourceAdmin(GranularPermissionAdmin):
     perm_map = {"add": "stores.manage", "change": "stores.manage", "delete": "stores.manage"}
     list_display = ("key", "language", "value_snippet")
@@ -773,6 +782,7 @@ def register_all(admin_site):
         Store: StoreAdmin,
         StoreDomain: StoreDomainAdmin,
         Language: LanguageAdmin,
+        Currency: CurrencyAdmin,
         LocaleStringResource: LocaleStringResourceAdmin,
         Vendor: VendorAdmin,
         VendorUser: VendorUserAdmin,

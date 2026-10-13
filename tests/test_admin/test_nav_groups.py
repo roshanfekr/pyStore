@@ -26,3 +26,22 @@ def test_sidebar_group_state_persists_via_script(client, admin_user):
     client.force_login(admin_user)
     content = client.get("/admin/").content.decode()
     assert 'src="/static/admin_panel/js/nav_groups.js"' in content
+
+
+def test_sidebar_groups_follow_curated_order(client, admin_user):
+    client.force_login(admin_user)
+    content = client.get("/admin/").content.decode()
+    positions = [
+        content.index('id="psnav-group-app-catalog"'),
+        content.index('id="psnav-group-app-orders"'),
+        content.index('id="psnav-group-app-identity"'),
+        content.index('id="psnav-group-app-stores"'),
+    ]
+    assert positions == sorted(positions)
+
+
+def test_admin_sidebar_is_ltr_for_stable_caret(settings):
+    from pathlib import Path
+
+    css = Path(settings.BASE_DIR, "apps", "admin_panel", "static", "admin_panel", "admin.css")
+    assert "#nav-sidebar { direction: ltr; }" in css.read_text(encoding="utf-8")

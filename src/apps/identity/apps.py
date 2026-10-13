@@ -7,7 +7,7 @@ class IdentityConfig(AppConfig):
     default_auto_field = "django.db.models.BigAutoField"
     name = "apps.identity"
     label = "identity"
-    verbose_name = "Identity"
+    verbose_name = "Users & Access"
 
 
 @receiver(post_migrate)

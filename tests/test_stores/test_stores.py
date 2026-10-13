@@ -4,13 +4,20 @@ from apps.stores.models import Store
 from apps.stores.services import (
     add_store_domain,
     create_store,
+    ensure_default_currency,
     ensure_default_store,
+    get_active_currencies,
+    get_active_currency_code,
+    get_currency,
+    get_default_currency,
     get_store_by_domain,
     get_store_setting,
+    set_default_currency,
     set_primary_store,
     set_store_localization,
     set_store_setting,
     set_store_status,
+    upsert_currency,
 )
 from core.exceptions import ConflictError, NotFoundError, ValidationError
 
@@ -24,7 +31,7 @@ def test_create_store_with_domains():
     assert store.domains.count() == 2
     assert store.default_language == "en"
     assert store.supported_languages == ["en"]
-    assert store.default_currency == "USD"
+    assert store.default_currency == "IRT"
 
 
 def test_create_store_requires_name():
@@ -150,3 +157,55 @@ def test_multi_store_domains_resolution():
 
     assert get_store_by_domain("a.example.com").id == store_a.id
     assert get_store_by_domain("b.example.com").id == store_b.id
+
+
+def test_default_currency_is_seeded_as_irt():
+    currency = get_default_currency()
+    assert currency is not None
+    assert currency.code == "IRT"
+    assert currency.is_active is True
+
+
+def test_ensure_default_currency_is_idempotent():
+    first = ensure_default_currency()
+    second = ensure_default_currency()
+    assert first.id == second.id
+
+
+def test_upsert_currency_creates_and_updates():
+    currency = upsert_currency("Euro", "eur", symbol="€", decimal_places=2)
+    assert currency.code == "EUR"
+    assert currency.symbol == "€"
+
+    updated = upsert_currency("Euro", "EUR", symbol="EUR", decimal_places=2)
+    assert updated.id == currency.id
+    assert updated.symbol == "EUR"
+
+
+def test_upsert_currency_requires_name_and_code():
+    with pytest.raises(ValidationError):
+        upsert_currency("", "EUR")
+
+
+def test_set_default_currency_moves_flag():
+    usd = get_currency("USD")
+    assert usd is not None
+
+    set_default_currency(usd)
+
+    usd.refresh_from_db()
+    irt = get_currency("IRT")
+    assert usd.is_default is True
+    assert irt is None or irt.is_default is False
+
+
+def test_active_currency_code_prefers_cookie_then_default():
+    assert get_active_currency_code() == "IRT"
+    assert get_active_currency_code("USD") == "USD"
+    assert get_active_currency_code("nope") == "IRT"
+
+
+def test_active_currencies_are_ordered():
+    codes = [currency.code for currency in get_active_currencies()]
+    assert "IRT" in codes
+    assert codes.index("IRT") < codes.index("USD")

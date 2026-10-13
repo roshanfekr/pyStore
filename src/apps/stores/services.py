@@ -3,7 +3,7 @@ import re
 from django.db import transaction
 from django.utils.text import slugify
 
-from apps.stores.models import Language, LocaleStringResource, Store, StoreDomain
+from apps.stores.models import Currency, Language, LocaleStringResource, Store, StoreDomain
 from core.exceptions import ConflictError, NotFoundError, ValidationError
 from core.settings import SettingsError, settings_service
 
@@ -30,7 +30,7 @@ def create_store(
     *,
     domains=None,
     default_language: str = "en",
-    default_currency: str = "USD",
+    default_currency: str = "IRT",
     supported_languages=None,
     supported_currencies=None,
     timezone_str: str = "UTC",
@@ -202,6 +202,88 @@ def get_active_language_code(cookie_code: str | None = None) -> str:
 
 def get_language(code: str) -> Language | None:
     return Language.objects.filter(code=code, is_active=True).first()
+
+
+DEFAULT_CURRENCY_CODE = "IRT"
+DEFAULT_CURRENCY_NAME = "Iranian Toman"
+DEFAULT_CURRENCY_SYMBOL = "تومان"
+
+
+def ensure_default_currency(
+    name: str = DEFAULT_CURRENCY_NAME, code: str = DEFAULT_CURRENCY_CODE
+) -> Currency:
+    existing = Currency.objects.filter(is_default=True).first()
+    if existing is not None:
+        return existing
+    currency, _ = Currency.objects.get_or_create(
+        code=code,
+        defaults={
+            "name": name,
+            "symbol": DEFAULT_CURRENCY_SYMBOL,
+            "decimal_places": 0,
+            "is_active": True,
+            "is_default": True,
+        },
+    )
+    return currency
+
+
+def upsert_currency(
+    name: str,
+    code: str,
+    *,
+    symbol: str = "",
+    decimal_places: int = 2,
+    is_active: bool = True,
+    ordering: int = 0,
+) -> Currency:
+    if not name.strip() or not code.strip():
+        raise ValidationError("Currency name and code are required", code="stores.currency_invalid")
+    code = code.strip().upper()
+    existing = Currency.objects.filter(code=code).first()
+    defaults = {
+        "name": name.strip(),
+        "symbol": symbol,
+        "decimal_places": decimal_places,
+        "is_active": is_active,
+        "ordering": ordering,
+    }
+    if existing is None:
+        return Currency.objects.create(code=code, **defaults)
+    for field, value in defaults.items():
+        setattr(existing, field, value)
+    existing.save()
+    return existing
+
+
+def get_active_currencies() -> list[Currency]:
+    return list(Currency.objects.filter(is_active=True).order_by("ordering", "code"))
+
+
+def get_default_currency() -> Currency | None:
+    return Currency.objects.filter(is_default=True).first()
+
+
+def set_default_currency(currency: Currency) -> Currency:
+    currency.is_default = True
+    currency.save()
+    return currency
+
+
+def get_active_currency_code(cookie_code: str | None = None) -> str:
+    """Resolve the active currency: cookie choice → DB default → 'IRT'."""
+    if cookie_code:
+        code = cookie_code.strip().upper()
+        if Currency.objects.filter(code=code, is_active=True).exists():
+            return code
+    default = get_default_currency()
+    if default is not None and default.is_active:
+        return default.code
+    return DEFAULT_CURRENCY_CODE
+
+
+def get_currency(code: str) -> Currency | None:
+    return Currency.objects.filter(code=(code or "").strip().upper(), is_active=True).first()
 
 
 def clear_translation_cache() -> None:

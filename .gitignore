@@ -23,6 +23,9 @@ staticfiles/
 src/media/
 src/logs/
 
+# Storefront SPA build output (src/frontend -> npm run build)
+src/apps/storefront/static/storefront-spa/
+
 # Testing / coverage
 .pytest_cache/
 .ruff_cache/

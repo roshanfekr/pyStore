@@ -223,6 +223,7 @@ LANGUAGE_CODE = "en"
 # DbLocaleMiddleware; gettext catalogs under src/locale are a fallback.
 LOCALE_PATHS = [BASE_DIR / "locale"]
 LANGUAGE_COOKIE_NAME = "pystore_language"
+CURRENCY_COOKIE_NAME = "pystore_currency"
 
 TIME_ZONE = "UTC"
 
@@ -247,6 +248,13 @@ STATICFILES_DIRS = [
     for dir in [theme_discovery.theme_static_dir(ACTIVE_THEME)]
     if dir is not None and dir.exists()
 ]
+
+# --- Storefront SPA (Vue) ---
+# When enabled, storefront page routes serve the built Vue SPA (src/frontend)
+# instead of the server-rendered theme templates. Themes and plugins keep
+# working through the storefront API (branding/config, theme CSS, hook HTML).
+STOREFRONT_SPA_ENABLED = env.bool("STOREFRONT_SPA_ENABLED", default=False)
+STOREFRONT_SPA_DIR = BASE_DIR / "apps" / "storefront" / "static" / "storefront-spa"
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 

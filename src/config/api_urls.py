@@ -31,6 +31,19 @@ from apps.shipping.api import (
     ShippingMethodsView,
     TrackingView,
 )
+from apps.storefront.api import (
+    BlogDetailView,
+    BlogListView,
+    BootstrapView,
+    CompareDetailView,
+    CompareView,
+    HookView,
+    PageDetailView,
+    SearchView,
+    WishlistDetailView,
+    WishlistMoveView,
+    WishlistView,
+)
 
 router = DefaultRouter(trailing_slash=False)
 router.register("products", ProductViewSet, basename="products")
@@ -76,4 +89,24 @@ urlpatterns = [
     path("shipping/methods", ShippingMethodsView.as_view(), name="api-shipping-methods"),
     path("shipping/rates", RatesView.as_view(), name="api-shipping-rates"),
     path("shipping/track", TrackingView.as_view(), name="api-shipping-track"),
+    # Storefront SPA
+    path("storefront/bootstrap", BootstrapView.as_view(), name="api-storefront-bootstrap"),
+    path("storefront/hooks/<str:hook_name>", HookView.as_view(), name="api-storefront-hook"),
+    path("storefront/search", SearchView.as_view(), name="api-storefront-search"),
+    path("storefront/pages/<slug:slug>", PageDetailView.as_view(), name="api-storefront-page"),
+    path("storefront/blog", BlogListView.as_view(), name="api-storefront-blog"),
+    path("storefront/blog/<slug:slug>", BlogDetailView.as_view(), name="api-storefront-blog-detail"),
+    path("storefront/wishlist", WishlistView.as_view(), name="api-storefront-wishlist"),
+    path("storefront/wishlist/move", WishlistMoveView.as_view(), name="api-storefront-wishlist-move"),
+    path(
+        "storefront/wishlist/<uuid:product_id>",
+        WishlistDetailView.as_view(),
+        name="api-storefront-wishlist-detail",
+    ),
+    path("storefront/compare", CompareView.as_view(), name="api-storefront-compare"),
+    path(
+        "storefront/compare/<uuid:product_id>",
+        CompareDetailView.as_view(),
+        name="api-storefront-compare-detail",
+    ),
 ] + router.urls
