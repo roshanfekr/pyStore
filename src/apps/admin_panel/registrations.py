@@ -193,7 +193,9 @@ class ProductVariantInline(admin.TabularInline):
 
 class ProductImageInline(admin.TabularInline):
     model = ProductImage
-    extra = 0
+    # Show one empty row so an image can be uploaded while creating a product
+    # (with extra = 0 there was no file input on the "add product" form).
+    extra = 1
 
 
 class ProductSpecificationInline(admin.TabularInline):

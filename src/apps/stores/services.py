@@ -291,20 +291,28 @@ def clear_translation_cache() -> None:
 
 
 def _catalog_for(code: str) -> dict[str, str]:
+    """Word collection for `code`, keyed by case-folded source string.
+
+    Matching is case-insensitive because the admin renders model names in
+    sentence case ("Product attributes") while the seed collection stores
+    them in Title Case ("Product Attributes").
+    """
     catalog = _translation_cache.get(code)
     if catalog is None:
-        catalog = dict(
+        catalog = {}
+        for key, value in (
             LocaleStringResource.objects.filter(language__code=code, language__is_active=True)
             .exclude(value="")
             .values_list("key", "value")
-        )
+        ):
+            catalog.setdefault((key or "").strip().casefold(), value)
         _translation_cache[code] = catalog
     return catalog
 
 
 def lookup_translation(code: str, key: str, **format_kwargs) -> str:
     """Translate `key` for `code`; falls back to the source string."""
-    value = _catalog_for(code).get(key, "").strip()
+    value = _catalog_for(code).get((key or "").strip().casefold(), "").strip()
     result = value or key
     if format_kwargs:
         try:

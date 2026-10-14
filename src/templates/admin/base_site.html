@@ -6,6 +6,7 @@
 
 {% block extrahead %}
     <script src="{% static 'admin_panel/js/nav_groups.js' %}" defer></script>
+    <script src="{% static 'admin_panel/js/switchers.js' %}" defer></script>
 {% endblock %}
 
 {% block title %}{% if subtitle %}{{ subtitle }} | {% endif %}{{ title }} | {{ site_title|default:_('Django site admin') }}{% endblock %}
@@ -17,7 +18,7 @@
     <form action="/i18n/setlang/" method="post">
         {% csrf_token %}
         <input type="hidden" name="next" value="{{ request.path }}">
-        <select name="language" onchange="this.form.submit()" aria-label="Language">
+        <select name="language" aria-label="Language">
             {% for lang in admin_languages %}
                 <option value="{{ lang.code }}" {% if lang.code == admin_active_language %}selected{% endif %}>
                     {% if lang.flag %}{{ lang.flag }} {% endif %}{{ lang.name }}

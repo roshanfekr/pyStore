@@ -133,6 +133,33 @@ body.pacific .pacific-card:hover { box-shadow: 0 12px 28px rgba(14, 116, 144, 0.
     background: linear-gradient(135deg, var(--pacific-deep-soft), var(--primary) 55%, var(--accent));
 }
 
+/* ---------- Product detail ---------- */
+.pacific-product-media {
+    border-radius: var(--radius);
+    overflow: hidden;
+    margin-bottom: 1.25rem;
+    border: 1px solid var(--border);
+    background: linear-gradient(135deg, var(--pacific-deep-soft), var(--primary) 55%, var(--accent));
+}
+
+.pacific-product-media img {
+    display: block;
+    width: 100%;
+    height: auto;
+    max-height: 420px;
+    object-fit: cover;
+}
+
+.pacific-product-media .product-card-media {
+    height: 220px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #fff;
+    font-size: 3rem;
+    font-weight: 700;
+}
+
 /* ---------- Footer ---------- */
 body.pacific .pacific-footer {
     background: var(--pacific-deep);

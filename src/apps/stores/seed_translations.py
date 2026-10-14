@@ -42,7 +42,7 @@ PERSIAN_STRINGS: dict[str, str] = {
     "Total": "جمع کل",
     "Checkout": "تسویه حساب",
     "Your cart is empty.": "سبد خرید شما خالی است.",
-    "Variants": "سوالات محصول",
+    "Variants": "گونه‌ها",
     "SKU": "کد کالا",
     "Price": "قیمت",
     "Incl. applicable taxes": "شامل مالیات‌های مربوطه",
@@ -265,4 +265,30 @@ PERSIAN_STRINGS: dict[str, str] = {
     "Flash Sale": "فروش ویژه",
     "Sample Plugin": "پلاگین نمونه",
     "Pacific Theme": "تم پاسیفیک",
+    # ----- Storefront extras -----
+    "Currency": "واحد پول",
+    "Description": "توضیحات",
+    "Product image": "تصویر محصول",
+    "Product images": "تصاویر محصول",
+    "Product variant": "گونه محصول",
+    "Product variants": "گونه‌های محصول",
+    "Add to compare": "افزودن به مقایسه",
+    "Details": "جزئیات",
+    "Categories": "دسته‌بندی‌ها",
+    # ----- Admin dashboard / reports -----
+    "Revenue today": "درآمد امروز",
+    "Order status": "وضعیت سفارش",
+    "Order number": "شماره سفارش",
+    "Customer": "مشتری",
+    "Order date": "تاریخ سفارش",
+    "Payment status": "وضعیت پرداخت",
+    "Filter": "فیلتر",
+    "Search": "جستجو",
+    # ----- Plugin admin -----
+    "Products on sale get their price reduced automatically while the sale window is open and stock remains.":
+        "قیمت محصولات حراج تا زمانی که بازه فروش باز و موجودی باقی است به‌صورت خودکار کاهش می‌یابد.",
+    "Remaining units are counted from orders placed during the sale window.":
+        "تعداد باقی‌مانده از سفارش‌های ثبت‌شده در بازه فروش محاسبه می‌شود.",
+    "To activate a theme set ACTIVE_THEME=<slug> in .env and restart the server.":
+        "برای فعال‌سازی یک قالب، ACTIVE_THEME=<slug> را در فایل .env تنظیم کرده و سرور را دوباره راه‌اندازی کنید.",
 }

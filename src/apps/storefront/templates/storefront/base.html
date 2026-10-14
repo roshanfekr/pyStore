@@ -40,7 +40,7 @@
         <form class="lang-form" action="{% url 'storefront:set_language' %}" method="post">
             {% csrf_token %}
             <input type="hidden" name="next" value="{{ request.path }}">
-            <select name="language" onchange="this.form.submit()" aria-label="{% tr 'Language' %}">
+            <select name="language" aria-label="{% tr 'Language' %}">
                 {% for lang in storefront.languages %}
                     <option value="{{ lang.code }}" {% if lang.is_current %}selected{% endif %}>
                         {% if lang.flag %}{{ lang.flag }} {% endif %}{{ lang.name }}
@@ -53,7 +53,7 @@
         <form class="lang-form" action="{% url 'storefront:set_currency' %}" method="post">
             {% csrf_token %}
             <input type="hidden" name="next" value="{{ request.path }}">
-            <select name="currency" onchange="this.form.submit()" aria-label="{% tr 'Currency' %}">
+            <select name="currency" aria-label="{% tr 'Currency' %}">
                 {% for cur in storefront.currencies %}
                     <option value="{{ cur.code }}" {% if cur.is_current %}selected{% endif %}>
                         {% if cur.symbol %}{{ cur.symbol }} {% endif %}{{ cur.name }}
@@ -81,5 +81,6 @@
     </div>
     <div class="footer-note">{% include "storefront/theme_footer.html" %}</div>
 </footer>
+<script src="{% static 'storefront/js/switchers.js' %}" defer></script>
 </body>
 </html>
