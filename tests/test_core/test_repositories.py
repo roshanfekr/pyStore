@@ -26,7 +26,7 @@ def test_get_returns_instance():
 def test_get_missing_raises_not_found():
     repo = SampleRepository()
     with pytest.raises(NotFoundError):
-        repo.get("00000000-0000-0000-0000-000000000000")
+        repo.get(999999)
 
 
 def test_soft_deleted_item_not_returned():

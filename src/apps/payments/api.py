@@ -1,6 +1,4 @@
-﻿import uuid
-
-from rest_framework import serializers, status
+﻿from rest_framework import serializers, status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -53,8 +51,8 @@ class InitializePaymentView(APIView):
         order = Order.objects.filter(number=identifier).first()
         if order is None:
             try:
-                order = Order.objects.filter(pk=uuid.UUID(identifier)).first()
-            except ValueError:
+                order = Order.objects.filter(pk=int(identifier)).first()
+            except (TypeError, ValueError):
                 order = None
         if order is None:
             raise NotFoundError("Order not found", code="payments.order_not_found")

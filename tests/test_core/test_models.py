@@ -6,10 +6,10 @@ from tests.testapp.models import SampleModel
 pytestmark = [pytest.mark.django_db]
 
 
-def test_uuid_primary_key_is_generated():
+def test_integer_primary_key_is_generated():
     sample = SampleModel.objects.create(name="a")
     assert sample.pk is not None
-    assert str(sample.pk).count("-") == 4
+    assert isinstance(sample.pk, int)
 
 
 def test_timestamps_set_on_create():

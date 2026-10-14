@@ -1,10 +1,12 @@
 {% extends "admin/base.html" %}
 {% load i18n static %}
 {% block extrastyle %}
+    <link rel="stylesheet" href="{% static 'admin_panel/vendor/bootstrap/bootstrap.min.css' %}">
     <link rel="stylesheet" href="{% static 'admin_panel/admin.css' %}">
 {% endblock %}
 
 {% block extrahead %}
+    <script src="{% static 'admin_panel/vendor/bootstrap/bootstrap.bundle.min.js' %}" defer></script>
     <script src="{% static 'admin_panel/js/nav_groups.js' %}" defer></script>
     <script src="{% static 'admin_panel/js/switchers.js' %}" defer></script>
 {% endblock %}

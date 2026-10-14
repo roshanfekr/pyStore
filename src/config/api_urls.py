@@ -99,13 +99,13 @@ urlpatterns = [
     path("storefront/wishlist", WishlistView.as_view(), name="api-storefront-wishlist"),
     path("storefront/wishlist/move", WishlistMoveView.as_view(), name="api-storefront-wishlist-move"),
     path(
-        "storefront/wishlist/<uuid:product_id>",
+        "storefront/wishlist/<int:product_id>",
         WishlistDetailView.as_view(),
         name="api-storefront-wishlist-detail",
     ),
     path("storefront/compare", CompareView.as_view(), name="api-storefront-compare"),
     path(
-        "storefront/compare/<uuid:product_id>",
+        "storefront/compare/<int:product_id>",
         CompareDetailView.as_view(),
         name="api-storefront-compare-detail",
     ),

@@ -1,7 +1,13 @@
-﻿from django.contrib import admin, messages
+﻿import logging
+
+from django.conf import settings
+from django.contrib import admin, messages
 from django import forms
+from django.http import JsonResponse
 from django.template.response import TemplateResponse
+from django.urls import path, reverse
 from django.utils.text import slugify
+from django.views.decorators.http import require_POST
 
 from apps.admin_panel.widgets import TagPickerWidget
 from apps.cart.models import Cart, CartItem, CompareItem, WishlistItem
@@ -24,6 +30,7 @@ from apps.checkout.models import PaymentMethod, ShippingMethod
 from apps.cms.models import BlogCategory, BlogPost, ContentBlock, Menu, MenuItem, Page, Widget
 from apps.identity.models import Customer, Permission, Role, User
 from apps.inventory.models import InventoryItem, InventoryTransaction, Warehouse, WarehouseLocation
+from apps.media.services import validate_upload
 from apps.notifications.models import (
     Notification,
     NotificationMessage,
@@ -64,6 +71,8 @@ from apps.vendors.models import Vendor, VendorUser
 from core.audit.models import AuditLog
 from core.exceptions import ValidationError
 from core.plugins.models import PluginState
+
+logger = logging.getLogger(__name__)
 
 CANCELLABLE_STATUSES = (Order.STATUS_PENDING, Order.STATUS_PROCESSING, Order.STATUS_PAID)
 
@@ -191,13 +200,6 @@ class ProductVariantInline(admin.TabularInline):
     extra = 0
 
 
-class ProductImageInline(admin.TabularInline):
-    model = ProductImage
-    # Show one empty row so an image can be uploaded while creating a product
-    # (with extra = 0 there was no file input on the "add product" form).
-    extra = 1
-
-
 class ProductSpecificationInline(admin.TabularInline):
     model = ProductSpecification
     extra = 0
@@ -251,8 +253,154 @@ class ProductAdmin(PyStoreModelAdmin):
     date_hierarchy = "created_at"
     ordering = ("-created_at",)
     form = ProductAdminForm
-    inlines = [ProductVariantInline, ProductImageInline, ProductSpecificationInline, ProductSEOInline]
+    # Product images are managed from a Bootstrap dialog on the change page
+    # (see admin_panel/catalog/product/change_form.html) instead of an inline.
+    inlines = [ProductVariantInline, ProductSpecificationInline, ProductSEOInline]
     actions = ["publish_products", "unpublish_products"]
+
+    class Media:
+        js = ("admin_panel/js/product_images.js",)
+
+    # --- Product image dialog (AJAX upload with progress) ---------------
+    def changeform_view(self, request, object_id=None, form_url="", extra_context=None):
+        extra_context = extra_context or {}
+        obj = None
+        if object_id:
+            try:
+                obj = self.get_object(request, object_id)
+            except Exception:  # pragma: no cover - defensive
+                obj = None
+        extra_context.update(self._images_dialog_context(request, obj))
+        return super().changeform_view(request, object_id, form_url, extra_context)
+
+    def _serialize_image(self, request, product, image):
+        prefix = self.admin_site.name
+        return {
+            "id": image.pk,
+            "url": image.image.url if image.image else "",
+            "alt_text": image.alt_text,
+            "is_main": image.is_main,
+            "delete_url": reverse(f"{prefix}:catalog_product_image_delete", args=[product.pk, image.pk]),
+            "main_url": reverse(f"{prefix}:catalog_product_image_main", args=[product.pk, image.pk]),
+            "update_url": reverse(f"{prefix}:catalog_product_image_update", args=[product.pk, image.pk]),
+        }
+
+    def _images_dialog_context(self, request, obj):
+        upload_url = ""
+        images = []
+        if obj is not None:
+            upload_url = reverse(
+                f"{self.admin_site.name}:catalog_product_image_upload", args=[obj.pk]
+            )
+            images = [self._serialize_image(request, obj, image) for image in obj.images.all()]
+        max_bytes = getattr(settings, "MEDIA_MAX_UPLOAD_SIZE", 10 * 1024 * 1024)
+        return {
+            "product_images": images,
+            "image_upload_url": upload_url,
+            "image_max_upload_mb": max_bytes // (1024 * 1024),
+        }
+
+    def get_urls(self):
+        # ``require_POST`` must wrap the *bound* method (not be applied as a
+        # class-level decorator), otherwise ``self`` is passed as ``request``.
+        def wrap(view):
+            return self.admin_site.admin_view(require_POST(view))
+
+        custom = [
+            path(
+                "<path:object_id>/images/upload/",
+                wrap(self.image_upload_view),
+                name="catalog_product_image_upload",
+            ),
+            path(
+                "<path:object_id>/images/<int:image_id>/delete/",
+                wrap(self.image_delete_view),
+                name="catalog_product_image_delete",
+            ),
+            path(
+                "<path:object_id>/images/<int:image_id>/main/",
+                wrap(self.image_main_view),
+                name="catalog_product_image_main",
+            ),
+            path(
+                "<path:object_id>/images/<int:image_id>/update/",
+                wrap(self.image_update_view),
+                name="catalog_product_image_update",
+            ),
+        ]
+        return custom + super().get_urls()
+
+    def _json_error(self, message, status=400):
+        return JsonResponse({"ok": False, "error": message}, status=status)
+
+    def _resolve_image(self, request, object_id, image_id):
+        product = self.get_object(request, object_id)
+        if product is None:
+            return None, None
+        return product, product.images.filter(pk=image_id).first()
+
+    def image_upload_view(self, request, object_id):
+        if not self.has_change_permission(request):
+            return self._json_error("Permission denied", status=403)
+        product = self.get_object(request, object_id)
+        if product is None:
+            return self._json_error("Product not found", status=404)
+        upload = request.FILES.get("image")
+        if upload is None:
+            return self._json_error("No file uploaded")
+        try:
+            validate_upload(upload)
+        except ValidationError as exc:
+            return self._json_error(str(exc))
+        alt_text = (request.POST.get("alt_text") or "").strip()
+        try:
+            image = ProductImage.objects.create(
+                product=product,
+                image=upload,
+                alt_text=alt_text,
+                position=product.images.count(),
+                is_main=not product.images.exists(),
+            )
+        except Exception as exc:  # pragma: no cover - storage errors
+            logger.exception("Product image upload failed")
+            return self._json_error(f"Upload failed: {exc}", status=500)
+        return JsonResponse({"ok": True, "image": self._serialize_image(request, product, image)})
+
+    def image_delete_view(self, request, object_id, image_id):
+        if not self.has_change_permission(request):
+            return self._json_error("Permission denied", status=403)
+        product, image = self._resolve_image(request, object_id, image_id)
+        if product is None:
+            return self._json_error("Product not found", status=404)
+        if image is None:
+            return self._json_error("Image not found", status=404)
+        image.image.delete(save=False)
+        image.delete()
+        return JsonResponse({"ok": True})
+
+    def image_main_view(self, request, object_id, image_id):
+        if not self.has_change_permission(request):
+            return self._json_error("Permission denied", status=403)
+        product, image = self._resolve_image(request, object_id, image_id)
+        if product is None:
+            return self._json_error("Product not found", status=404)
+        if image is None:
+            return self._json_error("Image not found", status=404)
+        image.is_main = True
+        image.save()
+        return JsonResponse({"ok": True})
+
+    def image_update_view(self, request, object_id, image_id):
+        if not self.has_change_permission(request):
+            return self._json_error("Permission denied", status=403)
+        product, image = self._resolve_image(request, object_id, image_id)
+        if product is None:
+            return self._json_error("Product not found", status=404)
+        if image is None:
+            return self._json_error("Image not found", status=404)
+        image.alt_text = (request.POST.get("alt_text") or "").strip()
+        image.save(update_fields=["alt_text"])
+        return JsonResponse({"ok": True})
 
     def get_fieldsets(self, request, obj=None):
         fieldsets = super().get_fieldsets(request, obj)

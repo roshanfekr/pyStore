@@ -28,7 +28,7 @@ class CartItemSerializer(serializers.ModelSerializer):
 
 
 class CartSerializer(serializers.Serializer):
-    id = serializers.UUIDField(read_only=True)
+    id = serializers.IntegerField(read_only=True)
     lines = serializers.SerializerMethodField()
     subtotal = serializers.SerializerMethodField()
     discount_amount = serializers.SerializerMethodField()

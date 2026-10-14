@@ -1,10 +1,10 @@
 from django.conf import settings
 from django.db import models
 
-from core.models import TimeStampedModel, UUIDModel
+from core.models import IntegerPKModel, TimeStampedModel
 
 
-class AuditLog(UUIDModel, TimeStampedModel):
+class AuditLog(IntegerPKModel, TimeStampedModel):
     """Immutable record of a sensitive operation.
 
     Stored data must already be serialized-safe and free of secrets;

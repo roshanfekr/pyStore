@@ -20,7 +20,7 @@ class User(AbstractBaseUser, PermissionsMixin):
         (USER_TYPE_STAFF, "Staff"),
     ]
 
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    id = models.BigAutoField(primary_key=True, auto_created=True, serialize=False, verbose_name="ID")
     email = models.EmailField(unique=True)
     first_name = models.CharField(max_length=150, blank=True)
     last_name = models.CharField(max_length=150, blank=True)
@@ -103,7 +103,7 @@ EMAIL_VERIFICATION_TTL = timedelta(hours=48)
 
 
 class ExpirableTokenModel(models.Model):
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    id = models.BigAutoField(primary_key=True, auto_created=True, serialize=False, verbose_name="ID")
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
     token = models.UUIDField(default=uuid.uuid4, unique=True, editable=False)
     created_at = models.DateTimeField(auto_now_add=True)

@@ -387,3 +387,51 @@ body {
 }
 .ps-field input[type="checkbox"] { width: 18px; height: 18px; accent-color: var(--ps-primary); }
 .ps-field-help { margin: 0; font-size: 0.78rem; color: var(--ps-muted); }
+
+/* ---------- Product images dialog ---------- */
+.ps-images-list { display: flex; flex-direction: column; gap: 0.6rem; margin-bottom: 0.5rem; }
+.ps-image-row {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    padding: 0.5rem;
+    border: 1px solid var(--ps-border);
+    border-radius: 10px;
+    background: #fff;
+}
+.ps-image-thumb {
+    width: 64px;
+    height: 64px;
+    object-fit: cover;
+    border-radius: 8px;
+    border: 1px solid var(--ps-border);
+    flex: 0 0 auto;
+    background: #f1f5f9;
+}
+.ps-image-row .ps-image-alt {
+    flex: 1 1 auto;
+    min-width: 0;
+    border: 1px solid var(--ps-border);
+    border-radius: 8px;
+    padding: 0.45rem 0.7rem;
+    font: inherit;
+}
+.ps-image-row .ps-btn { flex: 0 0 auto; }
+.ps-empty { color: var(--ps-muted); font-size: 0.88rem; }
+.ps-upload-progress { height: 18px; margin-top: 0.6rem; background: #eef2ff; }
+.ps-upload-progress .progress-bar {
+    background: var(--ps-primary);
+    font-size: 0.7rem;
+    font-weight: 700;
+    line-height: 18px;
+    transition: width 0.2s ease;
+}
+.ps-upload-status { margin: 0.5rem 0 0; font-size: 0.82rem; min-height: 1.1em; }
+.ps-upload-status.is-error { color: var(--ps-danger); }
+.ps-upload-status.is-ok { color: var(--ps-success); }
+
+/* The Bootstrap modal is appended inside the admin content area; make sure it
+   paints above the Django admin chrome and follows the active theme colours. */
+#ps-images-modal .modal-header { border-bottom: 1px solid var(--ps-border); }
+#ps-images-modal .modal-title { font-size: 1.05rem; font-weight: 700; }
+#ps-images-modal .modal-body { text-align: initial; }

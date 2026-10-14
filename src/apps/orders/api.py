@@ -1,6 +1,4 @@
-﻿import uuid
-
-from rest_framework import mixins, serializers
+﻿from rest_framework import mixins, serializers
 from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
@@ -76,8 +74,8 @@ class OrderViewSet(QueryParamFilterMixin, mixins.ListModelMixin, mixins.Retrieve
         order = queryset.filter(number=identifier).first()
         if order is None:
             try:
-                order = queryset.filter(pk=uuid.UUID(identifier)).first()
-            except ValueError:
+                order = queryset.filter(pk=int(identifier)).first()
+            except (TypeError, ValueError):
                 order = None
         if order is None:
             raise NotFoundError("Order not found", code="orders.not_found")

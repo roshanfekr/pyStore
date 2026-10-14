@@ -1,4 +1,4 @@
-from core.models.base import TimeStampedModel, UUIDModel
+from core.models.base import IntegerPKModel, TimeStampedModel
 from core.models.soft_delete import (
     AllObjectsManager,
     SoftDeleteManager,
@@ -9,7 +9,7 @@ from core.plugins.models import PluginState
 from core.settings.models import Setting
 
 
-class BaseModel(UUIDModel, TimeStampedModel, SoftDeleteModel):
+class BaseModel(IntegerPKModel, TimeStampedModel, SoftDeleteModel):
     class Meta:
         abstract = True
 
@@ -17,11 +17,11 @@ class BaseModel(UUIDModel, TimeStampedModel, SoftDeleteModel):
 __all__ = [
     "AllObjectsManager",
     "BaseModel",
+    "IntegerPKModel",
     "PluginState",
     "Setting",
     "SoftDeleteManager",
     "SoftDeleteModel",
     "SoftDeleteQuerySet",
     "TimeStampedModel",
-    "UUIDModel",
 ]

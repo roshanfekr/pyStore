@@ -34,7 +34,7 @@ def test_send_notification_task_via_on_commit(django_capture_on_commit_callbacks
 
 
 def test_send_notification_task_ignores_missing_or_sent(sync_delivery):
-    assert send_notification_task.delay("00000000-0000-0000-0000-000000000000").get() is True
+    assert send_notification_task.delay("999999").get() is True
 
     message = NotificationMessage.objects.create(
         event_name="X", channel="email", recipient="a@b.com",

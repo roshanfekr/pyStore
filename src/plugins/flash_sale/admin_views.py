@@ -1,4 +1,3 @@
-import uuid
 from functools import wraps
 
 from django import forms
@@ -98,7 +97,7 @@ def sale_list_view(request):
 
 @plugin_enabled_required
 @staff_member_required
-def sale_edit_view(request, sale_id: uuid.UUID | None = None):
+def sale_edit_view(request, sale_id: int | None = None):
     sale = FlashSaleProduct.objects.filter(pk=sale_id).select_related("product").first() if sale_id else None
 
     if request.method == "POST":
@@ -157,7 +156,7 @@ def sale_edit_view(request, sale_id: uuid.UUID | None = None):
 
 @plugin_enabled_required
 @staff_member_required
-def sale_delete_view(request, sale_id: uuid.UUID):
+def sale_delete_view(request, sale_id: int):
     sale = FlashSaleProduct.objects.filter(pk=sale_id).first()
     if sale is not None:
         name = str(sale)
