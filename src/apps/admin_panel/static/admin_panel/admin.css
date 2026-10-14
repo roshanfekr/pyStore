@@ -435,3 +435,68 @@ body {
 #ps-images-modal .modal-header { border-bottom: 1px solid var(--ps-border); }
 #ps-images-modal .modal-title { font-size: 1.05rem; font-weight: 700; }
 #ps-images-modal .modal-body { text-align: initial; }
+
+/* ---------- Searchable select (Bootstrap combobox) ---------- */
+.ps-search-select-native {
+    /* Keep the native select in the DOM for form submission but hide it; the
+       Bootstrap dropdown renders the visible control. */
+    position: absolute !important;
+    width: 1px !important;
+    height: 1px !important;
+    padding: 0 !important;
+    margin: -1px !important;
+    overflow: hidden !important;
+    clip: rect(0, 0, 0, 0) !important;
+    white-space: nowrap !important;
+    border: 0 !important;
+}
+.ps-select { display: block; width: 100%; max-width: 420px; }
+.ps-select-toggle {
+    width: 100%;
+    text-align: start;
+    background: #fff;
+    border-color: var(--ps-border);
+    color: var(--ps-text);
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+}
+.ps-select-toggle::after { margin-inline-start: auto; }
+.ps-select-menu {
+    width: 100%;
+    max-width: 420px;
+    padding: 0.35rem;
+    border-color: var(--ps-border);
+    box-shadow: var(--ps-shadow);
+}
+.ps-select-search-wrap { padding: 0.25rem 0.25rem 0.4rem; }
+.ps-select-search {
+    width: 100%;
+    border: 1px solid var(--ps-border);
+    border-radius: 8px;
+    padding: 0.4rem 0.6rem;
+    font: inherit;
+}
+.ps-select-options { max-height: 260px; overflow-y: auto; }
+.ps-select-option {
+    display: block;
+    width: 100%;
+    text-align: start;
+    background: none;
+    border: 0;
+    border-radius: 8px;
+    padding: 0.4rem 0.6rem;
+    font: inherit;
+    color: var(--ps-text);
+    cursor: pointer;
+}
+.ps-select-option:hover,
+.ps-select-option.is-active { background: #eef2ff; }
+.ps-select-option.is-selected { background: var(--ps-primary); color: #fff; }
+.ps-select-empty {
+    padding: 0.5rem 0.6rem;
+    color: var(--ps-muted);
+    font-size: 0.85rem;
+}

@@ -3,13 +3,14 @@
 from django.conf import settings
 from django.contrib import admin, messages
 from django import forms
+from django.db import models
 from django.http import JsonResponse
 from django.template.response import TemplateResponse
 from django.urls import path, reverse
 from django.utils.text import slugify
 from django.views.decorators.http import require_POST
 
-from apps.admin_panel.widgets import TagPickerWidget
+from apps.admin_panel.widgets import SearchableSelectWidget, TagPickerWidget
 from apps.cart.models import Cart, CartItem, CompareItem, WishlistItem
 from apps.catalog.models import (
     Brand,
@@ -253,6 +254,11 @@ class ProductAdmin(PyStoreModelAdmin):
     date_hierarchy = "created_at"
     ordering = ("-created_at",)
     form = ProductAdminForm
+    # Turn the related-object <select> boxes into searchable Bootstrap comboboxes
+    # (demonstration of the reusable SearchableSelectWidget).
+    formfield_overrides = {
+        models.ForeignKey: {"widget": SearchableSelectWidget},
+    }
     # Product images are managed from a Bootstrap dialog on the change page
     # (see admin_panel/catalog/product/change_form.html) instead of an inline.
     inlines = [ProductVariantInline, ProductSpecificationInline, ProductSEOInline]

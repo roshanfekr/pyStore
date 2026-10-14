@@ -9,6 +9,7 @@
     <script src="{% static 'admin_panel/vendor/bootstrap/bootstrap.bundle.min.js' %}" defer></script>
     <script src="{% static 'admin_panel/js/nav_groups.js' %}" defer></script>
     <script src="{% static 'admin_panel/js/switchers.js' %}" defer></script>
+    <script src="{% static 'admin_panel/js/searchable_select.js' %}" defer></script>
 {% endblock %}
 
 {% block title %}{% if subtitle %}{{ subtitle }} | {% endif %}{{ title }} | {{ site_title|default:_('Django site admin') }}{% endblock %}

@@ -28,3 +28,22 @@ class TagPickerWidget(forms.TextInput):
             sorted(set(Tag.objects.values_list("name", flat=True)))
         )
         return context
+
+
+class SearchableSelectWidget(forms.Select):
+    """A plain ``<select>`` that is upgraded into a searchable combobox.
+
+    The markup stays a native select so that form submission, validation and
+    Django's admin "add related" popups keep working unchanged; the external
+    script ``admin_panel/js/searchable_select.js`` progressively enhances every
+    element carrying the ``ps-search-select`` class into a Bootstrap 5 dropdown
+    with a live text filter.
+    """
+
+    def __init__(self, attrs=None, choices=()):
+        final_attrs = {"class": "ps-search-select"}
+        if attrs:
+            final_attrs.update(attrs)
+            if attrs.get("class"):
+                final_attrs["class"] = "ps-search-select " + attrs["class"]
+        super().__init__(final_attrs, choices)
