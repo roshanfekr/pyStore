@@ -1,8 +1,13 @@
 
+from decimal import Decimal, InvalidOperation
+
+from django.contrib import messages
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.decorators import login_required
 from django.http import Http404, HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
+from django.urls import reverse
+from django.utils import translation
 
 from apps.cart.compare import add_to_compare, compare_list, remove_from_compare
 from apps.cart.services import (
@@ -26,8 +31,20 @@ from apps.cms.models import BlogPost, Page
 from apps.cms.seo import build_robots_txt, build_sitemap_items, get_seo_metadata
 from apps.identity.services.registration import register_customer
 from apps.orders.models import Order
-from apps.stores.services import ensure_default_store, get_store_by_domain
+from apps.reviews.services import product_rating
+from apps.stores.services import (
+    ensure_default_store,
+    get_active_currency_code,
+    get_currency,
+    get_store_by_domain,
+    lookup_translation,
+)
 from core.exceptions import ApplicationError
+
+
+def _t(key: str) -> str:
+    """Translate a short user-facing message via the DB word collection."""
+    return lookup_translation(translation.get_language() or "en", key)
 
 
 def _current_store(request):
@@ -53,7 +70,11 @@ def _session_cart(request, store):
 
 def home_view(request):
     store = _current_store(request)
-    products = store.products.filter(is_published=True).order_by("-created_at")[:12]
+    products = (
+        store.products.filter(is_published=True)
+        .prefetch_related("images")
+        .order_by("-created_at")[:12]
+    )
     return render(request, "storefront/home.html", {"products": products})
 
 
@@ -65,8 +86,75 @@ def category_view(request, slug):
     category_ids = [category.id, *category.descendant_ids()]
     products = store.products.filter(
         is_published=True, category_id__in=category_ids
-    )
+    ).prefetch_related("images")
     return render(request, "storefront/category.html", {"category": category, "products": products})
+
+
+def _money(amount, currency) -> str:
+    """Format ``amount`` with the active currency's decimals and symbol."""
+    if amount is None:
+        return ""
+    try:
+        decimals = int(getattr(currency, "decimal_places", 0) or 0)
+    except (TypeError, ValueError):
+        decimals = 0
+    try:
+        value = Decimal(amount)
+    except (InvalidOperation, TypeError, ValueError):
+        return str(amount)
+    formatted = f"{value:,.{decimals}f}"
+    symbol = getattr(currency, "symbol", "") or ""
+    return f"{formatted} {symbol}".strip()
+
+
+def _product_options(product) -> list[dict]:
+    """Variant-option groups (color/size/select) with per-value availability.
+
+    ``ProductAttributeAssignment.value`` is JSON: a scalar for ``color`` /
+    ``size`` / ``select`` and a list for ``multi_select``. A value is marked
+    unavailable when every active variant carrying it is out of stock.
+    """
+    from apps.catalog.models import ProductVariantAttribute
+
+    availability: dict[tuple[str, object], bool] = {}
+    for variant_attribute in ProductVariantAttribute.objects.filter(
+        variant__product=product, variant__is_active=True
+    ).select_related("attribute", "value", "variant"):
+        key = (variant_attribute.attribute.slug, variant_attribute.value.value)
+        availability[key] = availability.get(key, False) or variant_attribute.variant.stock_quantity > 0
+
+    options: list[dict] = []
+    assignments = (
+        product.attribute_assignments.select_related("attribute")
+        .filter(attribute__value_type__in=["color", "size", "select"])
+        .order_by("attribute__name")
+    )
+    for assignment in assignments:
+        attribute = assignment.attribute
+        raw = assignment.value
+        values = raw if isinstance(raw, list) else [raw]
+        rendered = []
+        for value in values:
+            if value is None or value == "":
+                continue
+            rendered.append(
+                {
+                    "value": value,
+                    "label": value,
+                    "swatch": value if attribute.value_type == "color" else None,
+                    "available": availability.get((attribute.slug, value), True),
+                }
+            )
+        if rendered:
+            options.append(
+                {
+                    "name": attribute.name,
+                    "slug": attribute.slug,
+                    "type": attribute.value_type,
+                    "values": rendered,
+                }
+            )
+    return options
 
 
 def product_detail_view(request, slug):
@@ -74,13 +162,33 @@ def product_detail_view(request, slug):
     product = get_object_or_404(
         store.products.select_related("brand", "category", "seo"), slug=slug, is_published=True
     )
-    variants = product.variants.filter(is_active=True)
-    price = resolve_price(product, variants.first() if variants.exists() else None)
+    variants = list(product.variants.filter(is_active=True))
+    price = resolve_price(product, variants[0] if variants else None)
+    currency = get_currency(get_active_currency_code())
+    in_stock = product.stock_quantity > 0 or any(v.stock_quantity > 0 for v in variants)
+    categories = list(
+        Category.objects.filter(is_active=True, parent__isnull=True)
+        .prefetch_related("children")
+        .order_by("ordering", "name")
+    )
     seo = get_seo_metadata(product, request.build_absolute_uri("/").rstrip("/"))
     return render(
         request,
         "storefront/product_detail.html",
-        {"product": product, "variants": variants, "price": price, "seo": seo},
+        {
+            "product": product,
+            "variants": variants,
+            "price": price,
+            "price_display": _money(price, currency),
+            "compare_price_display": _money(product.compare_at_price, currency)
+            if product.compare_at_price
+            else "",
+            "seo": seo,
+            "categories": categories,
+            "rating": product_rating(product),
+            "options": _product_options(product),
+            "in_stock": in_stock,
+        },
     )
 
 
@@ -125,22 +233,88 @@ def suggest_view(request):
 
 def cart_view(request):
     store = _current_store(request)
-    cart = get_cart(
-        store,
-        user=request.user if request.user.is_authenticated else None,
-        session_key=request.session.session_key,
+    customer = request.user if request.user.is_authenticated else None
+    cart = get_cart(store, user=customer, session_key=request.session.session_key)
+    calculation = calculate(cart, customer=customer) if cart else None
+    currency = get_currency(get_active_currency_code())
+
+    lines: list[dict] = []
+    if cart is not None and calculation is not None:
+        items = {
+            str(item.id): item
+            for item in cart.items.select_related("product", "variant").prefetch_related(
+                "product__images"
+            )
+        }
+        for line in calculation.lines:
+            item = items.get(line.item_id)
+            product = item.product if item is not None else None
+            image = product.images.first() if product is not None else None
+            lines.append(
+                {
+                    "item_id": line.item_id,
+                    "name": line.product_name,
+                    "quantity": line.quantity,
+                    "unit_price": _money(line.unit_price, currency),
+                    "line_total": _money(line.line_total, currency),
+                    "url": reverse("storefront:product", args=[product.slug])
+                    if product is not None
+                    else "",
+                    "image": image.image.url if image is not None else "",
+                    "image_alt": (image.alt_text or product.name)
+                    if image is not None and product is not None
+                    else "",
+                    "variant": str(item.variant)
+                    if item is not None and item.variant is not None
+                    else "",
+                }
+            )
+
+    totals = {
+        "subtotal": _money(calculation.subtotal, currency) if calculation else "",
+        "discount": _money(calculation.discount_amount, currency) if calculation else "",
+        "total": _money(calculation.total, currency) if calculation else "",
+    }
+
+    return render(
+        request,
+        "storefront/cart.html",
+        {
+            "cart": cart,
+            "calculation": calculation,
+            "lines": lines,
+            "totals": totals,
+            "item_count": sum(line["quantity"] for line in lines),
+            "coupon_code": calculation.coupon_code if calculation else None,
+        },
     )
-    calculation = calculate(cart, customer=request.user if request.user.is_authenticated else None) if cart else None
-    return render(request, "storefront/cart.html", {"cart": cart, "calculation": calculation})
 
 
 def add_to_cart_view(request, product_id):
     store = _current_store(request)
+    product = store.products.filter(pk=product_id, is_published=True).first()
+    if product is None:
+        messages.error(request, _t("Product not found."))
+        return redirect("storefront:home")
+
+    try:
+        quantity = max(1, int(request.POST.get("quantity", 1) or 1))
+    except (TypeError, ValueError):
+        quantity = 1
+
+    variant = None
+    variant_id = request.POST.get("variant")
+    if variant_id:
+        variant = product.variants.filter(pk=variant_id, is_active=True).first()
+
     cart = _session_cart(request, store)
     try:
-        add_to_cart(cart, store.products.get(pk=product_id, is_published=True), 1)
-    except ApplicationError:
-        pass
+        add_to_cart(cart, product, quantity, variant=variant)
+    except ApplicationError as exc:
+        messages.error(request, _t(exc.message))
+        return redirect("storefront:product", slug=product.slug)
+
+    messages.success(request, _t("Added to cart."))
     return redirect("storefront:cart")
 
 
@@ -262,13 +436,22 @@ def wishlist_view(request):
     return render(request, "storefront/wishlist.html", {"items": items})
 
 
-@login_required
 def wishlist_add_view(request, product_id):
+    if not request.user.is_authenticated:
+        # Send the user back to the wishlist after logging in, not to this
+        # action URL.
+        return redirect("/login/?next=/wishlist/")
+
     store = _current_store(request)
+    product = store.products.filter(pk=product_id, is_published=True).first()
+    if product is None:
+        messages.error(request, _t("Product not found."))
+        return redirect("storefront:home")
     try:
-        add_to_wishlist(request.user, store.products.get(pk=product_id, is_published=True))
-    except ApplicationError:
-        pass
+        add_to_wishlist(request.user, product)
+        messages.success(request, _t("Added to wishlist."))
+    except ApplicationError as exc:
+        messages.info(request, _t(exc.message))
     return redirect("storefront:wishlist")
 
 

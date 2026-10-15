@@ -1,34 +1,73 @@
 ﻿{% extends "storefront/base.html" %}
 {% load strings %}
 {% block content %}
-<div class="page-title"><h2>{% tr 'Cart' %}</h2></div>
-{% if cart %}
-<div class="cart-layout">
-    <div class="panel">
-        <div class="list-rows">
-            {% for item in cart.items.all %}
-                <div class="list-row">
-                    <div><strong>{{ item.product.name }}</strong> <span class="price-muted">x{{ item.quantity }}</span></div>
-                    <form class="qty-form" method="post" action="{% url 'storefront:update_cart_item' item.id %}">
-                        {% csrf_token %}
-                        <input type="number" name="quantity" min="1" value="{{ item.quantity }}" aria-label="{% tr 'Quantity' %}">
-                        <button class="btn btn-ghost btn-sm" type="submit">{% tr 'Update' %}</button>
-                    </form>
+<div class="cart-page">
+    <div class="page-title">
+        <h2>{% tr 'Cart' %}</h2>
+        {% if lines %}<span class="count-pill">{{ item_count }} {% tr 'items' %}</span>{% endif %}
+    </div>
+
+    {% if lines %}
+        <div class="cart-layout">
+            <div class="panel cart-panel">
+                <div class="cart-lines">
+                    {% for line in lines %}
+                        <div class="cart-line">
+                            <a class="cart-line-media" href="{{ line.url }}">
+                                {% if line.image %}
+                                    <img src="{{ line.image }}" alt="{{ line.image_alt }}" loading="lazy">
+                                {% else %}
+                                    <span class="cart-line-media-fallback">{{ line.name|slice:":1"|upper }}</span>
+                                {% endif %}
+                            </a>
+                            <div class="cart-line-body">
+                                <a class="cart-line-name" href="{{ line.url }}">{{ line.name }}</a>
+                                {% if line.variant %}
+                                    <p class="cart-line-variant">{{ line.variant }}</p>
+                                {% endif %}
+                                <p class="cart-line-unit">
+                                    {% tr 'Price' %}: <span class="price-muted">{{ line.unit_price }}</span>
+                                </p>
+                            </div>
+                            <form class="qty-form" method="post" action="{% url 'storefront:update_cart_item' line.item_id %}">
+                                {% csrf_token %}
+                                <input type="number" name="quantity" min="1" value="{{ line.quantity }}" aria-label="{% tr 'Quantity' %}">
+                                <button class="btn btn-ghost btn-sm" type="submit">{% tr 'Update' %}</button>
+                            </form>
+                            <div class="cart-line-total">{{ line.line_total }}</div>
+                            <form method="post" action="{% url 'storefront:update_cart_item' line.item_id %}" class="cart-line-remove">
+                                {% csrf_token %}
+                                <input type="hidden" name="quantity" value="0">
+                                <button class="btn btn-danger btn-sm" type="submit"
+                                        aria-label="{% tr 'Remove' %}" title="{% tr 'Remove' %}">&#10005;</button>
+                            </form>
+                        </div>
+                    {% endfor %}
                 </div>
-            {% endfor %}
+                <div class="cart-actions">
+                    <a class="btn btn-outline" href="{% url 'storefront:home' %}">{% tr 'Continue shopping' %}</a>
+                </div>
+            </div>
+
+            <aside class="panel cart-summary">
+                <h3>{% tr 'Summary' %}</h3>
+                <div class="totals">
+                    <div class="totals-row"><span>{% tr 'Subtotal' %}</span><span>{{ totals.subtotal }}</span></div>
+                    <div class="totals-row"><span>{% tr 'Discount' %}</span><span>{{ totals.discount }}</span></div>
+                    {% if coupon_code %}
+                        <div class="totals-row"><span>{% tr 'Coupon' %}</span><span>{{ coupon_code }}</span></div>
+                    {% endif %}
+                    <div class="totals-row grand"><span>{% tr 'Total' %}</span><span>{{ totals.total }}</span></div>
+                </div>
+                <a class="btn btn-primary btn-block cart-checkout" href="{% url 'storefront:checkout' %}">{% tr 'Checkout' %}</a>
+            </aside>
         </div>
-    </div>
-    <div class="panel">
-        <h3>{% tr 'Summary' %}</h3>
-        <div class="totals">
-            <div class="totals-row"><span>{% tr 'Subtotal' %}</span><span>{{ calculation.subtotal }}</span></div>
-            <div class="totals-row"><span>{% tr 'Discount' %}</span><span>{{ calculation.discount_amount }}</span></div>
-            <div class="totals-row grand"><span>{% tr 'Total' %}</span><span>{{ calculation.total }}</span></div>
+    {% else %}
+        <div class="empty-state">
+            <span class="icon">&#128722;</span>
+            <p>{% tr 'Your cart is empty.' %}</p>
+            <a class="btn btn-primary" href="{% url 'storefront:home' %}">{% tr 'Continue shopping' %}</a>
         </div>
-        <a class="btn btn-primary" style="margin-top:1rem;width:100%" href="{% url 'storefront:checkout' %}">{% tr 'Checkout' %}</a>
-    </div>
+    {% endif %}
 </div>
-{% else %}
-<div class="empty-state"><span class="icon">&#128722;</span>{% tr 'Your cart is empty.' %}</div>
-{% endif %}
 {% endblock %}

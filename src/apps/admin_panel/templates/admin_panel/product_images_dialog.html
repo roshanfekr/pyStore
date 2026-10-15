@@ -1,4 +1,4 @@
-{% load i18n %}
+{% load i18n strings %}
 {# Product images are managed from a dialog (Bootstrap 5 modal) instead of an #}
 {# inline table. Uploads are performed over XHR so the progress bar can be     #}
 {# updated while the file is being transferred.                               #}
@@ -6,17 +6,25 @@
      class="ps-panel"
      data-product-id="{{ original.pk|default:'' }}"
      data-upload-url="{{ image_upload_url }}"
-     data-max-size-mb="{{ image_max_upload_mb }}">
-    <h2>{% translate "Product images" %}</h2>
-    <p class="ps-field-help">
-        {% translate "Manage product images in a dialog. Upload progress is shown while a file is uploading." %}
-    </p>
+     data-max-size-mb="{{ image_max_upload_mb }}"
+     data-msg-choose="{% tr 'admin.image.choose_first' %}"
+     data-msg-save-first="{% tr 'admin.image.save_first' %}"
+     data-msg-uploading="{% tr 'admin.image.uploading' %}"
+     data-msg-uploaded="{% tr 'admin.image.upload_complete' %}"
+     data-msg-deleted="{% tr 'admin.image.deleted' %}"
+     data-msg-main-updated="{% tr 'admin.image.main_updated' %}"
+     data-msg-confirm-delete="{% tr 'admin.image.confirm_delete' %}"
+     data-label-set-main="{% tr 'admin.image.set_main' %}"
+     data-label-main="{% tr 'admin.image.main' %}"
+     data-label-delete="{% tr 'admin.image.delete' %}">
+    <h2>{% tr 'admin.form.catalog.productimage.image' %}</h2>
+    <p class="ps-field-help">{% tr 'admin.image.help' %}</p>
     <div class="ps-actions">
         <button type="button" class="ps-btn" id="ps-open-images-dialog"{% if not original.pk %} disabled{% endif %}>
-            {% translate "Manage images" %}
+            {% tr 'admin.image.manage' %}
         </button>
         {% if not original.pk %}
-            <span class="ps-field-help">{% translate "Save the product first to add images." %}</span>
+            <span class="ps-field-help">{% tr 'admin.image.save_first' %}</span>
         {% endif %}
     </div>
 
@@ -25,7 +33,7 @@
         <div class="modal-dialog modal-lg modal-dialog-scrollable">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h5 class="modal-title" id="ps-images-modal-title">{% translate "Product images" %}</h5>
+                    <h5 class="modal-title" id="ps-images-modal-title">{% tr 'admin.image.manage' %}</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal"
                             aria-label="{% translate 'Close' %}"></button>
                 </div>
@@ -38,31 +46,31 @@
                                  data-update-url="{{ image.update_url }}">
                                 <img src="{{ image.url }}" alt="{{ image.alt_text }}" class="ps-image-thumb">
                                 <input type="text" class="ps-image-alt" value="{{ image.alt_text }}"
-                                       placeholder="{% translate 'Alt text' %}">
+                                       placeholder="{% tr 'admin.image.alt_text' %}">
                                 <button type="button" class="ps-btn ps-outline ps-image-main"{% if image.is_main %} disabled{% endif %}>
-                                    {% if image.is_main %}{% translate "Main" %}{% else %}{% translate "Set main" %}{% endif %}
+                                    {% if image.is_main %}{% tr 'admin.image.main' %}{% else %}{% tr 'admin.image.set_main' %}{% endif %}
                                 </button>
-                                <button type="button" class="ps-btn ps-danger ps-image-delete">{% translate "Delete" %}</button>
+                                <button type="button" class="ps-btn ps-danger ps-image-delete">{% tr 'admin.image.delete' %}</button>
                             </div>
                         {% endfor %}
                     </div>
                     <p class="ps-empty" id="ps-images-empty"{% if product_images %} hidden{% endif %}>
-                        {% translate "No images yet." %}
+                        {% tr 'admin.image.no_images' %}
                     </p>
 
                     <hr class="ps-divider">
 
                     <div class="ps-upload">
                         <div class="ps-field">
-                            <label for="ps-image-file">{% translate "Image file" %}</label>
+                            <label for="ps-image-file">{% tr 'admin.image.image_file' %}</label>
                             <input type="file" id="ps-image-file" accept="image/*">
                         </div>
                         <div class="ps-field">
-                            <label for="ps-image-alt-input">{% translate "Alt text" %}</label>
-                            <input type="text" id="ps-image-alt-input" placeholder="{% translate 'Optional' %}">
+                            <label for="ps-image-alt-input">{% tr 'admin.image.alt_text' %}</label>
+                            <input type="text" id="ps-image-alt-input" placeholder="{% tr 'admin.image.optional' %}">
                         </div>
                         <div class="ps-actions">
-                            <button type="button" class="ps-btn" id="ps-image-upload-btn">{% translate "Upload" %}</button>
+                            <button type="button" class="ps-btn" id="ps-image-upload-btn">{% tr 'admin.image.upload' %}</button>
                         </div>
                         <div class="progress ps-upload-progress" id="ps-upload-progress-wrap" hidden>
                             <div class="progress-bar" id="ps-upload-progress" role="progressbar"

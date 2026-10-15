@@ -25,6 +25,22 @@
 
         var uploadUrl = root.getAttribute('data-upload-url') || '';
         var maxMb = parseInt(root.getAttribute('data-max-size-mb') || '10', 10);
+        // Localised UI strings come from data-* attributes on the wrapper so the
+        // dialog follows the active admin language without inline JavaScript.
+        var msgs = {
+            choose: root.getAttribute('data-msg-choose') || 'Choose an image first.',
+            saveFirst: root.getAttribute('data-msg-save-first') || 'Save the product first to add images.',
+            uploading: root.getAttribute('data-msg-uploading') || 'Uploading...',
+            uploaded: root.getAttribute('data-msg-uploaded') || 'Upload complete.',
+            deleted: root.getAttribute('data-msg-deleted') || 'Image deleted.',
+            mainUpdated: root.getAttribute('data-msg-main-updated') || 'Main image updated.',
+            confirmDelete: root.getAttribute('data-msg-confirm-delete') || 'Delete this image?'
+        };
+        var labels = {
+            setMain: root.getAttribute('data-label-set-main') || 'Set main',
+            main: root.getAttribute('data-label-main') || 'Main',
+            delete: root.getAttribute('data-label-delete') || 'Delete'
+        };
         var modalEl = document.getElementById('ps-images-modal');
         var openBtn = document.getElementById('ps-open-images-dialog');
         var listEl = document.getElementById('ps-images-list');
@@ -92,16 +108,16 @@
             mainBtn.className = 'ps-btn ps-outline ps-image-main';
             if (image.is_main) {
                 mainBtn.disabled = true;
-                mainBtn.textContent = 'Main';
+                mainBtn.textContent = labels.main;
             } else {
-                mainBtn.textContent = 'Set main';
+                mainBtn.textContent = labels.setMain;
             }
             row.appendChild(mainBtn);
 
             var delBtn = document.createElement('button');
             delBtn.type = 'button';
             delBtn.className = 'ps-btn ps-danger ps-image-delete';
-            delBtn.textContent = 'Delete';
+            delBtn.textContent = labels.delete;
             row.appendChild(delBtn);
 
             return row;
@@ -133,11 +149,11 @@
 
         function upload() {
             if (!uploadUrl) {
-                setStatus('Save the product first to add images.', 'error');
+                setStatus(msgs.saveFirst, 'error');
                 return;
             }
             if (!fileInput || !fileInput.files || !fileInput.files.length) {
-                setStatus('Choose an image first.', 'error');
+                setStatus(msgs.choose, 'error');
                 return;
             }
             var file = fileInput.files[0];
@@ -169,7 +185,7 @@
                 }
                 if (xhr.status >= 200 && xhr.status < 300 && body.ok) {
                     setProgress(100);
-                    setStatus('Upload complete.', 'ok');
+                    setStatus(msgs.uploaded, 'ok');
                     if (body.image && listEl) {
                         listEl.appendChild(buildRow(body.image));
                     }
@@ -187,17 +203,23 @@
                     hideProgress();
                     setStatus(body.error || 'Upload failed (HTTP ' + xhr.status + ')', 'error');
                 }
-                uploadBtn.disabled = false;
+                if (uploadBtn) {
+                    uploadBtn.disabled = false;
+                }
             };
             xhr.onerror = function () {
                 hideProgress();
                 setStatus('Network error during upload.', 'error');
-                uploadBtn.disabled = false;
+                if (uploadBtn) {
+                    uploadBtn.disabled = false;
+                }
             };
 
-            uploadBtn.disabled = true;
+            if (uploadBtn) {
+                uploadBtn.disabled = true;
+            }
             setProgress(0);
-            setStatus('Uploading...', '');
+            setStatus(msgs.uploading, '');
             xhr.send(formData);
         }
 
@@ -219,13 +241,13 @@
                     return;
                 }
                 if (target.classList.contains('ps-image-delete')) {
-                    if (!window.confirm('Delete this image?')) {
+                    if (!window.confirm(msgs.confirmDelete)) {
                         return;
                     }
                     post(row.getAttribute('data-delete-url'), new URLSearchParams())
                         .then(function () {
                             row.remove();
-                            setStatus('Image deleted.', 'ok');
+                            setStatus(msgs.deleted, 'ok');
                             if (listEl.children.length === 0 && emptyEl) {
                                 emptyEl.hidden = false;
                             }
@@ -240,12 +262,12 @@
                                 listEl.querySelectorAll('.ps-image-main'),
                                 function (btn) {
                                     btn.disabled = false;
-                                    btn.textContent = 'Set main';
+                                    btn.textContent = labels.setMain;
                                 }
                             );
                             target.disabled = true;
-                            target.textContent = 'Main';
-                            setStatus('Main image updated.', 'ok');
+                            target.textContent = labels.main;
+                            setStatus(msgs.mainUpdated, 'ok');
                         })
                         .catch(function (err) {
                             setStatus(err.message, 'error');

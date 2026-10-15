@@ -78,3 +78,71 @@ def test_admin_switch_to_english(client, admin_user, fa_language):
     client.cookies["pystore_language"] = "en"
     content = client.get("/admin/").content.decode()
     assert "Dashboard" in content
+
+
+@pytest.fixture
+def product(db):
+    from apps.catalog.services import create_product
+    from apps.stores.services import create_store
+
+    store = create_store("I18n Store")
+    return create_product(store, "I18n Product", price="10.00")
+
+
+def test_product_definition_labels_render_persian(client, admin_user, fa_language, product):
+    client.force_login(admin_user)
+    client.cookies["pystore_language"] = "fa"
+    content = client.get(f"/admin/catalog/product/{product.pk}/change/").content.decode()
+    # Unique namespaced keys resolve to Persian field labels.
+    assert "نام محصول" in content
+    assert "قیمت پیش از تخفیف" in content
+    assert "برچسب‌ها" in content
+    assert "دوره پرداخت تکرارشونده" in content
+
+
+def test_product_inline_titles_render_persian(client, admin_user, fa_language, product):
+    client.force_login(admin_user)
+    client.cookies["pystore_language"] = "fa"
+    content = client.get(f"/admin/catalog/product/{product.pk}/change/").content.decode()
+    assert "گونه‌های محصول" in content
+    assert "مشخصات محصول" in content
+    assert "تنظیمات سئوی محصول" in content
+
+
+def test_product_image_dialog_labels_render_persian(client, admin_user, fa_language, product):
+    client.force_login(admin_user)
+    client.cookies["pystore_language"] = "fa"
+    content = client.get(f"/admin/catalog/product/{product.pk}/change/").content.decode()
+    assert "مدیریت تصاویر" in content
+    assert "متن جایگزین" in content
+
+
+def test_product_inline_dialog_controls_render_persian(client, admin_user, fa_language, product):
+    client.force_login(admin_user)
+    client.cookies["pystore_language"] = "fa"
+    content = client.get(f"/admin/catalog/product/{product.pk}/change/").content.decode()
+    # Grid + modal controls for the dialog-based inlines.
+    assert "افزودن" in content
+    assert "ویرایش" in content
+    assert "عملیات" in content
+
+
+def test_product_definition_never_leaks_raw_keys(client, admin_user, fa_language, product):
+    client.force_login(admin_user)
+    client.cookies["pystore_language"] = "fa"
+    content = client.get(f"/admin/catalog/product/{product.pk}/change/").content.decode()
+    assert "admin.form.catalog.product." not in content
+    assert "admin.inline.catalog." not in content
+    assert "admin.image." not in content
+
+
+def test_product_definition_falls_back_to_english_without_translation(
+    client, admin_user, product
+):
+    # No ``fa`` resources seeded and the cookie points at English: labels must
+    # keep their original English text instead of showing raw namespaced keys.
+    client.force_login(admin_user)
+    client.cookies["pystore_language"] = "en"
+    content = client.get(f"/admin/catalog/product/{product.pk}/change/").content.decode()
+    assert "admin.form.catalog.product." not in content
+    assert "Name" in content

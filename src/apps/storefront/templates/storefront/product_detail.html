@@ -1,36 +1,179 @@
 ﻿{% extends "storefront/base.html" %}
 {% load strings %}
 {% block content %}
-<div class="cart-layout">
-    <div class="panel">
-        {% with image=product.images.first %}
-            {% if image %}
-                <div class="product-detail-media">
-                    <img src="{{ image.image.url }}" alt="{{ image.alt_text|default:product.name }}">
+<div class="product-layout">
+    <aside class="product-sidebar panel">
+        <h3>{% tr 'Categories' %}</h3>
+        <ul class="category-tree">
+            {% for category in categories %}
+                <li>
+                    <a href="{% url 'storefront:category' category.slug %}">{{ category.name }}</a>
+                    {% if category.children.all %}
+                        <ul>
+                            {% for child in category.children.all %}
+                                <li><a href="{% url 'storefront:category' child.slug %}">{{ child.name }}</a></li>
+                            {% endfor %}
+                        </ul>
+                    {% endif %}
+                </li>
+            {% empty %}
+                <li class="muted">{% tr 'No products yet.' %}</li>
+            {% endfor %}
+        </ul>
+    </aside>
+
+    <div class="product-main">
+        <div class="product-media-col">
+            {% if product.images.exists %}
+                <div class="product-gallery" data-gallery>
+                    <div class="product-gallery-main">
+                        <img data-gallery-main
+                             src="{{ product.images.first.image.url }}"
+                             alt="{{ product.images.first.alt_text|default:product.name }}">
+                    </div>
+                    {% if product.images.count > 1 %}
+                        <div class="product-gallery-thumbs">
+                            {% for image in product.images.all %}
+                                <button type="button"
+                                        class="product-gallery-thumb{% if forloop.first %} is-active{% endif %}"
+                                        data-gallery-thumb
+                                        data-src="{{ image.image.url }}"
+                                        data-alt="{{ image.alt_text|default:product.name }}"
+                                        aria-label="{{ product.name }} — {{ forloop.counter }}">
+                                    <img src="{{ image.image.url }}" alt="{{ image.alt_text|default:product.name }}" loading="lazy">
+                                </button>
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+                </div>
+            {% else %}
+                <div class="product-detail-media product-detail-media--placeholder">{{ product.name|slice:":1"|upper }}</div>
+            {% endif %}
+        </div>
+
+        <div class="product-info-col panel">
+            <div class="product-heading">
+                <h1>{{ product.name }}</h1>
+                <div class="product-share" aria-label="{% tr 'Share' %}">
+                    <a class="share-btn share-facebook" rel="noopener" target="_blank"
+                       href="https://www.facebook.com/sharer/sharer.php?u={{ request.build_absolute_uri }}" title="Facebook">f</a>
+                    <a class="share-btn share-twitter" rel="noopener" target="_blank"
+                       href="https://twitter.com/intent/tweet?url={{ request.build_absolute_uri }}&text={{ product.name }}" title="Twitter">t</a>
+                    <a class="share-btn share-pinterest" rel="noopener" target="_blank"
+                       href="https://pinterest.com/pin/create/button/?url={{ request.build_absolute_uri }}" title="Pinterest">p</a>
+                </div>
+            </div>
+
+            <div class="product-rating">
+                <span class="stars" aria-hidden="true">
+                    {% for i in "12345" %}
+                        <span class="star{% if rating.average and forloop.counter <= rating.average %} is-on{% endif %}">★</span>
+                    {% endfor %}
+                </span>
+                {% if rating.count %}
+                    <span class="rating-text">{{ rating.average }} ({{ rating.count }})</span>
+                {% else %}
+                    <span class="rating-text">{% tr 'Be the first to review this product' %}</span>
+                {% endif %}
+            </div>
+
+            {% if product.brand %}
+                <p class="product-brand">{% tr 'Brand' %}: <strong>{{ product.brand.name }}</strong></p>
+            {% endif %}
+
+            <div class="product-price">
+                <span class="price price-lg">{{ price_display }}</span>
+                {% if compare_price_display %}
+                    <span class="price-was">{{ compare_price_display }}</span>
+                {% endif %}
+                <p class="price-muted">{% tr 'Incl. applicable taxes' %}</p>
+            </div>
+
+            {% if product.sku %}
+                <p class="product-meta">{% tr 'SKU' %}: <strong>{{ product.sku }}</strong></p>
+            {% endif %}
+
+            <p class="product-meta product-availability">
+                {% tr 'Availability' %}:
+                {% if in_stock %}
+                    <span class="stock-dot stock-in"></span><strong>{% tr 'In stock' %}</strong>
+                {% else %}
+                    <span class="stock-dot stock-out"></span><strong>{% tr 'Out of stock' %}</strong>
+                {% endif %}
+            </p>
+
+            {% for option in options %}
+                <div class="product-option" data-option="{{ option.slug }}">
+                    <span class="product-option-label">{{ option.name }}</span>
+                    <div class="product-option-values">
+                        {% for value in option.values %}
+                            {% if value.swatch %}
+                                <button type="button"
+                                        class="swatch{% if not value.available %} is-disabled{% endif %}"
+                                        style="background: {{ value.swatch }}"
+                                        title="{{ value.label }}"
+                                        aria-label="{{ value.label }}"
+                                        {% if not value.available %}disabled{% endif %}></button>
+                            {% else %}
+                                <button type="button"
+                                        class="option-pill{% if not value.available %} is-disabled{% endif %}"
+                                        {% if not value.available %}disabled{% endif %}>{{ value.label }}</button>
+                            {% endif %}
+                        {% endfor %}
+                    </div>
+                </div>
+            {% endfor %}
+
+            <form method="post" action="{% url 'storefront:add_to_cart' product.id %}" class="product-action product-buy">
+                {% csrf_token %}
+                {% if variants %}
+                    <label class="product-option-label" for="variant-select">{% tr 'Variants' %}</label>
+                    <select id="variant-select" name="variant" class="variant-select">
+                        {% for v in variants %}
+                            <option value="{{ v.id }}">{{ v.sku }} — {{ v.price }}</option>
+                        {% endfor %}
+                    </select>
+                {% endif %}
+                <div class="qty-form">
+                    <label for="product-qty">{% tr 'Quantity' %}</label>
+                    <input type="number" id="product-qty" name="quantity" value="1" min="1" inputmode="numeric">
+                </div>
+                <button type="submit" class="btn btn-primary btn-block">{% tr 'Add to cart' %}</button>
+            </form>
+
+            <div class="product-secondary">
+                {% if user.is_authenticated %}
+                    <form method="post" action="{% url 'storefront:wishlist_add' product.id %}" class="product-action">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-ghost" title="{% tr 'Add to wishlist' %}">♥</button>
+                    </form>
+                {% endif %}
+                <form method="post" action="{% url 'storefront:compare_add' product.id %}" class="product-action">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-ghost" title="{% tr 'Add to compare' %}">⇄</button>
+                </form>
+            </div>
+
+            {% if product.specifications.exists %}
+                <div class="product-specs">
+                    <h3>{% tr 'Details' %}</h3>
+                    <table class="data">
+                        <tbody>
+                            {% for spec in product.specifications.all %}
+                                <tr><th>{{ spec.name }}</th><td>{{ spec.value }}</td></tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
                 </div>
             {% endif %}
-        {% endwith %}
-        <h1>{{ product.name }}</h1>
-        <p>{{ product.description }}</p>
-        {% if variants %}
-            <h3>{% tr 'Variants' %}</h3>
-            <div class="table-wrap">
-                <table class="data">
-                    <thead><tr><th>{% tr 'SKU' %}</th><th>{% tr 'Price' %}</th></tr></thead>
-                    <tbody>
-                        {% for v in variants %}<tr><td>{{ v.sku }}</td><td>{{ v.price }}</td></tr>{% endfor %}
-                    </tbody>
-                </table>
-            </div>
-        {% endif %}
-    </div>
-    <div class="panel">
-        <div class="price" style="font-size:1.5rem">{{ price }}</div>
-        <p class="price-muted">{% tr 'Incl. applicable taxes' %}</p>
-        <a class="btn btn-primary" href="{% url 'storefront:add_to_cart' product.id %}">{% tr 'Add to cart' %}</a>
-        {% if user.is_authenticated %}
-            <a class="btn btn-ghost" style="margin-top:.5rem" href="{% url 'storefront:wishlist_add' product.id %}">{% tr 'Add to wishlist' %}</a>
-        {% endif %}
+        </div>
     </div>
 </div>
+
+{% if product.description %}
+    <section class="panel product-description">
+        <h2>{% tr 'Description' %}</h2>
+        <div class="prose">{{ product.description|linebreaks }}</div>
+    </section>
+{% endif %}
 {% endblock %}

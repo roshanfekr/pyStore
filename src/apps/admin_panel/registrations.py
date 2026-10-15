@@ -10,6 +10,11 @@ from django.urls import path, reverse
 from django.utils.text import slugify
 from django.views.decorators.http import require_POST
 
+from apps.admin_panel.i18n import (
+    _lookup_optional,
+    translate_form_labels,
+    translate_help_text,
+)
 from apps.admin_panel.widgets import SearchableSelectWidget, TagPickerWidget
 from apps.cart.models import Cart, CartItem, CompareItem, WishlistItem
 from apps.catalog.models import (
@@ -196,23 +201,77 @@ class TagAdmin(PyStoreModelAdmin):
     search_fields = ("name",)
 
 
-class ProductVariantInline(admin.TabularInline):
+class TranslatableInlineMixin:
+    """Translate an inline's field labels and section title.
+
+    Uses the same namespaced keys as :mod:`apps.admin_panel.i18n` so product
+    definition labels never collide with storefront strings. The section title
+    rendered by the admin template is ``verbose_name_plural`` for multi-object
+    inlines and ``verbose_name`` for single-object (``max_num == 1``) inlines
+    such as the ``ProductSEO`` one-to-one, so both are translated.
+    """
+
+    inline_i18n_model = None
+    inline_i18n_title_key = ""
+
+    def __init__(self, parent_model, admin_site):
+        super().__init__(parent_model, admin_site)
+        if self.inline_i18n_title_key:
+            translated = _lookup_optional(self.inline_i18n_title_key)
+            if translated:
+                self.verbose_name = translated
+                self.verbose_name_plural = translated
+
+    def get_formset(self, request, obj=None, **kwargs):
+        formset = super().get_formset(request, obj, **kwargs)
+        model = self.inline_i18n_model or self.model
+        original_init = formset.form.__init__
+
+        def _init(inner_self, *args, **inner_kwargs):
+            original_init(inner_self, *args, **inner_kwargs)
+            translate_form_labels(inner_self, model)
+
+        formset.form.__init__ = _init
+        return formset
+
+
+# The three product inlines below are rendered as a grid plus a Bootstrap
+# dialog (see ``admin_panel/inline_dialog/grid.html`` and ``inline_dialog.js``)
+# instead of Django's default inline table. The underlying formset is unchanged,
+# so saving still happens through the normal admin form.
+INLINE_DIALOG_TEMPLATE = "admin_panel/inline_dialog/grid.html"
+
+
+class ProductVariantInline(TranslatableInlineMixin, admin.TabularInline):
     model = ProductVariant
     extra = 0
+    template = INLINE_DIALOG_TEMPLATE
+    # ProductVariant extends the soft-delete BaseModel; hide the bookkeeping
+    # fields (as the parent ProductAdmin does) so deletion only happens through
+    # the inline's Delete button / the standard admin Delete action.
+    exclude = ("is_deleted", "deleted_at")
+    inline_i18n_model = ProductVariant
+    inline_i18n_title_key = "admin.inline.catalog.productvariant"
 
 
-class ProductSpecificationInline(admin.TabularInline):
+class ProductSpecificationInline(TranslatableInlineMixin, admin.TabularInline):
     model = ProductSpecification
     extra = 0
+    template = INLINE_DIALOG_TEMPLATE
+    inline_i18n_model = ProductSpecification
+    inline_i18n_title_key = "admin.inline.catalog.productspecification"
 
 
-class ProductSEOInline(admin.StackedInline):
+class ProductSEOInline(TranslatableInlineMixin, admin.StackedInline):
     model = ProductSEO
     extra = 0
+    template = INLINE_DIALOG_TEMPLATE
+    inline_i18n_model = ProductSEO
+    inline_i18n_title_key = "admin.inline.catalog.productseo"
 
 
 class ProductAdminForm(forms.ModelForm):
-    """Product form with a free-text tag picker instead of a select list."""
+    """Product form with a free-text Tagify tag input instead of a select list."""
 
     tags_input = forms.CharField(
         required=False,
@@ -221,6 +280,9 @@ class ProductAdminForm(forms.ModelForm):
         help_text="Type a tag and press Enter. New tags are created automatically.",
     )
 
+    # Tagify assets are declared on ``TagPickerWidget.Media`` and aggregated
+    # into the form media automatically (external files only, CSP-safe).
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.fields.pop("tags", None)
@@ -228,6 +290,14 @@ class ProductAdminForm(forms.ModelForm):
             self.initial["tags_input"] = ", ".join(
                 self.instance.tags.values_list("name", flat=True)
             )
+        # Replace every English model label with its unique namespaced key.
+        translate_form_labels(self, self._meta.model)
+        translate_help_text(
+            self,
+            self._meta.model,
+            "tags_input",
+            "admin.form.catalog.product.help.tags_input",
+        )
 
     def clean_tags_input(self):
         raw = self.cleaned_data.get("tags_input") or ""
@@ -263,9 +333,9 @@ class ProductAdmin(PyStoreModelAdmin):
     # (see admin_panel/catalog/product/change_form.html) instead of an inline.
     inlines = [ProductVariantInline, ProductSpecificationInline, ProductSEOInline]
     actions = ["publish_products", "unpublish_products"]
-
-    class Media:
-        js = ("admin_panel/js/product_images.js",)
+    # ``product_images.js`` is loaded from admin/catalog/product/change_form.html
+    # (only the change page has the dialog). Declaring it here as well would load
+    # the file twice and double-bind every click/upload handler.
 
     # --- Product image dialog (AJAX upload with progress) ---------------
     def changeform_view(self, request, object_id=None, form_url="", extra_context=None):

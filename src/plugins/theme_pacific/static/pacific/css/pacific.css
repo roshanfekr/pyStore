@@ -138,16 +138,6 @@ body.pacific .pacific-card:hover { box-shadow: 0 12px 28px rgba(14, 116, 144, 0.
     border-radius: var(--radius);
     overflow: hidden;
     margin-bottom: 1.25rem;
-    border: 1px solid var(--border);
-    background: linear-gradient(135deg, var(--pacific-deep-soft), var(--primary) 55%, var(--accent));
-}
-
-.pacific-product-media img {
-    display: block;
-    width: 100%;
-    height: auto;
-    max-height: 420px;
-    object-fit: cover;
 }
 
 .pacific-product-media .product-card-media {

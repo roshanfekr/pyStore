@@ -1,11 +1,17 @@
 /* Searchable select (Bootstrap 5 combobox).
  *
  * Progressively enhances every native <select class="ps-search-select"> into a
- * Bootstrap 5 dropdown with a live text filter. The native <select> is kept in
+ * searchable dropdown with a live text filter. The native <select> is kept in
  * the DOM (just visually hidden) so form submission, validation and Django's
- * admin "add related" popups keep working unchanged. Kept in an external file
- * because the site Content-Security-Policy (`script-src 'self'`) blocks inline
- * JavaScript.
+ * admin "add related" popups keep working unchanged.
+ *
+ * The menu is attached to <body> and positioned with ``position: fixed`` so it
+ * is never clipped by an ancestor's ``overflow`` (Django's own ``forms.css``
+ * sets ``.form-row { overflow: hidden }``), which used to cut off the lower
+ * half of the list.
+ *
+ * Kept in an external file because the site Content-Security-Policy
+ * (``script-src 'self'``) blocks inline JavaScript.
  */
 (function () {
     'use strict';
@@ -36,12 +42,12 @@
         select.dataset.psEnhanced = '1';
 
         var wrap = document.createElement('div');
-        wrap.className = 'dropdown ps-select';
+        wrap.className = 'ps-select';
 
         var toggle = document.createElement('button');
         toggle.type = 'button';
         toggle.className = 'btn btn-outline-secondary dropdown-toggle ps-select-toggle';
-        toggle.setAttribute('data-bs-toggle', 'dropdown');
+        toggle.setAttribute('aria-haspopup', 'listbox');
         toggle.setAttribute('aria-expanded', 'false');
 
         var menu = document.createElement('div');
@@ -63,14 +69,11 @@
         menu.appendChild(searchWrap);
         menu.appendChild(optionsBox);
         wrap.appendChild(toggle);
-        wrap.appendChild(menu);
 
         select.parentNode.insertBefore(wrap, select.nextSibling);
         select.classList.add('ps-search-select-native');
-
-        var dropdown = window.bootstrap
-            ? window.bootstrap.Dropdown.getOrCreateInstance(toggle)
-            : null;
+        // ``body`` is the only ancestor guaranteed to have no clipping context.
+        document.body.appendChild(menu);
 
         var activeIndex = -1;
 
@@ -93,6 +96,16 @@
 
         function updateToggle() {
             toggle.textContent = currentLabel();
+        }
+
+        function positionMenu() {
+            var rect = toggle.getBoundingClientRect();
+            menu.style.position = 'fixed';
+            menu.style.top = rect.bottom + 2 + 'px';
+            menu.style.left = rect.left + 'px';
+            menu.style.width = rect.width + 'px';
+            menu.style.minWidth = rect.width + 'px';
+            menu.style.zIndex = '2000';
         }
 
         function renderOptions(filter) {
@@ -129,30 +142,49 @@
         function openMenu() {
             renderOptions('');
             search.value = '';
-            if (dropdown) {
-                dropdown.show();
-            }
+            positionMenu();
+            menu.classList.add('show');
+            toggle.setAttribute('aria-expanded', 'true');
             window.setTimeout(function () {
                 search.focus();
             }, 0);
         }
 
+        function closeMenu() {
+            menu.classList.remove('show');
+            toggle.setAttribute('aria-expanded', 'false');
+        }
+
+        function isOpen() {
+            return menu.classList.contains('show');
+        }
+
         function choose(value) {
             select.value = value;
             updateToggle();
-            if (dropdown) {
-                dropdown.hide();
-            }
+            closeMenu();
             fireChange(select);
         }
 
-        toggle.addEventListener('click', function () {
-            // Bootstrap toggles the menu; populate and focus it once it is shown.
-            window.setTimeout(function () {
-                if (menu.classList.contains('show')) {
-                    openMenu();
-                }
-            }, 0);
+        toggle.addEventListener('click', function (event) {
+            event.preventDefault();
+            event.stopPropagation();
+            if (isOpen()) {
+                closeMenu();
+            } else {
+                openMenu();
+            }
+        });
+
+        // Close when clicking anywhere outside the toggle or the (detached) menu.
+        document.addEventListener('click', function (event) {
+            if (!isOpen()) {
+                return;
+            }
+            if (wrap.contains(event.target) || menu.contains(event.target)) {
+                return;
+            }
+            closeMenu();
         });
 
         optionsBox.addEventListener('click', function (event) {
@@ -205,10 +237,19 @@
                 if (target) {
                     choose(target.getAttribute('data-value'));
                 }
-            } else if (event.key === 'Escape' && dropdown) {
-                dropdown.hide();
+            } else if (event.key === 'Escape') {
+                closeMenu();
             }
         });
+
+        // Keep the fixed menu aligned while the page scrolls or resizes.
+        function reposition() {
+            if (isOpen()) {
+                positionMenu();
+            }
+        }
+        window.addEventListener('scroll', reposition, true);
+        window.addEventListener('resize', reposition);
 
         // Stay in sync when Django admin popups (or the select itself) change
         // the selected value.

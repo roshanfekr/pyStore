@@ -241,6 +241,15 @@ body {
 
 .module h2, .module caption { background: var(--ps-primary) !important; border-radius: 6px 6px 0 0; }
 .module { border-radius: var(--ps-radius); box-shadow: var(--ps-shadow); overflow: hidden; border: 1px solid var(--ps-border); }
+/* Django's own ``forms.css`` sets ``.form-row { overflow: hidden }`` and is
+   loaded *after* this file, so the override below needs ``!important`` to win
+   the cascade. Without it the lower half of the searchable-combobox dropdown
+   was clipped. Scoped to the field rows that actually host a combobox so the
+   rest of the admin keeps its original overflow behaviour. */
+.form-row:has(.ps-select) { overflow: visible !important; }
+fieldset.module:has(.ps-select) { overflow: visible !important; }
+/* Fallback for engines without :has() support (harmless when :has() works). */
+fieldset.module { overflow: visible; }
 
 #changelist table tbody tr:hover, #result_list tbody tr:hover { background: #eef2ff !important; }
 
@@ -465,12 +474,22 @@ body {
 }
 .ps-select-toggle::after { margin-inline-start: auto; }
 .ps-select-menu {
-    width: 100%;
+    /* The menu is detached to <body> and positioned with ``position: fixed`` by
+       searchable_select.js so it can never be clipped by an ancestor's
+       ``overflow`` (Django sets ``.form-row { overflow: hidden }``). The JS also
+       sets top/left/width and z-index at open time. */
+    position: fixed;
+    display: none;
+    width: auto;
+    min-width: 12rem;
     max-width: 420px;
     padding: 0.35rem;
-    border-color: var(--ps-border);
-    box-shadow: var(--ps-shadow);
+    border: 1px solid var(--ps-border);
+    background: #fff;
+    border-radius: var(--ps-radius);
+    box-shadow: 0 8px 24px rgba(15, 23, 42, 0.18);
 }
+.ps-select-menu.show { display: block; }
 .ps-select-search-wrap { padding: 0.25rem 0.25rem 0.4rem; }
 .ps-select-search {
     width: 100%;
@@ -499,4 +518,67 @@ body {
     padding: 0.5rem 0.6rem;
     color: var(--ps-muted);
     font-size: 0.85rem;
+}
+
+/* ---------- Dialog-based inlines (grid + Bootstrap modal) ---------- */
+/* The real formset forms live here, hidden. They are still submitted with the
+   page; the grid below is only a client-side view of them. */
+.ps-inline-forms[hidden] { display: none !important; }
+
+.ps-inline-dialog .ps-inline-grid {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 0.5rem 0;
+    background: #fff;
+}
+.ps-inline-dialog .ps-inline-grid th,
+.ps-inline-dialog .ps-inline-grid td {
+    padding: 0.55rem 0.7rem;
+    border-bottom: 1px solid var(--ps-border);
+    text-align: start;
+    vertical-align: middle;
+    font-size: 0.9rem;
+}
+.ps-inline-dialog .ps-inline-grid thead th {
+    background: #f8fafc;
+    color: var(--ps-muted);
+    font-weight: 600;
+    white-space: nowrap;
+}
+.ps-inline-dialog .ps-inline-grid tbody tr:hover { background: #f8fafc; }
+.ps-inline-dialog .ps-inline-grid td.hidden,
+.ps-inline-dialog .ps-inline-grid th.hidden { display: none; }
+.ps-inline-dialog .ps-inline-row[hidden] { display: none; }
+
+.ps-inline-dialog .ps-inline-actions { white-space: nowrap; }
+.ps-inline-dialog .ps-inline-actions .ps-btn { margin-inline-start: 0.35rem; }
+
+/* Fields shown inside the modal. */
+.ps-inline-dialog-body .ps-inline-fieldset {
+    border: 0;
+    margin: 0;
+    padding: 0;
+}
+.ps-inline-dialog-body .form-row { padding: 0.35rem 0; }
+.ps-inline-dialog-body label {
+    display: block;
+    font-weight: 600;
+    margin-bottom: 0.25rem;
+}
+.ps-inline-dialog-body input[type="text"],
+.ps-inline-dialog-body input[type="number"],
+.ps-inline-dialog-body input[type="url"],
+.ps-inline-dialog-body select,
+.ps-inline-dialog-body textarea {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 0.45rem 0.6rem;
+    border: 1px solid var(--ps-border);
+    border-radius: 8px;
+    font: inherit;
+}
+
+.ps-inline-dialog .ps-empty {
+    padding: 0.75rem 0.2rem;
+    color: var(--ps-muted);
 }

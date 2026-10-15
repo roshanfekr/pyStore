@@ -165,6 +165,9 @@ REST_FRAMEWORK = {
 
 AUTH_USER_MODEL = "identity.User"
 
+LOGIN_URL = "/login/"
+LOGIN_REDIRECT_URL = "/account/"
+
 AUTHENTICATION_BACKENDS = [
     "apps.identity.backends.PermissionBackend",
     "django.contrib.auth.backends.ModelBackend",

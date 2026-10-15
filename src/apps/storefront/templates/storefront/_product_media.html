@@ -1,0 +1,9 @@
+<div class="product-card-media{% if media_class %} {{ media_class }}{% endif %}">
+    {% with image=product.images.first %}
+        {% if image %}
+            <img src="{{ image.image.url }}" alt="{{ image.alt_text|default:product.name }}" loading="lazy">
+        {% else %}
+            {{ product.name|slice:":1"|upper }}
+        {% endif %}
+    {% endwith %}
+</div>

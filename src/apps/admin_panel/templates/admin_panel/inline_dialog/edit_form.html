@@ -1,0 +1,41 @@
+{% load i18n %}
+{# Editable fields of a single inline row.                                       #}
+{#                                                                              #}
+{# Rendered once per formset form inside the hidden, always-submitted           #}
+{# container and later moved into the Bootstrap dialog by ``inline_dialog.js``  #}
+{# (moving, not cloning, keeps exactly one copy of every input). Requires       #}
+{# ``inline_admin_form`` in the context.                                        #}
+<div class="ps-inline-fields">
+    {% for fieldset in inline_admin_form %}
+        <fieldset class="module aligned ps-inline-fieldset {{ fieldset.classes }}">
+            {% if fieldset.name %}
+                <h3 class="fieldset-heading">{{ fieldset.name }}</h3>
+            {% endif %}
+            {% for line in fieldset %}
+                <div class="form-row">
+                    {% for field in line %}
+                        <div class="ps-inline-field">
+                            {% if field.is_checkbox %}
+                                {{ field.field }}
+                                {{ field.label_tag }}
+                            {% else %}
+                                {{ field.label_tag }}
+                                {% if field.is_readonly %}
+                                    <div class="readonly">{{ field.contents }}</div>
+                                {% else %}
+                                    {{ field.field }}
+                                {% endif %}
+                            {% endif %}
+                            {{ field.errors }}
+                            {% if field.field.help_text %}
+                                <div class="help">
+                                    <div>{{ field.field.help_text|safe }}</div>
+                                </div>
+                            {% endif %}
+                        </div>
+                    {% endfor %}
+                </div>
+            {% endfor %}
+        </fieldset>
+    {% endfor %}
+</div>

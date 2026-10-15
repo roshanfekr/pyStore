@@ -26,7 +26,7 @@
 <div class="product-grid">
     {% for product in products %}
         <article class="product-card pacific-card">
-            <div class="product-card-media pacific-card-media">{{ product.name|slice:":1"|upper }}</div>
+            {% include "storefront/_product_media.html" with media_class="pacific-card-media" %}
             <div class="product-card-body">
                 <div class="product-card-title"><a href="{% url 'storefront:product' product.slug %}">{{ product.name }}</a></div>
                 <div class="price">{{ product.price }}</div>

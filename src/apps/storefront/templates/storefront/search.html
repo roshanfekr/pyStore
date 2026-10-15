@@ -8,7 +8,7 @@
 <div class="product-grid">
     {% for product in products %}
         <article class="product-card">
-            <div class="product-card-media">{{ product.name|slice:":1"|upper }}</div>
+            {% include "storefront/_product_media.html" %}
             <div class="product-card-body">
                 <div class="product-card-title"><a href="{% url 'storefront:product' product.slug %}">{{ product.name }}</a></div>
             </div>

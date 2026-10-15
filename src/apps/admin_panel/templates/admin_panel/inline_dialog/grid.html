@@ -1,0 +1,103 @@
+{% load i18n strings %}
+{# Dialog-based inline: a read-only grid of the saved rows plus a Bootstrap       #}
+{# dialog used to add / edit them.                                                 #}
+{#                                                                                #}
+{# The real, always-submitted Django formset forms live in a hidden container      #}
+{# (``.ps-inline-forms``). ``inline_dialog.js`` builds the visible grid from them   #}
+{# and moves a single row's fields into the dialog on demand, so the browser       #}
+{# always posts a standard, valid formset.                                        #}
+<div class="ps-inline-dialog"
+     data-ps-inline
+     data-ps-prefix="{{ inline_admin_formset.formset.prefix }}"
+     data-ps-fields="{% for field in inline_admin_formset.fields %}{{ field.name }}{% if not forloop.last %},{% endif %}{% endfor %}"
+     data-msg-confirm-delete="{% tr 'admin.inline.confirm_delete' %}"
+     data-label-edit="{% tr 'admin.inline.edit' %}"
+     data-label-delete="{% tr 'admin.inline.delete' %}">
+    {{ inline_admin_formset.formset.management_form }}
+    <fieldset class="module {{ inline_admin_formset.classes }}">
+        <h2 class="inline-heading">
+            {% if inline_admin_formset.formset.max_num == 1 %}{{ inline_admin_formset.opts.verbose_name|capfirst }}{% else %}{{ inline_admin_formset.opts.verbose_name_plural|capfirst }}{% endif %}
+        </h2>
+        {{ inline_admin_formset.formset.non_form_errors }}
+
+        {# Hidden, always-submitted forms: the data the browser actually posts. #}
+        <div class="ps-inline-forms" hidden>
+            {% for inline_admin_form in inline_admin_formset %}
+                <div class="ps-inline-form" data-index="{{ forloop.counter0 }}"{% if forloop.last and inline_admin_formset.has_add_permission %} data-ps-inline-empty="1"{% endif %}>
+                    {% if inline_admin_form.needs_explicit_pk_field %}{{ inline_admin_form.pk_field.field }}{% endif %}
+                    {% if inline_admin_form.fk_field %}{{ inline_admin_form.fk_field.field }}{% endif %}
+                    {% include "admin_panel/inline_dialog/edit_form.html" with inline_admin_form=inline_admin_form %}
+                    {% if inline_admin_formset.formset.can_delete and inline_admin_formset.has_delete_permission and inline_admin_form.original %}
+                        <div class="ps-inline-delete">{{ inline_admin_form.deletion_field.field }}</div>
+                    {% endif %}
+                </div>
+            {% endfor %}
+        </div>
+
+        {# Visible grid of the saved rows. #}
+        <table class="ps-inline-grid" data-ps-inline-grid>
+            <thead>
+                <tr>
+                    {% for field in inline_admin_formset.fields %}
+                        <th class="column-{{ field.name }}{% if field.required %} required{% endif %}{% if field.widget.is_hidden %} hidden{% endif %}">{{ field.label|capfirst }}</th>
+                    {% endfor %}
+                    <th class="ps-inline-actions-head">{% tr 'admin.inline.actions' %}</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for inline_admin_form in inline_admin_formset %}
+                    {% if inline_admin_form.original %}
+                        <tr class="ps-inline-row" data-ps-inline-row data-index="{{ forloop.counter0 }}">
+                            {% for fieldset in inline_admin_form %}
+                                {% for line in fieldset %}
+                                    {% for field in line %}
+                                        <td class="{% if field.field.name %}field-{{ field.field.name }}{% endif %}{% if field.field.is_hidden %} hidden{% endif %}" data-ps-field="{{ field.field.html_name }}">
+                                            {{ field.contents }}
+                                        </td>
+                                    {% endfor %}
+                                {% endfor %}
+                            {% endfor %}
+                            <td class="ps-inline-actions">
+                                {% if inline_admin_formset.has_change_permission %}
+                                    <button type="button" class="ps-btn ps-outline ps-inline-edit">{% tr 'admin.inline.edit' %}</button>
+                                {% endif %}
+                                {% if inline_admin_formset.formset.can_delete and inline_admin_formset.has_delete_permission %}
+                                    <button type="button" class="ps-btn ps-danger ps-inline-delete-btn">{% tr 'admin.inline.delete' %}</button>
+                                {% endif %}
+                            </td>
+                        </tr>
+                    {% endif %}
+                {% endfor %}
+            </tbody>
+        </table>
+        <p class="ps-empty ps-inline-empty" data-ps-inline-empty-msg{% if inline_admin_formset.formset.total_form_count %} hidden{% endif %}>
+            {% tr 'admin.inline.empty' %}
+        </p>
+
+        {% if inline_admin_formset.has_add_permission %}
+            <div class="ps-actions">
+                <button type="button" class="ps-btn ps-inline-add" data-ps-inline-add>{% tr 'admin.inline.add' %}</button>
+            </div>
+        {% endif %}
+    </fieldset>
+
+    <div class="modal fade" id="ps-inline-modal-{{ inline_admin_formset.formset.prefix }}" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-lg modal-dialog-scrollable">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">
+                        {% if inline_admin_formset.formset.max_num == 1 %}{{ inline_admin_formset.opts.verbose_name|capfirst }}{% else %}{{ inline_admin_formset.opts.verbose_name_plural|capfirst }}{% endif %}
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="{% translate 'Close' %}"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="ps-inline-dialog-body" data-ps-inline-dialog-body></div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="ps-btn ps-outline" data-bs-dismiss="modal">{% translate 'Cancel' %}</button>
+                    <button type="button" class="ps-btn" data-ps-inline-apply>{% tr 'admin.inline.apply' %}</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

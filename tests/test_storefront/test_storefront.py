@@ -125,6 +125,77 @@ def test_product_detail_page(client, store, published_product):
     assert client.get("/product/does-not-exist/", {}).status_code == 404
 
 
+def test_product_detail_shows_all_images(client, store, published_product):
+    from apps.catalog.models import ProductImage
+
+    ProductImage.objects.create(
+        product=published_product, image="catalog/products/a.png", position=0
+    )
+    ProductImage.objects.create(
+        product=published_product, image="catalog/products/b.png", position=1
+    )
+    ProductImage.objects.create(
+        product=published_product, image="catalog/products/c.png", position=2
+    )
+
+    content = client.get(f"/product/{published_product.slug}/").content.decode()
+    assert "product-gallery" in content
+    assert content.count("data-gallery-thumb") == 3
+    assert "catalog/products/a.png" in content
+    assert "catalog/products/c.png" in content
+
+
+def test_product_detail_rich_layout(client, store, published_product):
+    from apps.catalog.models import Category, ProductAttribute
+    from apps.catalog.services import set_product_attribute
+
+    Category.objects.create(name="Clothing", slug="clothing")
+    ProductAttribute.objects.create(name="Color", slug="color", value_type="color")
+    set_product_attribute(published_product, "color", "#1e3a8a")
+
+    content = client.get(f"/product/{published_product.slug}/").content.decode()
+    # Left category sidebar, availability state, quantity + colour swatch.
+    assert "product-layout" in content
+    assert "product-sidebar" in content
+    assert "Clothing" in content
+    assert "product-availability" in content
+    assert 'name="quantity"' in content
+    assert "swatch" in content
+    assert "#1e3a8a" in content
+
+
+def test_add_to_cart_post_adds_item(client, store, published_product):
+    response = client.post(f"/cart/add/{published_product.id}/")
+    assert response.status_code == 302
+    assert response["Location"] == "/cart/"
+
+    cart_content = client.get("/cart/").content.decode()
+    assert "Storefront Product" in cart_content
+
+
+def test_wishlist_add_redirects_anonymous_to_login(client, store, published_product):
+    response = client.get(f"/wishlist/add/{published_product.id}/")
+    assert response.status_code == 302
+    assert response["Location"].startswith("/login/")
+
+
+def test_wishlist_add_works_for_authenticated_user(client, store, published_product):
+    client.post("/register/", {"email": "wishlist@example.com", "password": "Str0ng!Passw0rd"})
+
+    response = client.post(f"/wishlist/add/{published_product.id}/")
+    assert response.status_code == 302
+    assert "Storefront Product" in client.get("/wishlist/").content.decode()
+
+
+def test_product_card_shows_image(client, store, published_product):
+    from apps.catalog.models import ProductImage
+
+    ProductImage.objects.create(product=published_product, image="catalog/products/card.png")
+
+    content = client.get("/").content.decode()
+    assert "catalog/products/card.png" in content
+
+
 def test_search_view(client, store, published_product):
     response = client.get("/search/", {"q": "Storefront"})
     assert "Storefront Product" in response.content.decode()
@@ -139,7 +210,25 @@ def test_cart_page_with_session(client, store, published_product):
     response = client.get("/cart/")
     assert response.status_code == 200
     assert "Storefront Product" in response.content.decode()
-    assert "100.0000" in response.content.decode()
+    # Totals are formatted with the active currency (IRT has 0 decimals).
+    assert "100" in response.content.decode()
+
+
+def test_cart_page_rich_layout(client, store, published_product):
+    from apps.catalog.models import ProductImage
+
+    ProductImage.objects.create(product=published_product, image="catalog/products/cart.png")
+    client.get(f"/cart/add/{published_product.id}/")
+
+    content = client.get("/cart/").content.decode()
+    assert "cart-layout" in content
+    assert "cart-line" in content
+    assert "catalog/products/cart.png" in content
+    assert "cart-summary" in content
+    assert "Continue shopping" in content
+    # The line exposes an update form and a remove action (quantity=0).
+    assert 'name="quantity"' in content
+    assert 'value="0"' in content
 
 
 def test_checkout_page_and_flow(client, store, published_product, payment_methods=None):

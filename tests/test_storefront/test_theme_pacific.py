@@ -106,3 +106,28 @@ def test_pacific_plugin_app_is_installed():
     assert "plugins.theme_pacific" in settings.INSTALLED_APPS
     plugin_dir = settings.BASE_DIR / "plugins" / "theme_pacific"
     assert (plugin_dir / "static" / "pacific" / "css" / "pacific.css").exists()
+
+
+def test_pacific_product_detail_renders_gallery(client, store, settings):
+    from apps.catalog.models import ProductImage
+    from apps.catalog.services import create_product, publish_product
+
+    product = create_product(store, "Pacific Gallery", price=10, stock_quantity=5)
+    publish_product(product)
+    ProductImage.objects.create(product=product, image="catalog/products/p1.png", position=0)
+    ProductImage.objects.create(product=product, image="catalog/products/p2.png", position=1)
+
+    pacific_templates = str(get_theme_dir("pacific") / "templates")
+    templates = [dict(t) for t in settings.TEMPLATES]
+    templates[0] = {
+        **templates[0],
+        "DIRS": [str(settings.BASE_DIR / "templates"), pacific_templates],
+    }
+
+    with override_settings(TEMPLATES=templates, ACTIVE_THEME="pacific"):
+        content = client.get(f"/product/{product.slug}/").content.decode()
+
+    assert "product-gallery" in content
+    assert content.count("data-gallery-thumb") == 2
+    assert "catalog/products/p1.png" in content
+    assert "catalog/products/p2.png" in content

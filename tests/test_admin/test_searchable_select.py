@@ -45,3 +45,30 @@ def test_product_change_form_uses_searchable_select(client, admin_user, product)
     # The related-object selects (store/category/brand/vendor) are enhanced.
     assert "ps-search-select" in content
     assert "admin_panel/js/searchable_select.js" in content
+
+
+def test_dropdown_menu_escapes_ancestor_clipping():
+    # Django's ``forms.css`` sets ``.form-row { overflow: hidden }`` which used to
+    # clip the lower half of the combobox menu. The fix detaches the menu to
+    # <body> and positions it with ``position: fixed`` so no ancestor's overflow
+    # can clip it.
+    from django.contrib.staticfiles import finders
+
+    js_path = finders.find("admin_panel/js/searchable_select.js")
+    css_path = finders.find("admin_panel/admin.css")
+    assert js_path and css_path
+
+    with open(js_path, encoding="utf-8") as handle:
+        js = handle.read()
+    with open(css_path, encoding="utf-8") as handle:
+        css = handle.read()
+
+    # The menu is attached to the body (outside any clipping container)...
+    assert "document.body.appendChild(menu)" in js
+    # ...and positioned as a fixed overlay with an explicit high z-index.
+    assert "menu.style.position = 'fixed'" in js
+    assert "position: fixed;" in css
+    # Django's ``forms.css`` (loaded after admin.css) forces
+    # ``.form-row { overflow: hidden }``, so the override must use ``!important``
+    # to win the cascade.
+    assert ".form-row:has(.ps-select) { overflow: visible !important; }" in css
