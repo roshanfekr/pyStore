@@ -1,0 +1,10 @@
+{
+    "id": "ajax_cart",
+    "name": "AjaxCart",
+    "version": "1.0.0",
+    "author": "pyStore",
+    "description": "Modern Bootstrap AJAX cart: offcanvas drawer and cart page.",
+    "dependencies": [],
+    "minimum_core_version": "1.0.0",
+    "entry_point": "plugin:AjaxCartPlugin"
+}

@@ -1,0 +1,327 @@
+/* ============================================================
+   AjaxCart plugin — offcanvas drawer + modern cart page
+   All selectors are namespaced with `.ajax-cart*`. Colors derive
+   from the active theme tokens (--primary, --surface, --border)
+   with an optional `--ajax-cart-accent` override from settings.
+   ============================================================ */
+
+.ajax-cart,
+.ajax-cart-button,
+.ajax-cart-page {
+    --ajax-cart-accent: var(--primary, #4f46e5);
+    --ajax-cart-accent-soft: color-mix(in srgb, var(--ajax-cart-accent) 12%, #fff);
+    --ajax-cart-surface: var(--surface, #fff);
+    --ajax-cart-border: var(--border, #e2e8f0);
+    --ajax-cart-muted: var(--text-muted, #64748b);
+}
+
+/* ---------- Header button ---------- */
+.ajax-cart-button {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    color: inherit;
+}
+
+.ajax-cart-button-icon { font-size: 1.05rem; line-height: 1; }
+
+.ajax-cart-badge {
+    position: absolute;
+    top: -0.55rem;
+    inset-inline-end: -0.7rem;
+    min-width: 1.15rem;
+    height: 1.15rem;
+    padding: 0 0.3rem;
+    border-radius: 999px;
+    background: var(--ajax-cart-accent);
+    color: #fff;
+    font-size: 0.7rem;
+    font-weight: 700;
+    line-height: 1.15rem;
+    text-align: center;
+}
+
+/* ---------- Drawer shell ---------- */
+.ajax-cart {
+    --bs-offcanvas-width: min(420px, 92vw);
+    color: var(--text, #0f172a);
+}
+
+.ajax-cart-header { border-bottom: 1px solid var(--ajax-cart-border); }
+.ajax-cart-title { font-size: 1.05rem; margin: 0; }
+.ajax-cart-body { display: flex; flex-direction: column; gap: 0.85rem; }
+
+.ajax-cart-footer {
+    border-top: 1px solid var(--ajax-cart-border);
+    padding: 0.9rem 1rem 1.1rem;
+    background: var(--ajax-cart-surface);
+    display: flex;
+    flex-direction: column;
+    gap: 0.65rem;
+}
+
+/* ---------- Lines ---------- */
+.ajax-cart-lines { display: flex; flex-direction: column; gap: 0.75rem; }
+
+.ajax-cart-line {
+    display: grid;
+    grid-template-columns: 56px 1fr auto;
+    gap: 0.75rem;
+    padding-bottom: 0.75rem;
+    border-bottom: 1px solid var(--ajax-cart-border);
+}
+
+.ajax-cart-line:last-child { border-bottom: none; padding-bottom: 0; }
+
+.ajax-cart-line-media {
+    width: 56px;
+    height: 56px;
+    border-radius: 10px;
+    overflow: hidden;
+    background: var(--ajax-cart-accent-soft);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--ajax-cart-accent);
+    font-weight: 700;
+    text-decoration: none;
+}
+
+.ajax-cart-line-media img { width: 100%; height: 100%; object-fit: cover; }
+
+.ajax-cart-line-body { min-width: 0; }
+
+.ajax-cart-line-name {
+    display: block;
+    font-weight: 600;
+    font-size: 0.92rem;
+    color: inherit;
+    text-decoration: none;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.ajax-cart-line-variant,
+.ajax-cart-line-unit {
+    margin: 0.1rem 0 0;
+    font-size: 0.78rem;
+    color: var(--ajax-cart-muted);
+}
+
+.ajax-cart-line-total {
+    font-weight: 700;
+    font-size: 0.9rem;
+    white-space: nowrap;
+    text-align: end;
+}
+
+/* ---------- Quantity stepper ---------- */
+.ajax-cart-qty {
+    display: inline-flex;
+    align-items: center;
+    border: 1px solid var(--ajax-cart-border);
+    border-radius: 999px;
+    overflow: hidden;
+    margin-top: 0.4rem;
+}
+
+.ajax-cart-qty button {
+    width: 1.7rem;
+    height: 1.7rem;
+    border: none;
+    background: transparent;
+    color: var(--ajax-cart-accent);
+    font-size: 1rem;
+    line-height: 1;
+    cursor: pointer;
+}
+
+.ajax-cart-qty button:hover { background: var(--ajax-cart-accent-soft); }
+
+.ajax-cart-qty input {
+    width: 2.4rem;
+    border: none;
+    text-align: center;
+    font-size: 0.85rem;
+    background: transparent;
+    color: inherit;
+}
+
+.ajax-cart-remove {
+    border: none;
+    background: transparent;
+    color: var(--danger, #dc2626);
+    cursor: pointer;
+    font-size: 0.78rem;
+    padding: 0.15rem 0;
+    margin-top: 0.35rem;
+}
+
+/* ---------- Totals ---------- */
+.ajax-cart-totals { display: flex; flex-direction: column; gap: 0.3rem; }
+
+.ajax-cart-total-row {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.88rem;
+    color: var(--ajax-cart-muted);
+}
+
+.ajax-cart-total-row.ajax-cart-grand {
+    color: var(--text, #0f172a);
+    font-weight: 700;
+    font-size: 1rem;
+    padding-top: 0.3rem;
+    border-top: 1px solid var(--ajax-cart-border);
+}
+
+.ajax-cart-checkout { text-align: center; }
+
+/* Theme anchor rules (e.g. `body.pacific a`) outrank `.btn-primary`, which
+   would paint primary button labels in the primary color on the primary
+   background — i.e. invisible. Pin the label color on plugin buttons. */
+.ajax-cart .btn-primary,
+.ajax-cart .btn-primary:hover,
+.ajax-cart-page .btn-primary,
+.ajax-cart-page .btn-primary:hover {
+    color: #fff;
+}
+
+/* ---------- Coupon ---------- */
+.ajax-cart-coupon { display: flex; gap: 0.4rem; }
+.ajax-cart-coupon input {
+    flex: 1;
+    min-width: 0;
+    padding: 0.4rem 0.6rem;
+    border: 1px solid var(--ajax-cart-border);
+    border-radius: 8px;
+    font-size: 0.85rem;
+    background: var(--ajax-cart-surface);
+    color: inherit;
+}
+
+.ajax-cart-coupon-applied {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    margin: 0;
+    font-size: 0.82rem;
+    color: var(--success, #059669);
+}
+
+.ajax-cart-coupon-remove {
+    border: none;
+    background: transparent;
+    color: var(--ajax-cart-muted);
+    cursor: pointer;
+    font-size: 0.78rem;
+    text-decoration: underline;
+}
+
+/* ---------- Empty / message / progress ---------- */
+.ajax-cart-empty {
+    text-align: center;
+    color: var(--ajax-cart-muted);
+    padding: 2rem 0.5rem;
+}
+
+.ajax-cart-empty-icon { font-size: 2.2rem; display: block; margin-bottom: 0.5rem; }
+
+.ajax-cart-message {
+    padding: 0.6rem 0.75rem;
+    border-radius: 8px;
+    font-size: 0.85rem;
+    background: var(--danger-soft, #fef2f2);
+    color: var(--danger, #dc2626);
+    border: 1px solid color-mix(in srgb, var(--danger, #dc2626) 25%, #fff);
+}
+
+.ajax-cart-message.is-success {
+    background: var(--success-soft, #ecfdf5);
+    color: var(--success, #059669);
+    border-color: color-mix(in srgb, var(--success, #059669) 25%, #fff);
+}
+
+.ajax-cart-progress {
+    font-size: 0.82rem;
+    color: var(--ajax-cart-muted);
+    background: var(--ajax-cart-accent-soft);
+    border-radius: 8px;
+    padding: 0.5rem 0.7rem;
+}
+
+.ajax-cart-progress-bar {
+    height: 6px;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--ajax-cart-accent) 22%, #fff);
+    overflow: hidden;
+    margin-top: 0.4rem;
+}
+
+.ajax-cart-progress-bar span {
+    display: block;
+    height: 100%;
+    background: var(--ajax-cart-accent);
+}
+
+/* ---------- Cart page ---------- */
+.ajax-cart-page { width: 100%; }
+
+.ajax-cart-page-header {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin-bottom: 1rem;
+}
+
+.ajax-cart-page-header h2 { margin: 0; }
+
+.ajax-cart-page-count {
+    background: var(--ajax-cart-accent-soft);
+    color: var(--ajax-cart-accent);
+    border-radius: 999px;
+    padding: 0.2rem 0.75rem;
+    font-size: 0.8rem;
+    font-weight: 600;
+}
+
+.ajax-cart-page-layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 320px;
+    gap: 1.5rem;
+    align-items: start;
+}
+
+.ajax-cart-page-main {
+    background: var(--ajax-cart-surface);
+    border: 1px solid var(--ajax-cart-border);
+    border-radius: var(--radius, 12px);
+    padding: 1.25rem;
+    box-shadow: var(--shadow-sm, 0 1px 2px rgba(15, 23, 42, 0.06));
+}
+
+.ajax-cart-page-summary {
+    background: var(--ajax-cart-surface);
+    border: 1px solid var(--ajax-cart-border);
+    border-radius: var(--radius, 12px);
+    padding: 1.25rem;
+    box-shadow: var(--shadow-sm, 0 1px 2px rgba(15, 23, 42, 0.06));
+    display: flex;
+    flex-direction: column;
+    gap: 0.85rem;
+    position: sticky;
+    top: 1rem;
+}
+
+.ajax-cart-page-summary h3 { margin: 0; font-size: 1rem; }
+.ajax-cart-page-summary .ajax-cart-total-row.ajax-cart-grand { font-size: 1.05rem; }
+
+@media (max-width: 780px) {
+    .ajax-cart-page-layout { grid-template-columns: 1fr; }
+    .ajax-cart-page-summary { position: static; }
+    .ajax-cart-line { grid-template-columns: 48px 1fr auto; }
+    .ajax-cart-line-media { width: 48px; height: 48px; }
+}

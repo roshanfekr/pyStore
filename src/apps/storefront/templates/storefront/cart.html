@@ -1,6 +1,9 @@
 ﻿{% extends "storefront/base.html" %}
 {% load strings %}
+{% load plugin_hooks %}
 {% block content %}
+{% plugin_hook 'cart_page' as plugin_cart_page %}
+{% if plugin_cart_page %}{{ plugin_cart_page }}{% else %}
 <div class="cart-page">
     <div class="page-title">
         <h2>{% tr 'Cart' %}</h2>
@@ -70,4 +73,5 @@
         </div>
     {% endif %}
 </div>
+{% endif %}
 {% endblock %}

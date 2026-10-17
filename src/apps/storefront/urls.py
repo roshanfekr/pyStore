@@ -7,16 +7,36 @@ from .spa import spa_index
 app_name = "storefront"
 
 
-def spa_page(view):
+def _plugin_claims(hook):
+    """Return True when an enabled plugin renders a storefront hook.
+
+    Used so a plugin (e.g. AjaxCart) can take over a route server-side even when
+    the Vue SPA is enabled. Errors are treated as "not claimed" so a broken
+    plugin can never break the route.
+    """
+    if not hook:
+        return False
+    try:
+        from core.plugins.manager import PluginManager
+
+        manager = PluginManager()
+        manager.discover_plugins()
+        return bool(manager.enabled_storefront_hooks(hook))
+    except Exception:
+        return False
+
+
+def spa_page(view, hook=None):
     """Serve the Vue SPA for an interactive route when it is enabled.
 
     The setting is read per request so the storefront can be switched at runtime
     (and in tests) without reloading URL configuration. Content pages are always
-    server-rendered by Django.
+    server-rendered by Django. A route claimed by an enabled plugin hook is
+    always server-rendered, bypassing the SPA.
     """
 
     def dispatch(request, **kwargs):
-        if getattr(settings, "STOREFRONT_SPA_ENABLED", False):
+        if getattr(settings, "STOREFRONT_SPA_ENABLED", False) and not _plugin_claims(hook):
             return spa_index(request, **kwargs)
         return view(request, **kwargs)
 
@@ -35,7 +55,7 @@ urlpatterns = [
     path("blog/", views.blog_list_view, name="blog"),
     path("blog/<slug:slug>/", views.blog_detail_view, name="blog_detail"),
     # Interactive pages: Vue SPA (fall back to server rendering when disabled).
-    path("cart/", spa_page(views.cart_view), name="cart"),
+    path("cart/", spa_page(views.cart_view, hook="cart_page"), name="cart"),
     path("checkout/", spa_page(views.checkout_view), name="checkout"),
     path("login/", spa_page(views.login_view), name="login"),
     path("register/", spa_page(views.register_view), name="register"),

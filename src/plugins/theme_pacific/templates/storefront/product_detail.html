@@ -126,13 +126,14 @@
                 </div>
             {% endfor %}
 
-            <form method="post" action="{% url 'storefront:add_to_cart' product.id %}" class="product-action product-buy">
+            <form method="post" action="{% url 'storefront:add_to_cart' product.id %}"
+                  class="product-action product-buy" data-product-slug="{{ product.slug }}">
                 {% csrf_token %}
                 {% if variants %}
                     <label class="product-option-label" for="variant-select">{% tr 'Variants' %}</label>
                     <select id="variant-select" name="variant" class="variant-select">
                         {% for v in variants %}
-                            <option value="{{ v.id }}">{{ v.sku }} — {{ v.price }}</option>
+                            <option value="{{ v.id }}" data-sku="{{ v.sku }}">{{ v.sku }} — {{ v.price }}</option>
                         {% endfor %}
                     </select>
                 {% endif %}

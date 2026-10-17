@@ -1,0 +1,72 @@
+{% load static %}
+{% load strings %}
+{% load ajax_cart_tags %}
+{% ajax_cart_currency as ajax_cart_currency %}
+{% csrf_token %}
+<div class="ajax-cart offcanvas offcanvas-end"
+     tabindex="-1"
+     id="ajaxCartDrawer"
+     aria-labelledby="ajaxCartDrawerLabel"
+     data-ajax-cart
+     data-ajax-cart-endpoint="/api/v1/cart"
+     data-ajax-cart-open-on-add="{{ plugin_settings.open_drawer_on_add|yesno:'true,false' }}"
+     data-ajax-cart-currency="{{ ajax_cart_currency.code }}"
+     data-ajax-cart-symbol="{{ ajax_cart_currency.symbol }}"
+     data-ajax-cart-decimals="{{ ajax_cart_currency.decimal_places }}"
+     data-ajax-cart-empty-message="{{ plugin_settings.empty_message|default:'Your cart is empty.' }}"
+     data-ajax-cart-checkout-label="{{ plugin_settings.checkout_label|default:'Checkout' }}"
+     data-ajax-cart-remove-label="{% tr 'Remove' %}"
+     data-ajax-cart-decrease-label="{% tr 'Decrease quantity' %}"
+     data-ajax-cart-increase-label="{% tr 'Increase quantity' %}"
+     data-ajax-cart-quantity-label="{% tr 'Quantity' %}"
+     data-ajax-cart-items-label="{% tr 'items' %}"
+     data-ajax-cart-error-label="{% tr 'Something went wrong. Please try again.' %}"
+     data-ajax-cart-added-label="{% tr 'Added to cart.' %}"
+     data-ajax-cart-free-shipping-qualified="{% tr 'You qualify for free shipping!' %}"
+     data-ajax-cart-free-shipping-remaining="{% tr 'Add {amount} more for free shipping' %}"
+     {% if plugin_settings.free_shipping_threshold %}data-ajax-cart-free-shipping="{{ plugin_settings.free_shipping_threshold }}"{% endif %}
+     {% if plugin_settings.accent_color %}style="--ajax-cart-accent: {{ plugin_settings.accent_color }}"{% endif %}>
+    <div class="offcanvas-header ajax-cart-header">
+        <h2 class="offcanvas-title ajax-cart-title" id="ajaxCartDrawerLabel">{% tr 'Cart' %}</h2>
+        <button type="button" class="btn-close ajax-cart-close" data-bs-dismiss="offcanvas"
+                aria-label="{% tr 'Close' %}"></button>
+    </div>
+    <div class="offcanvas-body ajax-cart-body">
+        <div class="ajax-cart-message" data-ajax-cart-message hidden></div>
+
+        <div class="ajax-cart-content" data-ajax-cart-content hidden>
+            <div class="ajax-cart-progress" data-ajax-cart-progress hidden></div>
+            <div class="ajax-cart-lines" data-ajax-cart-lines></div>
+
+            <form class="ajax-cart-coupon" data-ajax-cart-coupon-form>
+                <input type="text" name="code" autocomplete="off"
+                       placeholder="{% tr 'Coupon code' %}" aria-label="{% tr 'Coupon code' %}">
+                <button type="submit" class="btn btn-outline btn-sm">{% tr 'Apply' %}</button>
+            </form>
+            <p class="ajax-cart-coupon-applied" data-ajax-cart-coupon-applied hidden>
+                <span data-ajax-cart-coupon-code></span>
+                <button type="button" class="ajax-cart-coupon-remove" data-ajax-cart-coupon-remove>
+                    {% tr 'Remove' %}
+                </button>
+            </p>
+        </div>
+
+        <div class="ajax-cart-empty" data-ajax-cart-empty>
+            <span class="ajax-cart-empty-icon" aria-hidden="true">&#128722;</span>
+            <p>{{ plugin_settings.empty_message|default:'Your cart is empty.' }}</p>
+        </div>
+    </div>
+    <div class="offcanvas-footer ajax-cart-footer" data-ajax-cart-content hidden>
+        <div class="ajax-cart-totals">
+            <div class="ajax-cart-total-row"><span>{% tr 'Subtotal' %}</span><span data-ajax-cart-subtotal></span></div>
+            <div class="ajax-cart-total-row" data-ajax-cart-discount-row hidden>
+                <span>{% tr 'Discount' %}</span><span data-ajax-cart-discount></span>
+            </div>
+            <div class="ajax-cart-total-row ajax-cart-grand"><span>{% tr 'Total' %}</span><span data-ajax-cart-total></span></div>
+        </div>
+        <a class="btn btn-primary ajax-cart-checkout" href="{% url 'storefront:checkout' %}"
+           data-ajax-cart-checkout>{{ plugin_settings.checkout_label|default:'Checkout' }}</a>
+    </div>
+</div>
+<script src="{% static 'admin_panel/vendor/bootstrap/bootstrap.bundle.min.js' %}" defer></script>
+<script src="{% static 'ajax_cart/js/ajax_cart.js' %}" defer></script>

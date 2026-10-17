@@ -92,9 +92,23 @@ def add_to_cart(cart: Cart, product: Product, quantity: int = 1, variant=None) -
         product, variant, store=cart.store, quantity=quantity
     )
     item = cart.items.filter(product=product, variant=variant).first()
+    if item is None:
+        # ``CartItem`` is soft-deleted: the (cart, product, variant) unique
+        # constraint still covers deleted rows, so re-adding a previously
+        # removed product must revive that row instead of inserting a duplicate.
+        item = CartItem.all_objects.filter(cart=cart, product=product, variant=variant).first()
     if item is not None:
-        item.quantity += quantity
-        item.save(update_fields=["quantity"])
+        if item.is_deleted:
+            item.is_deleted = False
+            item.deleted_at = None
+            item.quantity = quantity
+            item.unit_price_at_add = unit_price
+            item.save(
+                update_fields=["is_deleted", "deleted_at", "quantity", "unit_price_at_add"]
+            )
+        else:
+            item.quantity += quantity
+            item.save(update_fields=["quantity"])
     else:
         item = CartItem.objects.create(
             cart=cart,

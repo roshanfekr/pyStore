@@ -1,0 +1,8 @@
+{% load static %}
+<link rel="stylesheet" href="{% static 'admin_panel/vendor/bootstrap/bootstrap.min.css' %}">
+<link rel="stylesheet" href="{% static 'ajax_cart/css/ajax_cart.css' %}">
+{% if plugin_settings.accent_color %}
+<style>
+    .ajax-cart, .ajax-cart-button, .ajax-cart-page { --ajax-cart-accent: {{ plugin_settings.accent_color }}; }
+</style>
+{% endif %}

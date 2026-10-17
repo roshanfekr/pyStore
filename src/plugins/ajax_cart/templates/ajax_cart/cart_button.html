@@ -1,0 +1,10 @@
+{% load strings %}
+<a class="ajax-cart-button" href="{% url 'storefront:cart' %}"
+   data-bs-toggle="offcanvas" data-bs-target="#ajaxCartDrawer"
+   aria-controls="ajaxCartDrawer" aria-label="{% tr 'Cart' %}">
+    <span class="ajax-cart-button-icon" aria-hidden="true">&#128722;</span>
+    <span class="ajax-cart-button-label">{% tr 'Cart' %}</span>
+    {% if plugin_settings.show_header_badge %}
+        <span class="ajax-cart-badge" data-ajax-cart-count hidden>0</span>
+    {% endif %}
+</a>

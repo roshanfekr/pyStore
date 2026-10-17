@@ -1,11 +1,13 @@
 {% load static %}
 {% load strings %}
+{% load plugin_hooks %}
 <!DOCTYPE html>
 <html lang="{{ storefront.active_language.code }}" dir="{{ storefront.active_language.direction|default:'ltr' }}">
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>{% block title %}{{ storefront.branding.site_name }} — Pacific{% endblock %}</title>
+    {% plugin_hook 'head' %}
     <link rel="stylesheet" href="{% static 'storefront/css/main.css' %}">
     <link rel="stylesheet" href="{% static 'pacific/css/pacific.css' %}">
     {% block extra_head %}{% endblock %}
@@ -25,7 +27,8 @@
         <div class="header-actions">
             <a href="{% url 'storefront:wishlist' %}">{% tr 'Wishlist' %}</a>
             <a href="{% url 'storefront:compare' %}">{% tr 'Compare' %}</a>
-            <a href="{% url 'storefront:cart' %}">{% tr 'Cart' %}</a>
+            {% plugin_hook 'header_cart' as plugin_header_cart %}
+            {% if plugin_header_cart %}{{ plugin_header_cart }}{% else %}<a href="{% url 'storefront:cart' %}">{% tr 'Cart' %}</a>{% endif %}
             {% if user.is_staff %}
                 <a href="{% url 'pystore_admin:index' %}">{% tr 'Admin' %}</a>
             {% endif %}
@@ -89,5 +92,6 @@
 </footer>
 <script src="{% static 'storefront/js/switchers.js' %}" defer></script>
 <script src="{% static 'storefront/js/gallery.js' %}" defer></script>
+{% plugin_hook 'body_end' %}
 </body>
 </html>

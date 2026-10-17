@@ -1,0 +1,49 @@
+{% load strings %}
+<div class="ajax-cart-page" data-ajax-cart-page
+     {% if plugin_settings.accent_color %}style="--ajax-cart-accent: {{ plugin_settings.accent_color }}"{% endif %}>
+    <div class="ajax-cart-page-header">
+        <h2>{% tr 'Cart' %}</h2>
+        <span class="ajax-cart-page-count" data-ajax-cart-page-count hidden></span>
+    </div>
+
+    <div class="ajax-cart-message" data-ajax-cart-message hidden></div>
+
+    <div class="ajax-cart-page-layout" data-ajax-cart-content hidden>
+        <div class="ajax-cart-page-main">
+            <div class="ajax-cart-progress" data-ajax-cart-progress hidden></div>
+            <div class="ajax-cart-lines" data-ajax-cart-lines></div>
+        </div>
+        <aside class="ajax-cart-page-summary">
+            <h3>{% tr 'Summary' %}</h3>
+            <div class="ajax-cart-totals">
+                <div class="ajax-cart-total-row"><span>{% tr 'Subtotal' %}</span><span data-ajax-cart-subtotal></span></div>
+                <div class="ajax-cart-total-row" data-ajax-cart-discount-row hidden>
+                    <span>{% tr 'Discount' %}</span><span data-ajax-cart-discount></span>
+                </div>
+                <div class="ajax-cart-total-row ajax-cart-grand"><span>{% tr 'Total' %}</span><span data-ajax-cart-total></span></div>
+            </div>
+
+            <form class="ajax-cart-coupon" data-ajax-cart-coupon-form>
+                <input type="text" name="code" autocomplete="off"
+                       placeholder="{% tr 'Coupon code' %}" aria-label="{% tr 'Coupon code' %}">
+                <button type="submit" class="btn btn-outline btn-sm">{% tr 'Apply' %}</button>
+            </form>
+            <p class="ajax-cart-coupon-applied" data-ajax-cart-coupon-applied hidden>
+                <span data-ajax-cart-coupon-code></span>
+                <button type="button" class="ajax-cart-coupon-remove" data-ajax-cart-coupon-remove>
+                    {% tr 'Remove' %}
+                </button>
+            </p>
+
+            <a class="btn btn-primary btn-block ajax-cart-checkout" href="{% url 'storefront:checkout' %}"
+               data-ajax-cart-checkout>{{ plugin_settings.checkout_label|default:'Checkout' }}</a>
+            <a class="btn btn-outline btn-block" href="{% url 'storefront:home' %}">{% tr 'Continue shopping' %}</a>
+        </aside>
+    </div>
+
+    <div class="ajax-cart-empty" data-ajax-cart-empty>
+        <span class="ajax-cart-empty-icon" aria-hidden="true">&#128722;</span>
+        <p>{{ plugin_settings.empty_message|default:'Your cart is empty.' }}</p>
+        <a class="btn btn-primary" href="{% url 'storefront:home' %}">{% tr 'Continue shopping' %}</a>
+    </div>
+</div>

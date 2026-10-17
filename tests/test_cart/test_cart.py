@@ -4,7 +4,7 @@ import pytest
 from django.contrib.auth import get_user_model
 
 from apps.cart.calculation import calculate_cart
-from apps.cart.models import Cart
+from apps.cart.models import Cart, CartItem
 from apps.cart.services import (
     add_to_cart,
     attach_coupon,
@@ -198,6 +198,42 @@ def test_remove_item(cart, published_product):
     item = add_to_cart(cart, published_product, 1)
     remove_item(cart, item.id)
     assert cart.items.count() == 0
+
+
+def test_readd_after_remove_reuses_soft_deleted_item(cart, published_product):
+    item = add_to_cart(cart, published_product, 1)
+    remove_item(cart, item.id)
+
+    again = add_to_cart(cart, published_product, 2)
+    assert again.quantity == 2
+    assert cart.items.count() == 1
+    assert CartItem.all_objects.filter(cart=cart, product=published_product).count() == 1
+
+
+def test_readd_variant_after_remove_reuses_soft_deleted_item(store, cart):
+    product = create_product(store, "Readd Variant", product_type="variant")
+    variant = add_variant(product, "RAD-1", Decimal("20.0000"), stock_quantity=50)
+    publish_product(product)
+
+    item = add_to_cart(cart, product, 1, variant=variant)
+    remove_item(cart, item.id)
+
+    again = add_to_cart(cart, product, 2, variant=variant)
+    assert again.quantity == 2
+    assert cart.items.count() == 1
+    assert (
+        CartItem.all_objects.filter(cart=cart, product=product, variant=variant).count() == 1
+    )
+
+
+def test_readd_after_update_to_zero_reuses_soft_deleted_item(cart, published_product):
+    item = add_to_cart(cart, published_product, 1)
+    update_item_quantity(cart, item.id, 0)
+    assert cart.items.count() == 0
+
+    again = add_to_cart(cart, published_product, 3)
+    assert again.quantity == 3
+    assert CartItem.all_objects.filter(cart=cart, product=published_product).count() == 1
 
 
 def test_price_recalculation_reflects_changes(cart, published_product):
