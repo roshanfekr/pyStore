@@ -1,16 +1,18 @@
 # Project Scope --- Plugin-Based E-commerce Platform
 
 **Document:** `specs/PROJECT_SCOPE.md`\
-**Version:** 0.6 (draft reflecting the approved Vue theme, SQL Server,
-Widget Zones, Django Admin, multi-currency pricing, multilingual/RTL,
-refund-deferral, explicit-currency-pricing, and payment-currency
-decisions)\
+**Version:** 0.7 (draft adding the proposed V1 performance baseline to the
+previously recorded Vue theme, SQL Server, Widget Zones, Django Admin,
+multi-currency pricing, multilingual/RTL, refund-deferral,
+explicit-currency-pricing, and payment-currency decisions)\
 **Status:** Draft pending final review. The core scope remains approved; this
 revision records the user-approved decisions on the Vue/Vite theme system,
 SQL Server with Django ORM, Widget Zones, the initial Django Admin interface,
 multi-currency pricing, multilingual/RTL support, the deferral of refunds and
 automatic currency conversion to a future release, and the rule that payment
-providers must support the order currency.\
+providers must support the order currency. It additionally records the
+approved direction to adopt proposed, provisional V1 performance targets
+(section 8.1), which remain subject to final review.\
 **Last updated:** 2026-10-20
 
 ## 1. Project Vision
@@ -346,7 +348,8 @@ https://cdc1979.github.io/nopCommerce-Widget-Zones/
 -   **Reliability:** consistent order, inventory, and payment state
     transitions.
 -   **Performance:** responsive page and API behavior under expected
-    workloads.
+    workloads, as made measurable by the proposed V1 performance baseline in
+    section 8.1.
 -   **Accessibility:** usable interfaces across supported devices and
     interaction methods.
 -   **Database portability:** database-specific queries and schema
@@ -355,7 +358,64 @@ https://cdc1979.github.io/nopCommerce-Widget-Zones/
     but switching databases must not be assumed to require only a
     configuration change.
 
-Detailed measurable targets will be defined in later requirements work.
+Detailed measurable targets are defined in the proposed V1 performance
+baseline below.
+
+### 8.1 Proposed V1 Performance Baseline
+
+The following performance targets are approved as proposed, provisional
+baseline goals for the initial release. They are not a guarantee for every
+deployment, no claim is made that they have been achieved, and they remain
+subject to final review as part of this Draft. The detailed test conditions
+and acceptance criteria are defined in `REQUIREMENTS.md`
+(NFR-PERF-001 – NFR-PERF-003, AC-PERF-001 – AC-PERF-003).
+
+**API response times** — measured under the baseline load test of 100
+concurrent virtual users sustained for 30 minutes with a representative
+workload mixture of storefront browsing, product detail retrieval, cart
+operations, and checkout/order placement:
+
+-   Read-only storefront API requests: p95 response time ≤ 300 ms target,
+    with a maximum acceptance threshold of ≤ 500 ms.
+-   Cart API requests: p95 target ≤ 500 ms, with a maximum acceptance
+    threshold of ≤ 800 ms.
+-   Order placement requests: p95 target ≤ 1,000 ms, with a maximum
+    acceptance threshold of ≤ 2,000 ms, excluding external payment-provider
+    processing and other explicitly documented external delays.
+
+The p95 target is the design goal expected under the baseline load; the
+maximum acceptance threshold is the upper bound at or below which the
+acceptance criterion passes. Both values apply to the same measurement and
+are complementary, not contradictory.
+
+**Storefront user experience:**
+
+-   Largest Contentful Paint (LCP) ≤ 2.5 seconds at the 75th percentile
+    (p75) for a defined set of representative storefront pages, verified
+    with a reproducible laboratory method. Real-user monitoring is not part
+    of V1; this laboratory-only limitation is recorded with the test
+    results.
+
+**Baseline load test:**
+
+-   100 concurrent virtual users for a sustained 30-minute run; measured
+    error rate below 1%, excluding explicitly documented expected responses
+    and test-harness errors.
+-   The workload is a representative mixture of storefront browsing, product
+    detail retrieval, cart operations, and checkout/order placement. The
+    virtual-user count describes simulated client concurrency only; it does
+    not imply 100 database connections, 100 orders per second, or any
+    specific infrastructure sizing.
+
+**Test conditions:** The environment, hardware, database configuration,
+network conditions, test data volume, cache state, and exact workload
+mixture must be recorded with every test result. Authentication, validation
+failures, and intentionally slow external services must not be mixed into
+normal successful-request measurements without an explicit explanation. The
+final test environment and tooling details are established during
+architecture and implementation planning (`REQUIREMENTS.md` section 6.2,
+UD-018) and do not delay business-level approval of these requirements. No
+specific server configuration is prescribed by this scope.
 
 ## 9. Out of Scope Unless Explicitly Approved
 
@@ -408,9 +468,12 @@ This revision records the approved Vue/Vite theme, SQL Server with Django
 ORM, Widget Zones, Django Admin, multi-currency pricing, and
 multilingual/RTL support decisions, and the subsequently approved decisions
 that refunds and automatic currency conversion are deferred to a future
-release and that payment providers must support the order currency. The
-revised scope and requirements remain in Draft pending final user review and
-approval.
+release and that payment providers must support the order currency. It also
+records the approved direction to adopt the proposed V1 performance baseline
+in section 8.1 as provisional, testable goals for the initial release; it
+does not claim those targets have been achieved and does not approve any
+test infrastructure or implementation. The revised scope and requirements
+remain in Draft pending final user review and approval.
 
 No architecture design, implementation task breakdown, or code
 generation should begin until the user explicitly approves the relevant

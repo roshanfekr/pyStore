@@ -2,14 +2,15 @@
 
 **Status:** Draft (revision reflecting the approved Vue theme, SQL Server,
 Widget Zones, Django Admin, multi-currency, multilingual/RTL, refund-deferral,
-explicit-currency-pricing, and payment-currency decisions; awaiting final
-review)
+explicit-currency-pricing, and payment-currency decisions, and adding the
+approved proposed V1 performance targets as NFR-PERF-001 – NFR-PERF-003 and
+AC-PERF-001 – AC-PERF-003; awaiting final review)
 
-**Version:** 0.7
+**Version:** 0.8
 
 **Last updated:** 2026-10-20
 
-**Authority:** Derived from `PROJECT_SCOPE.md` version 0.6. Where this document
+**Authority:** Derived from `PROJECT_SCOPE.md` version 0.7. Where this document
 and the revised scope differ, the conflict must be reported and resolved
 rather than silently changing either document. See section 6.
 
@@ -440,9 +441,50 @@ architecture decisions.
 - NFR-REL-001: Order, inventory, payment, and other state transitions are
   consistent and failure-safe; repeated or partial operations must not leave
   contradictory state.
-- NFR-PERF-001: Page and API behavior is responsive under expected workloads.
-  Measurable performance targets remain to be defined in a later approved
-  specification.
+- NFR-PERF-001: Page and API behavior is responsive under the defined
+  baseline load. The baseline load test consists of 100 concurrent virtual
+  users sustained for 30 minutes with a representative workload mixture of
+  storefront browsing, product detail retrieval, cart operations, and
+  checkout/order placement, and the measured error rate is below 1%,
+  excluding explicitly documented expected responses and test-harness errors.
+  The virtual-user count defines simulated client concurrency only; it does
+  not imply 100 database connections, 100 orders per second, or any specific
+  infrastructure sizing. The environment, hardware, database configuration,
+  network conditions, test data volume, cache state, and workload mixture
+  must be recorded with every test result. Authentication, validation
+  failures, and intentionally slow external services must not be mixed into
+  normal successful-request measurements without an explicit explanation.
+  These targets are provisional baseline goals for V1, not a guarantee for
+  every deployment. Final test environment and tooling details are
+  established during architecture and implementation planning (UD-018) and do
+  not delay business-level approval of these requirements.
+- NFR-PERF-002: Under the baseline load test of NFR-PERF-001, API response
+  times meet the following targets and maximum acceptance thresholds. For
+  each request class, the p95 target is the design goal expected under the
+  baseline load and the maximum acceptance threshold is the upper bound at or
+  below which the acceptance criterion still passes. Both values apply to the
+  same measurement (the same percentile of the same request class under the
+  same load) and are complementary, not contradictory: results at or below
+  the target fully meet the requirement; results above the target but at or
+  below the threshold pass acceptance but must be recorded as missing the
+  design goal; results above the threshold fail acceptance.
+  - Read-only storefront API requests: p95 target ≤ 300 ms; maximum
+    acceptance threshold ≤ 500 ms.
+  - Cart API requests: p95 target ≤ 500 ms; maximum acceptance threshold
+    ≤ 800 ms.
+  - Order placement requests: p95 target ≤ 1,000 ms; maximum acceptance
+    threshold ≤ 2,000 ms. Order-placement timing excludes external
+    payment-provider processing and other explicitly documented external
+    delays where the API design requires an external provider call.
+- NFR-PERF-003: For a defined set of representative storefront pages, the
+  Largest Contentful Paint (LCP) target is ≤ 2.5 seconds at the 75th
+  percentile (p75). Real-user monitoring is not part of the approved V1
+  scope; LCP is therefore verified with a documented, reproducible laboratory
+  method that measures the LCP metric as defined by the Core Web Vitals
+  methodology, and this laboratory-only limitation is recorded with the test
+  results. The representative page set, measurement tooling, and test
+  conditions are part of the documented test plan (UD-018) and must be
+  recorded with the results.
 - NFR-ACC-001: Interfaces are usable across supported devices and interaction
   methods, including keyboard navigation and accessible form feedback.
 
@@ -657,9 +699,26 @@ traceability tables in section 5).
   requests and responses for the verified flows.
 - **AC-REL-001** (`NFR-REL-001`): Failure and retry scenarios do not produce
   contradictory order, inventory, payment, or other persisted state.
-- **AC-PERF-001** (`NFR-PERF-001`): Storefront pages and APIs meet the
-  measurable targets once those targets are approved; until then, this
-  criterion remains open.
+- **AC-PERF-001** (`NFR-PERF-001`): Under the documented baseline load test
+  (100 concurrent virtual users, 30-minute sustained run, representative
+  workload mixture of storefront browsing, product detail retrieval, cart
+  operations, and checkout/order placement), the measured error rate is below
+  1% excluding explicitly documented expected responses and test-harness
+  errors, and the environment, hardware, database configuration, network
+  conditions, test data volume, cache state, and workload mixture are
+  recorded with the results.
+- **AC-PERF-002** (`NFR-PERF-002`): Under the same baseline load test, the
+  measured p95 API response times meet the NFR-PERF-002 targets and stay
+  within the maximum acceptance thresholds: read-only storefront API requests
+  ≤ 300 ms (threshold ≤ 500 ms), cart API requests ≤ 500 ms (threshold
+  ≤ 800 ms), and order placement requests ≤ 1,000 ms (threshold ≤ 2,000 ms,
+  excluding external payment-provider processing and other explicitly
+  documented external delays). Any result above a target but within its
+  threshold passes acceptance and is recorded as missing the design goal.
+- **AC-PERF-003** (`NFR-PERF-003`): Using the documented reproducible
+  laboratory method, the representative storefront pages achieve LCP
+  ≤ 2.5 seconds at the 75th percentile, and the laboratory-only limitation
+  (no real-user monitoring in V1) is recorded with the results.
 - **AC-ACC-001** (`NFR-ACC-001`): Primary storefront and admin flows are
   operable by keyboard on supported viewport sizes.
 
@@ -693,7 +752,7 @@ traceability tables in section 5).
 | NFR-TEST-001 | PROJECT_SCOPE §8 | AC-TEST-001 |
 | NFR-API-001 | PROJECT_SCOPE §8 | AC-API-001 |
 | NFR-REL-001 | PROJECT_SCOPE §8 | AC-REL-001 |
-| NFR-PERF-001 | PROJECT_SCOPE §8 | AC-PERF-001 (open until targets approved) |
+| NFR-PERF-001 – NFR-PERF-003 | PROJECT_SCOPE §8, §8.1 | AC-PERF-001 – AC-PERF-003 |
 | NFR-ACC-001 | PROJECT_SCOPE §5, §8 | AC-ACC-001 |
 
 ### 5.2 Storefront Page Coverage Baseline
@@ -768,9 +827,14 @@ CF-002 and UD-001 and must be classified in the coverage record.
   remains open in section 6.2. The automatic-conversion, refund-scope, and
   payment-settlement policy questions have since been approved and are
   recorded as resolved in section 6.3.
-- **CF-006 — Performance targets.** `PROJECT_SCOPE.md` section 8 requires
-  responsive performance but defers measurable targets. `NFR-PERF-001` and
-  `AC-PERF-001` remain open until targets are approved.
+- **CF-006 — Performance targets (resolved by approved proposed targets).**
+  `PROJECT_SCOPE.md` section 8 previously required responsive performance but
+  deferred measurable targets. This revision adds the proposed V1
+  performance baseline (`PROJECT_SCOPE.md` section 8.1; NFR-PERF-001 –
+  NFR-PERF-003 and AC-PERF-001 – AC-PERF-003) and resolves UD-012. The
+  targets are provisional baseline goals for V1 recorded in Draft pending
+  final review; no claim is made that they have been achieved, and no
+  implementation or infrastructure decision is implied by them.
 - **CF-007 — Administration interface decision (resolved).** The initial
   release uses Django Admin. The storefront remains a separate Vue/Vite
   application, and storefront themes and Widget Zones do not control Django
@@ -828,8 +892,8 @@ resolved. A lower phase may resolve it sooner.
   and zones from silently bypassing theme classification.
 - **UD-008 — Reserved identifier.** No unresolved decision is defined under
   this identifier. This identifier and the identifiers of resolved decisions
-  (UD-009, UD-016, UD-017 — see section 6.3) must not be reassigned, and the
-  remaining identifiers must not be renumbered.
+  (UD-009, UD-012, UD-016, UD-017 — see section 6.3) must not be reassigned,
+  and the remaining identifiers must not be renumbered.
 - **UD-010 — Translation fallback and content localization (before
   architecture).** Define language fallback behavior, translated content
   ownership, and RTL handling for admin-authored content and generated
@@ -838,9 +902,6 @@ resolved. A lower phase may resolve it sooner.
   how Vue theme components and assets are validated, what capabilities theme
   authors have, and how untrusted theme code is isolated from secrets and
   business operations.
-- **UD-012 — Performance targets (before requirements approval).** Define
-  measurable page/API performance and theme-rendering budgets before
-  `AC-PERF-001` can be verified.
 - **UD-013 — SQL Server backend and version support (before architecture).**
   Validate the compatible Django SQL Server backend, supported SQL Server
   versions, driver/ODBC prerequisites, and connection/deployment requirements.
@@ -855,6 +916,16 @@ resolved. A lower phase may resolve it sooner.
   This is a data/design decision, not a business-rule change. The approved
   explicit-prices-only rule (section 6.3, UD-009) applies; resolution never
   falls back to automatic conversion.
+- **UD-018 — Performance test environment, tooling, and workload detail
+  (architecture and implementation planning).** Finalize the verification
+  details for NFR-PERF-001 – NFR-PERF-003: load-test tooling and scenario
+  implementation; the documented test environment (hardware, database
+  configuration, network conditions); test data volume; cache-state policy;
+  the exact representative workload mixture and its proportions; the
+  representative storefront page set and laboratory measurement tooling for
+  LCP; and whether real-user monitoring is introduced in a later release.
+  Establishing these details during architecture and implementation planning
+  does not delay business-level approval of the performance requirements.
 
 ### 6.3 Resolved Decisions
 
@@ -873,6 +944,25 @@ separate user approval.
   not purchasable in that currency, the storefront must communicate that the
   price is unavailable, and the customer's selected currency must not be
   silently changed. See FR-CUR-003, FR-CUR-004, AC-CUR-003, and AC-CUR-009.
+- **UD-012 — Performance targets (Resolved — approved 2026-10-20).** Approved
+  outcome: V1 adopts realistic proposed performance targets as the
+  measurable baseline. Under a baseline load test of 100 concurrent virtual
+  users sustained for 30 minutes with a representative workload mixture of
+  storefront browsing, product detail retrieval, cart operations, and
+  checkout/order placement, and an error rate below 1%, the API targets are:
+  read-only storefront requests p95 ≤ 300 ms (maximum acceptance threshold
+  ≤ 500 ms), cart requests p95 ≤ 500 ms (threshold ≤ 800 ms), and order
+  placement p95 ≤ 1,000 ms (threshold ≤ 2,000 ms, excluding external
+  payment-provider processing and other explicitly documented external
+  delays). The storefront target is Largest Contentful Paint ≤ 2.5 seconds
+  at the 75th percentile for representative pages, verified by a reproducible
+  laboratory method because real-user monitoring is not part of V1. Test
+  environment, workload, and measurement conditions must be recorded with
+  results; the targets are provisional baseline goals for V1, not a
+  guarantee for every deployment, and the documents remain Draft pending
+  final review. Final test environment and tooling details are tracked as
+  UD-018. See NFR-PERF-001 – NFR-PERF-003, AC-PERF-001 – AC-PERF-003, and
+  `PROJECT_SCOPE.md` section 8.1.
 - **UD-016 — Payment settlement and refund currency policy (Resolved —
   approved 2026-10-20).** Approved outcome: the order currency is the
   currency selected and confirmed for the order and is never changed to
@@ -898,8 +988,12 @@ SQL Server with Django ORM, Widget Zones, the initial Django Admin interface,
 multi-currency pricing, multilingual/RTL support, and the subsequently
 approved decisions that refunds and automatic currency conversion are
 deferred to a future release and that payment providers must support the
-order currency (section 6.3). It remains in Draft pending final review and
-approval. It does not approve architecture, detailed design, dependencies,
-database changes, migration work, or implementation. No architecture/design or
-implementation work should begin until the user explicitly approves the revised
-scope and requirements and authorizes the next phase.
+order currency (section 6.3). It additionally records the approved direction
+to adopt the proposed V1 performance baseline (NFR-PERF-001 – NFR-PERF-003,
+section 6.3 UD-012); these targets are provisional baseline goals, and no
+claim is made that they have been achieved. The revised requirements remain
+in Draft pending final review and approval. This document does not approve
+architecture, detailed design, dependencies, database changes, migration
+work, test infrastructure, or implementation. No architecture/design or
+implementation work should begin until the user explicitly approves the
+revised scope and requirements and authorizes the next phase.
