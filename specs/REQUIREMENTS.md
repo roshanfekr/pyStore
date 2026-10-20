@@ -4,11 +4,11 @@
 Zones, Django Admin, and multi-currency pricing decisions; awaiting final
 review)
 
-**Version:** 0.5
+**Version:** 0.6
 
 **Last updated:** 2026-10-20
 
-**Authority:** Derived from `PROJECT_SCOPE.md` version 0.4. Where this document
+**Authority:** Derived from `PROJECT_SCOPE.md` version 0.5. Where this document
 and the revised scope differ, the conflict must be reported and resolved
 rather than silently changing either document. See section 6.
 
@@ -98,8 +98,10 @@ acceptance-criteria identifiers are stable and must not be reused.
   must not require editing core Vue components per language.
 - FR-CUR-001: Each store has exactly one configurable base currency. The base
   currency is the canonical reference for price definition and the default
-  storefront currency unless another supported currency is selected. Only
-  configured, active currencies are offered to customers.
+  storefront currency. Customers may select any configured, active supported
+  currency; the selected currency is the display and order currency unless a
+  separately approved settlement policy states otherwise. Only configured,
+  active currencies are offered to customers.
 - FR-CUR-002: The system supports explicitly configured prices for individual
   currencies. Administrators can define a price for a product or product
   variant in the base currency and independently in other supported
@@ -114,10 +116,11 @@ acceptance-criteria identifiers are stable and must not be reused.
 - FR-CUR-004: For a requested storefront currency, an explicitly configured
   price for that currency takes precedence over an automatically converted
   price. The base-currency price must not be treated as an explicit price for
-  another currency. When neither an explicit price nor an enabled conversion
-  is available, the system must follow a documented unavailable/fallback rule
-  approved before implementation; it must not silently charge or display an
-  unrelated currency.
+  another currency. When neither an explicit price nor a usable conversion
+  rate is available, the system must fail safe: it must not display a
+  misleading price or complete a purchase/charge in another currency. The
+  exact fallback (for example, mark unavailable, hide, or use an approved
+  configured fallback) is an open business decision in UD-009.
 - FR-CUR-005: Price display and cart calculations use the resolved price for
   the active currency, with that currency's configured symbol and decimal
   precision. Cart line amounts, discounts, shipping, tax, and totals are
@@ -418,8 +421,8 @@ architecture decisions.
 
 Detailed feature-level acceptance criteria may later move into `features/*`,
 but the criteria below are binding for requirement verification. Every
-acceptance criterion must be traceable to at least one requirement in section
-5.
+acceptance criterion must be traceable to at least one requirement (see the
+traceability tables in section 5).
 
 ### 4.1 Vue Theme Layout and Coverage
 
@@ -629,14 +632,14 @@ acceptance criterion must be traceable to at least one requirement in section
 | FR-PAY-001 – FR-PAY-002, FR-SHIP-001 | PROJECT_SCOPE §3 | AC-PAY-001 – AC-PAY-002, AC-SHIP-001 |
 | FR-DISC-001 | PROJECT_SCOPE §3 | AC-DISC-001 |
 | FR-SET-001 | PROJECT_SCOPE §3 | AC-SET-001 |
-| FR-I18N-001 – FR-I18N-003 | Project localization decision; see section 6 | AC-I18N-001 – AC-I18N-002 |
+| FR-I18N-001 – FR-I18N-003 | PROJECT_SCOPE §3; project localization decision; see section 6 | AC-I18N-001 – AC-I18N-002 |
 | FR-CUR-001 – FR-CUR-008 | PROJECT_SCOPE §3 – §4; see UD-009, UD-015, UD-016 | AC-CUR-001 – AC-CUR-008 |
 | FR-REV-001 | PROJECT_SCOPE §3 | AC-REV-001 |
 | FR-NOTIF-001 | PROJECT_SCOPE §3 | AC-NOTIF-001 |
 | FR-REP-001 | PROJECT_SCOPE §3 | AC-REP-001 |
 | FR-PLUG-001 | PROJECT_SCOPE §3, §6.2 | AC-PLUG-001 |
 | FR-THEME-001, FR-THEME-002 | PROJECT_SCOPE §3, §6 | AC-THEME-001, AC-THEME-002 |
-| FR-EXT-001 – FR-EXT-004 | PROJECT_SCOPE §6.2 – §7 | AC-EXT-001, AC-ZONE-001 – AC-ZONE-002, AC-EXT-003, AC-THEME-LAYOUT-009 |
+| FR-EXT-001 – FR-EXT-004 | PROJECT_SCOPE §6.2 – §7 | AC-EXT-001, AC-ZONE-001 – AC-ZONE-002, AC-EXT-003, AC-THEME-LAYOUT-009 – AC-THEME-LAYOUT-010 |
 | FR-THEME-LAYOUT-001 – FR-THEME-LAYOUT-012 | PROJECT_SCOPE §6 | AC-THEME-LAYOUT-001 – AC-THEME-LAYOUT-015 |
 | TR-STACK-001 – TR-STACK-007 | PROJECT_SCOPE §2 | AC-STACK-001, AC-ADMIN-003 |
 | TR-DB-001 – TR-DB-006 | PROJECT_SCOPE §2, §8 | AC-DB-001 – AC-DB-006 |
@@ -677,6 +680,13 @@ architecture/design and section 6.2.
 | Plugin-contributed storefront UI | Plugin Vue components rendered in approved Widget Zones | Current plugins provide Django hook templates such as `ajax_cart/*`, `flash_sale/*`, and `slider/*` | Migration to Vue plugin components and the approved Zone registry is required. |
 | Administration | Django Admin for the initial release; separate layout/theme policy | Django Admin / `admin_panel` templates | Storefront theme activation must not change the admin interface; Vue admin migration is not initial scope. |
 | Robots / sitemap / autocomplete / suggestion endpoints | Non-page/API responses or explicitly documented theme coverage | Existing Django views/endpoints | Must be classified in the coverage record; not required to render a theme page unless specified. |
+
+In addition to the Django-rendered content routes listed above, legacy Django
+templates still exist for several Vue-owned interactive routes (for example
+`storefront/cart.html`, `checkout.html`, `account.html`, `wishlist.html`,
+`compare.html`, `login.html`, `register.html`, and `order_detail.html`).
+Their retirement or replacement is part of the migration work tracked by
+CF-002 and UD-001 and must be classified in the coverage record.
 
 ## 6. Conflicts, Deviations, and Unresolved Decisions
 
@@ -767,6 +777,9 @@ resolved. A lower phase may resolve it sooner.
   architecture).** Define the final zone registry, identifiers, capabilities,
   ordering rules, and automated checks that prevent new core or plugin routes
   and zones from silently bypassing theme classification.
+- **UD-008 — Reserved identifier.** No unresolved decision is currently
+  defined under this identifier. The identifier is considered used and must
+  not be reassigned; UD-009 and later must not be renumbered.
 - **UD-009 — Automatic conversion and price-fallback policy (before
   requirements approval for business rules; before architecture for
   implementation).** Decide whether automatic conversion is enabled by

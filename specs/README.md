@@ -368,6 +368,12 @@ Use explicit status labels where appropriate:
 
 Only mark a document `Approved` when the user has explicitly approved it.
 
+**Current status (2026-10-20):** The project is at the scope/requirements
+approval gate. `PROJECT_SCOPE.md` and `REQUIREMENTS.md` are in final review,
+pending explicit user approval, and no other specification documents exist
+yet. Architecture, detailed design, and implementation must not begin until
+that approval is given and the next phase is authorized.
+
 ---
 
 **End of document.**
