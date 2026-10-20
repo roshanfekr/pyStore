@@ -1,13 +1,14 @@
 # Requirements
 
-**Status:** Draft (revision reflecting approved Vue theme, SQL Server, and
-Widget Zones decisions; awaiting final review)
+**Status:** Draft (revision reflecting approved Vue theme, SQL Server, Widget
+Zones, Django Admin, and multi-currency pricing decisions; awaiting final
+review)
 
-**Version:** 0.4
+**Version:** 0.5
 
 **Last updated:** 2026-10-20
 
-**Authority:** Derived from `PROJECT_SCOPE.md` version 0.3. Where this document
+**Authority:** Derived from `PROJECT_SCOPE.md` version 0.4. Where this document
 and the revised scope differ, the conflict must be reported and resolved
 rather than silently changing either document. See section 6.
 
@@ -18,12 +19,19 @@ acceptance-criteria identifiers are stable and must not be reused.
 ## 1. Functional Requirements
 
 ### 1.1 Admin & Access
-- FR-ADMIN-001: Admin dashboard provides authenticated access to core
-  management areas, including catalog, customers, orders, payments, shipping,
-  discounts, store settings, plugins, themes, reports, and audit logs.
+- FR-ADMIN-001: The initial administration interface is Django Admin. It
+  provides authenticated access to core management areas, including catalog,
+  customers, orders, payments, shipping, discounts, store settings, plugins,
+  themes, reports, and audit logs.
 - FR-ADMIN-002: Role-based permission management controls access to admin
   functions and data operations. Authorization is enforced server-side, and
   unauthorized actions are rejected rather than hidden only in the UI.
+- FR-ADMIN-003: The initial release does not require migrating Django Admin to
+  Vue. A future Vue-based custom administration interface is an optional,
+  separately planned enhancement and is not part of the initial release scope.
+  Storefront theme activation, theme components, and storefront Widget Zones
+  must not change the Django Admin interface unless a separate administrative
+  extension is explicitly applied.
 
 ### 1.2 Customer Accounts
 - FR-CUST-001: Customers can register, authenticate, and manage their account.
@@ -36,7 +44,8 @@ acceptance-criteria identifiers are stable and must not be reused.
   material.
 - FR-CAT-002: Products support variants via attribute combinations. Each
   combination may define its own price, SKU/product code, stock quantity,
-  image or image set, and enabled/disabled state.
+  image or image set, and enabled/disabled state. Combination prices may be
+  defined per configured currency as specified in section 1.8.
 - FR-CAT-003: Storefront displays the relevant price and availability for the
   selected combination. Selection changes must update the displayed price,
   availability, and applicable image without requiring a page reload.
@@ -62,6 +71,12 @@ acceptance-criteria identifiers are stable and must not be reused.
 - FR-PAY-001: Payment methods are configurable. Only enabled methods are
   offered at checkout, and the outcome of a payment attempt is recorded against
   the order.
+- FR-PAY-002: Each payment method/provider must declare or otherwise expose
+  the currencies it supports. A method that cannot support the selected
+  currency must not be offered, or must fail clearly before charging. The
+  order and payment attempt must record the settlement currency; if settlement
+  differs from the order currency, the conversion and disclosure policy must
+  be explicitly approved rather than assumed.
 - FR-SHIP-001: Shipping methods are configurable. Only enabled methods are
   offered at checkout, and the selected method is recorded against the order.
 
@@ -81,17 +96,51 @@ acceptance-criteria identifiers are stable and must not be reused.
 - FR-I18N-003: Locale-dependent presentation, including translated labels and
   language-appropriate formatting, must be driven by the active language and
   must not require editing core Vue components per language.
-- FR-CUR-001: Multiple currencies can be configured. Prices are displayed in
-  the active currency using its configured symbol and decimal precision.
-- FR-CUR-002: Multi-currency support extends to payment and order processing.
-  Checkout, payment, and the resulting order must use the selected currency;
-  the order must retain the currency and payable amount. A payment method that
-  cannot support the selected currency must fail clearly rather than silently
-  charging a different currency.
-- FR-CUR-003: Currency selection and display must be consistent across
-  catalog, cart, checkout, order history, and informational pages. Currency
-  conversion, rounding, and exchange-rate policy are unresolved and must be
-  specified before implementation (see section 6.2).
+- FR-CUR-001: Each store has exactly one configurable base currency. The base
+  currency is the canonical reference for price definition and the default
+  storefront currency unless another supported currency is selected. Only
+  configured, active currencies are offered to customers.
+- FR-CUR-002: The system supports explicitly configured prices for individual
+  currencies. Administrators can define a price for a product or product
+  variant in the base currency and independently in other supported
+  currencies. An explicit currency price is distinct from a price obtained by
+  conversion and must be usable without executing an exchange-rate conversion.
+- FR-CUR-003: Automatic exchange-rate conversion is a separate, configurable
+  capability. When it is disabled, no automatic conversion occurs. When it is
+  enabled, conversion must use an approved rate source, refresh policy,
+  rounding policy, and conversion timing. No exchange-rate provider or
+  automatic-conversion policy is selected by this requirement; see section
+  6.2.
+- FR-CUR-004: For a requested storefront currency, an explicitly configured
+  price for that currency takes precedence over an automatically converted
+  price. The base-currency price must not be treated as an explicit price for
+  another currency. When neither an explicit price nor an enabled conversion
+  is available, the system must follow a documented unavailable/fallback rule
+  approved before implementation; it must not silently charge or display an
+  unrelated currency.
+- FR-CUR-005: Price display and cart calculations use the resolved price for
+  the active currency, with that currency's configured symbol and decimal
+  precision. Cart line amounts, discounts, shipping, tax, and totals are
+  calculated in one selected currency and must not mix currencies within a
+  cart.
+- FR-CUR-006: Checkout, payment initialization, and order creation use the
+  selected currency. The resulting order must preserve the currency and the
+  monetary amounts agreed at order placement, including line prices, subtotal,
+  discounts, shipping, tax, and total. Later price, exchange-rate, or currency
+  configuration changes must not rewrite historical order amounts.
+- FR-CUR-007: Currency selection and display must be consistent across
+  catalog, cart, checkout, order history, and informational pages. The system
+  must distinguish the order/payment settlement currency from display and
+  conversion inputs and must record the settlement currency. A payment method
+  that does not support the selected currency must not be offered or must fail
+  clearly rather than silently charging a different currency; payment-provider
+  currency compatibility is required (see FR-PAY-002).
+- FR-CUR-008: Refunds, where supported, must use the order's recorded
+  settlement currency and amount basis. A refund must not silently apply a
+  different currency or exchange rate; if the payment provider cannot refund
+  in the required currency, the operation must fail clearly and be recorded as
+  requiring an approved alternative. Currency conversion, rounding, and
+  provider refund policy remain open decisions in section 6.2.
 
 ### 1.9 Reviews & Ratings
 - FR-REV-001: Product reviews and ratings can be submitted and displayed,
@@ -302,14 +351,18 @@ architecture decisions.
   built with Vite, that consumes the Django REST Framework API. Storefront
   themes are implemented with Vue layouts, components, and assets rather than
   server-rendered Django templates.
-- TR-STACK-004: Bootstrap is the UI framework for the storefront and
-  administration interface unless an approved exception is documented.
+- TR-STACK-004: Bootstrap is the UI framework for the Vue storefront and
+  custom UI. The initial Django Admin interface retains its built-in
+  administration styling unless an approved exception is documented.
 - TR-STACK-005: SQL Server is the initial database. PostgreSQL is a potential
   future database target, not the currently selected database. Migrating to
   PostgreSQL must not be assumed to require only a configuration change.
 - TR-STACK-006: Storefront rendering remains client-side Vue. Server-side
   rendering must not be introduced unless it is separately evaluated and
   approved.
+- TR-STACK-007: Django Admin is the administration interface for the initial
+  release. Migrating the administration interface to Vue is not part of the
+  initial release scope and requires a separately approved enhancement.
 
 ### 2.1 Database Requirements
 
@@ -430,6 +483,9 @@ acceptance criterion must be traceable to at least one requirement in section
   documented management areas from the admin dashboard.
 - **AC-ADMIN-002** (`FR-ADMIN-002`): A user without the required permission is
   denied an admin operation through both the UI and direct request.
+- **AC-ADMIN-003** (`FR-ADMIN-003`, `TR-STACK-007`): The initial administration
+  interface is Django Admin, remains usable without a Vue admin build, and is
+  unchanged by activating or switching a storefront theme.
 - **AC-CUST-001** (`FR-CUST-001`): A customer can register, authenticate,
   update their account, and cannot access another customer's account data.
 - **AC-CAT-001** (`FR-CAT-001`): Products display categories, brands,
@@ -453,6 +509,9 @@ acceptance criterion must be traceable to at least one requirement in section
   customer can view only their own order history and details.
 - **AC-PAY-001** (`FR-PAY-001`): Only enabled payment methods are offered, and
   a payment outcome is recorded against the order.
+- **AC-PAY-002** (`FR-PAY-002`): A payment method that does not support the
+  selected currency is not offered or fails before charging, and the payment
+  attempt records its settlement currency.
 - **AC-SHIP-001** (`FR-SHIP-001`): Only enabled shipping methods are offered,
   and the selected method is recorded against the order.
 - **AC-DISC-001** (`FR-DISC-001`): A valid discount, coupon, or promotion is
@@ -465,12 +524,28 @@ acceptance criterion must be traceable to at least one requirement in section
 - **AC-I18N-002** (`FR-I18N-002`): Selecting an RTL language sets RTL document
   direction and produces a usable mirrored layout without overlapping or
   inaccessible controls.
-- **AC-CUR-001** (`FR-CUR-001`, `FR-CUR-003`): Prices display the active
-  currency's symbol and decimal precision consistently across storefront
-  pages.
-- **AC-CUR-002** (`FR-CUR-002`, `FR-CUR-003`): Checkout, payment, and the
-  resulting order use and retain the selected currency and payable amount; an
-  unsupported currency/payment combination fails clearly.
+- **AC-CUR-001** (`FR-CUR-001`, `FR-CUR-005`): A store has one configured base
+  currency, only configured active currencies are offered, and displayed
+  prices use the active currency's symbol and decimal precision consistently.
+- **AC-CUR-002** (`FR-CUR-002`, `FR-CUR-004`): An explicitly configured price
+  for a product or variant in a non-base currency is used for that currency
+  without requiring automatic conversion.
+- **AC-CUR-003** (`FR-CUR-003`): With automatic conversion disabled, no
+  converted price is produced; with it enabled in a controlled test, the
+  configured rate source, timing, and rounding policy are applied.
+- **AC-CUR-004** (`FR-CUR-004`): When both an explicit currency price and an
+  automatically converted price exist, the explicit price is used.
+- **AC-CUR-005** (`FR-CUR-005`): Cart lines, discounts, shipping, tax, and
+  totals are calculated in one selected currency and do not mix currencies.
+- **AC-CUR-006** (`FR-CUR-006`): Checkout and the resulting order retain the
+  selected currency and the agreed monetary amounts; later price or rate
+  changes do not alter the historical order.
+- **AC-CUR-007** (`FR-CUR-007`, `FR-PAY-002`): The order and payment attempt
+  record the settlement currency, and an incompatible payment/currency
+  combination is not silently charged in another currency.
+- **AC-CUR-008** (`FR-CUR-008`): Where refunds are supported, a refund uses the
+  order's recorded settlement currency and amount basis, or fails clearly when
+  the provider cannot support that refund currency.
 - **AC-REV-001** (`FR-REV-001`): A permitted customer can submit a review and
   rating, and accepted reviews are displayed according to configured rules.
 - **AC-NOTIF-001** (`FR-NOTIF-001`): A qualifying event produces a notification
@@ -499,10 +574,11 @@ acceptance criterion must be traceable to at least one requirement in section
 
 ### 4.3 Technical and Non-Functional Acceptance
 
-- **AC-STACK-001** (`TR-STACK-001` through `TR-STACK-006`): Project and
+- **AC-STACK-001** (`TR-STACK-001` through `TR-STACK-007`): Project and
   deployment configuration evidence identifies Django, DRF, Vue/Vite,
-  Bootstrap, SQL Server as the initial database, and client-side Vue rendering
-  without SSR; any deviation is recorded and approved as required by section 6.
+  Bootstrap, SQL Server as the initial database, client-side Vue rendering
+  without SSR, and Django Admin as the initial administration interface; any
+  deviation is recorded and approved as required by section 6.
 - **AC-DB-001** (`TR-DB-001`): Architecture/design evidence identifies the
   compatible SQL Server Django backend, the minimum supported SQL Server
   version, and how that support will be validated.
@@ -545,16 +621,16 @@ acceptance criterion must be traceable to at least one requirement in section
 
 | Requirement group | Source | Acceptance criteria |
 | --- | --- | --- |
-| FR-ADMIN-001 – FR-ADMIN-002 | PROJECT_SCOPE §3, §6 | AC-ADMIN-001 – AC-ADMIN-002 |
+| FR-ADMIN-001 – FR-ADMIN-003 | PROJECT_SCOPE §2, §3, §5 | AC-ADMIN-001 – AC-ADMIN-003 |
 | FR-CUST-001 | PROJECT_SCOPE §3 | AC-CUST-001 |
 | FR-CAT-001 – FR-CAT-005 | PROJECT_SCOPE §3 – §4 | AC-CAT-001 – AC-CAT-005 |
 | FR-CART-001, FR-CHK-001 | PROJECT_SCOPE §3 | AC-CART-001, AC-CHK-001 |
 | FR-ORD-001 | PROJECT_SCOPE §3 | AC-ORD-001 |
-| FR-PAY-001, FR-SHIP-001 | PROJECT_SCOPE §3 | AC-PAY-001, AC-SHIP-001 |
+| FR-PAY-001 – FR-PAY-002, FR-SHIP-001 | PROJECT_SCOPE §3 | AC-PAY-001 – AC-PAY-002, AC-SHIP-001 |
 | FR-DISC-001 | PROJECT_SCOPE §3 | AC-DISC-001 |
 | FR-SET-001 | PROJECT_SCOPE §3 | AC-SET-001 |
 | FR-I18N-001 – FR-I18N-003 | Project localization decision; see section 6 | AC-I18N-001 – AC-I18N-002 |
-| FR-CUR-001 – FR-CUR-003 | Project multi-currency decision; see section 6 | AC-CUR-001 – AC-CUR-002 |
+| FR-CUR-001 – FR-CUR-008 | PROJECT_SCOPE §3 – §4; see UD-009, UD-015, UD-016 | AC-CUR-001 – AC-CUR-008 |
 | FR-REV-001 | PROJECT_SCOPE §3 | AC-REV-001 |
 | FR-NOTIF-001 | PROJECT_SCOPE §3 | AC-NOTIF-001 |
 | FR-REP-001 | PROJECT_SCOPE §3 | AC-REP-001 |
@@ -562,7 +638,7 @@ acceptance criterion must be traceable to at least one requirement in section
 | FR-THEME-001, FR-THEME-002 | PROJECT_SCOPE §3, §6 | AC-THEME-001, AC-THEME-002 |
 | FR-EXT-001 – FR-EXT-004 | PROJECT_SCOPE §6.2 – §7 | AC-EXT-001, AC-ZONE-001 – AC-ZONE-002, AC-EXT-003, AC-THEME-LAYOUT-009 |
 | FR-THEME-LAYOUT-001 – FR-THEME-LAYOUT-012 | PROJECT_SCOPE §6 | AC-THEME-LAYOUT-001 – AC-THEME-LAYOUT-015 |
-| TR-STACK-001 – TR-STACK-006 | PROJECT_SCOPE §2 | AC-STACK-001 |
+| TR-STACK-001 – TR-STACK-007 | PROJECT_SCOPE §2 | AC-STACK-001, AC-ADMIN-003 |
 | TR-DB-001 – TR-DB-006 | PROJECT_SCOPE §2, §8 | AC-DB-001 – AC-DB-006 |
 | NFR-SEC-001 | PROJECT_SCOPE §8 | AC-SEC-001 |
 | NFR-EXT-001, NFR-MAINT-001 | PROJECT_SCOPE §8 | AC-EXT-002 |
@@ -599,7 +675,7 @@ architecture/design and section 6.2.
 | Contact / informational | Vue route with theme informational page component | Django `storefront/cms_page.html`; route not yet in Vue router | Theme page override and content Widget Zones required. |
 | Blog / news | Vue routes with theme list/detail page components | Django blog templates; routes not yet in Vue router | Theme page overrides required where enabled. |
 | Plugin-contributed storefront UI | Plugin Vue components rendered in approved Widget Zones | Current plugins provide Django hook templates such as `ajax_cart/*`, `flash_sale/*`, and `slider/*` | Migration to Vue plugin components and the approved Zone registry is required. |
-| Administration | Separate admin interface and layout policy | Django admin templates | Storefront theme activation must not change the admin interface. |
+| Administration | Django Admin for the initial release; separate layout/theme policy | Django Admin / `admin_panel` templates | Storefront theme activation must not change the admin interface; Vue admin migration is not initial scope. |
 | Robots / sitemap / autocomplete / suggestion endpoints | Non-page/API responses or explicitly documented theme coverage | Existing Django views/endpoints | Must be classified in the coverage record; not required to render a theme page unless specified. |
 
 ## 6. Conflicts, Deviations, and Unresolved Decisions
@@ -631,77 +707,107 @@ architecture/design and section 6.2.
   decisions; the examples in `PROJECT_SCOPE.md` section 7 are not an exhaustive
   final list.
 - **CF-005 — Localization and currency detail.** Multilingual, RTL, and
-  multi-currency display/payment are treated as approved project requirements
-  for this revision, but `PROJECT_SCOPE.md` does not fully specify translation
-  fallback, currency conversion, rounding, or payment-provider currency
-  support. These gaps must be resolved without silently narrowing or expanding
-  the approved capability.
+  multi-currency display/payment are approved project requirements. This
+  revision adds base-currency, explicit per-currency price, optional automatic
+  conversion, precedence, order-record, refund, and payment-compatibility
+  requirements. Translation fallback, automatic-conversion policy, and
+  currency business rules not explicitly decided remain open in section 6.2.
 - **CF-006 — Performance targets.** `PROJECT_SCOPE.md` section 8 requires
   responsive performance but defers measurable targets. `NFR-PERF-001` and
   `AC-PERF-001` remain open until targets are approved.
+- **CF-007 — Administration interface decision (resolved).** The initial
+  release uses Django Admin. The storefront remains a separate Vue/Vite
+  application, and storefront themes and Widget Zones do not control Django
+  Admin. A complete Vue admin migration is not in initial scope; a future
+  Vue-based admin is an optional, separately planned enhancement. This
+  resolves the previous ambiguity in the scope's UI section.
+- **CF-008 — Multi-currency implementation gap.** The current repository has a
+  store default/supported currency list and a `Currency` model, but the
+  observed pricing structures do not store explicit per-currency prices, and
+  orders carry a single currency without provider currency-capability data.
+  This is implementation evidence, not a change to the approved multi-currency
+  requirements; the gap must be addressed in later approved implementation
+  work.
 
 ### 6.2 Unresolved Decisions for Architecture/Design
 
 These decisions are not approved requirements. They must be resolved and,
 where they affect scope, explicitly approved.
 
-- **UD-001 — Vue route coverage and migration.** Classify every storefront
-  route as Vue/theme-covered or explicitly outside theme coverage, and define
-  how current Django-rendered content routes are migrated to the approved Vue
-  storefront without bypassing the active theme. Final route/component names
+Priority labels indicate the latest phase by which the decision should be
+resolved. A lower phase may resolve it sooner.
+
+- **UD-001 — Vue route coverage and migration (before requirements
+  approval).** Classify every storefront route as Vue/theme-covered or
+  explicitly outside theme coverage, and confirm how current Django-rendered
+  content routes enter the approved Vue storefront. Final route/component names
   remain architecture decisions.
-- **UD-002 — Active-theme scope and persistence.** Decide whether the active
-  theme is global, per store, or otherwise scoped; where activation is stored;
-  how activation/deactivation takes effect; and how cached routes/assets are
-  invalidated.
-- **UD-003 — Theme component-resolution contract.** Define logical component
-  names, namespacing, route/page mapping, and the exact precedence among active
-  theme components, default theme/core components, plugin theme-specific
-  components, and plugin default components. Apply the same rules to root
-  layouts, page components, shared components, and layout variants.
-- **UD-004 — Theme package and Vite integration.** Define the final theme
-  directory structure, manifest schema, component/module format, discovery,
-  build integration, static-asset organization, and asset URL/versioning
-  policy.
-- **UD-005 — Layout-variant selection.** Define how a route chooses full-width,
-  one-, two-, or three-column Vue layout variants and how a missing theme
-  variant falls back.
-- **UD-006 — Plugin component contract.** Define how plugins declare Vue
-  components and theme-specific variants, how compatibility is determined, and
-  how ordering and conflicts with theme overrides are resolved across Widget
-  Zones.
-- **UD-007 — Widget Zone registry and coverage enforcement.** Define the final
-  zone registry, identifiers, capabilities, ordering rules, and automated
-  checks that prevent new core or plugin routes and zones from silently
-  bypassing theme classification.
-- **UD-008 — Administration theme policy.** Confirm the separate layout/theme
-  policy for the admin interface and whether any administrative theming is in
-  scope.
-- **UD-009 — Currency conversion and payment policy.** Define exchange-rate
-  source, conversion timing, rounding, display vs. charge currency, and
-  behavior when a payment provider does not support the selected currency.
-- **UD-010 — Translation fallback and content localization.** Define language
-  fallback behavior, translated content ownership, and RTL handling for
-  admin-authored content and generated storefront UI.
-- **UD-011 — Theme trust and security model.** Define how Vue theme components
-  and assets are validated, what capabilities theme authors have, and how
-  untrusted theme code is isolated from secrets and business operations.
-- **UD-012 — Performance targets.** Define measurable page/API performance and
-  theme-rendering budgets before `AC-PERF-001` can be verified.
-- **UD-013 — SQL Server backend and version support.** Validate the compatible
-  Django SQL Server backend, supported SQL Server versions, driver/ODBC
-  prerequisites, and connection/deployment requirements.
-- **UD-014 — Database portability and migration strategy.** Define the
-  portability checks, migration testing approach, irreversible-migration
-  recovery rules, data-migration validation, and the conditions under which a
-  future PostgreSQL evaluation may occur.
+- **UD-002 — Active-theme scope and persistence (before architecture).**
+  Decide whether the active theme is global, per store, or otherwise scoped;
+  where activation is stored; how activation/deactivation takes effect; and
+  how cached routes/assets are invalidated.
+- **UD-003 — Theme component-resolution contract (before architecture).**
+  Define logical component names, namespacing, route/page mapping, and the
+  exact precedence among active theme components, default theme/core
+  components, plugin theme-specific components, and plugin default components.
+  Apply the same rules to root layouts, page components, shared components, and
+  layout variants.
+- **UD-004 — Theme package and Vite integration (before architecture).**
+  Define the final theme directory structure, manifest schema,
+  component/module format, discovery, build integration, static-asset
+  organization, and asset URL/versioning policy.
+- **UD-005 — Layout-variant selection (before architecture).** Define how a
+  route chooses full-width, one-, two-, or three-column Vue layout variants and
+  how a missing theme variant falls back.
+- **UD-006 — Plugin component contract (before architecture).** Define how
+  plugins declare Vue components and theme-specific variants, how
+  compatibility is determined, and how ordering and conflicts with theme
+  overrides are resolved across Widget Zones.
+- **UD-007 — Widget Zone registry and coverage enforcement (before
+  architecture).** Define the final zone registry, identifiers, capabilities,
+  ordering rules, and automated checks that prevent new core or plugin routes
+  and zones from silently bypassing theme classification.
+- **UD-009 — Automatic conversion and price-fallback policy (before
+  requirements approval for business rules; before architecture for
+  implementation).** Decide whether automatic conversion is enabled by
+  default, the approved rate source, refresh/timing, rounding, the behavior
+  when neither an explicit nor a converted price exists, and the customer
+  disclosure requirements. No provider or policy is assumed.
+- **UD-010 — Translation fallback and content localization (before
+  architecture).** Define language fallback behavior, translated content
+  ownership, and RTL handling for admin-authored content and generated
+  storefront UI.
+- **UD-011 — Theme trust and security model (before architecture).** Define
+  how Vue theme components and assets are validated, what capabilities theme
+  authors have, and how untrusted theme code is isolated from secrets and
+  business operations.
+- **UD-012 — Performance targets (before requirements approval).** Define
+  measurable page/API performance and theme-rendering budgets before
+  `AC-PERF-001` can be verified.
+- **UD-013 — SQL Server backend and version support (before architecture).**
+  Validate the compatible Django SQL Server backend, supported SQL Server
+  versions, driver/ODBC prerequisites, and connection/deployment requirements.
+- **UD-014 — Database portability and migration strategy (before
+  architecture).** Define the portability checks, migration testing approach,
+  irreversible-migration recovery rules, data-migration validation, and the
+  conditions under which a future PostgreSQL evaluation may occur.
+- **UD-015 — Per-currency price storage and resolution (before architecture).**
+  Define how explicit product, variant, and applicable price-list prices are
+  stored per currency, how the base currency relates to them, how the data is
+  administered, and how cart and checkout resolve the active currency price.
+  This is a data/design decision, not a business-rule change.
+- **UD-016 — Payment settlement and refund currency policy (before
+  requirements approval for customer-facing behavior; before architecture for
+  implementation).** Define provider currency-capability representation,
+  settlement-currency behavior when it differs from the order currency,
+  disclosure requirements, and the allowed refund/alternative-currency policy.
 
 ## 7. Approval Gate
 
 This revision records the user-approved decisions on the Vue/Vite theme system,
-SQL Server with Django ORM, and Widget Zones. It remains in Draft pending final
-review and approval. It does not approve architecture, detailed design,
-dependencies, database changes, migration work, or implementation. No
-architecture/design or implementation work should begin until the user
-explicitly approves the revised scope and requirements and authorizes the next
-phase.
+SQL Server with Django ORM, Widget Zones, the initial Django Admin interface,
+and multi-currency pricing. It remains in Draft pending final review and
+approval. It does not approve architecture, detailed design, dependencies,
+database changes, migration work, or implementation. No architecture/design or
+implementation work should begin until the user explicitly approves the revised
+scope and requirements and authorizes the next phase.

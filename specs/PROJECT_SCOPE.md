@@ -1,11 +1,12 @@
 # Project Scope --- Plugin-Based E-commerce Platform
 
 **Document:** `specs/PROJECT_SCOPE.md`\
-**Version:** 0.3 (draft reflecting the approved Vue theme, SQL Server, and
-Widget Zones decisions)\
+**Version:** 0.4 (draft reflecting the approved Vue theme, SQL Server,
+Widget Zones, Django Admin, and multi-currency pricing decisions)\
 **Status:** Draft pending final review. The core scope remains approved; this
 revision records the user-approved decisions on the Vue/Vite theme system,
-SQL Server with Django ORM, and Widget Zones.\
+SQL Server with Django ORM, Widget Zones, the initial Django Admin interface,
+and multi-currency pricing.\
 **Last updated:** 2026-10-20
 
 ## 1. Project Vision
@@ -26,7 +27,13 @@ concepts; it is not a port or a copy of nopCommerce source code.
     the backend API. Storefront themes are implemented with Vue layouts,
     components, and assets. Server-side rendering (SSR) is not introduced
     unless it is separately evaluated and approved.
--   **UI framework:** Bootstrap.
+-   **Administration interface:** Django Admin is the administration interface
+    for the initial release. The administration interface is not part of the
+    Vue/Vite storefront application and is not migrated to Vue in this phase.
+    A future Vue-based custom administration interface is an optional,
+    separately planned enhancement.
+-   **UI framework:** Bootstrap for the storefront and custom UI. The initial
+    Django Admin interface retains its built-in administration styling.
 -   **Database:** SQL Server is the initial database. PostgreSQL is a
     potential future database target, not the currently selected database.
 -   **ORM:** Django ORM is the preferred ORM because the backend uses Django
@@ -56,6 +63,13 @@ The platform is intended to cover the following capabilities:
 -   Shipping methods and shipping-related configuration.
 -   Discounts, coupons, and promotions.
 -   Store settings, currency, and tax configuration.
+-   Multi-currency pricing: a configurable base currency, explicitly configured
+    prices for individual currencies, an optional and separately configurable
+    automatic conversion capability, and currency-aware payment and order
+    settlement. Orders must preserve the currency and monetary amounts agreed
+    when placed, and refunds must respect the order's settlement currency where
+    applicable. Payment providers are not assumed to support every currency.
+    Automatic conversion provider/policy is not selected by this scope.
 -   Product reviews and ratings.
 -   Notifications.
 -   Reports and audit logs.
@@ -68,7 +82,8 @@ Products may have attributes such as size, color, material, or other
 configurable options. A product can have multiple combinations, and each
 combination may have its own:
 
--   Price.
+-   Price, including prices explicitly configured for supported currencies
+    where applicable.
 -   SKU or product code.
 -   Stock quantity and availability.
 -   Image or image set.
@@ -83,7 +98,10 @@ validated when adding the item to the cart and when placing the order.
 
 ## 5. UI and User Experience
 
--   The storefront and admin UI use Vue.js and Bootstrap.
+-   The storefront UI uses Vue.js and Bootstrap. The initial administration
+    interface uses Django Admin and is not required to use Vue in this
+    release. A future Vue-based administration interface is optional and must
+    be separately planned and approved.
 -   The UI should be responsive and consistent across pages.
 -   Reusable components should be used where appropriate.
 -   Forms should provide validation feedback.
@@ -274,7 +292,10 @@ pages, and other catalog views.
 #### H. Admin UI
 
 Documented admin extension points should be supported where appropriate,
-without compromising security or access control.
+without compromising security or access control. In the initial release, the
+administration interface and its extension points are Django Admin based;
+storefront Vue theme components and Widget Zones do not control the admin
+interface.
 
 ### 7.2 Detailed Definition Later
 
@@ -282,7 +303,8 @@ During detailed requirements and architecture, each extension point
 must be documented with:
 
 -   A stable identifier.
--   The Vue page or component where it appears.
+-   The Vue page or component for a storefront zone, or the Django Admin
+    view/region for an admin zone, where it appears.
 -   Its position in the page or component tree.
 -   The contribution types allowed (for example, append or controlled
     replacement).
@@ -338,6 +360,9 @@ Detailed measurable targets will be defined in later requirements work.
     explicit approval.
 -   Treating PostgreSQL as the current database or assuming migration
     from SQL Server requires only a configuration change.
+-   Migrating the administration interface from Django Admin to Vue in the
+    initial release. A future Vue-based admin is an optional, separately
+    planned enhancement.
 
 ## 10. Project Principles
 
@@ -345,7 +370,8 @@ Detailed measurable targets will be defined in later requirements work.
 2.  Use explicit phase gates: do not advance to the next phase without
     approval.
 3.  Prefer an API-first design for the standalone Vue frontend.
-4.  Use Bootstrap as the UI framework.
+4.  Use Bootstrap for the Vue storefront and custom UI; retain Django Admin's
+    built-in administration styling in the initial release.
 5.  Design for plugin and theme extensibility.
 6.  Apply security by design.
 7.  Add automated tests for critical behavior.
@@ -362,8 +388,9 @@ approved as requirements. The exact zone registry, identifiers, and
 naming conventions remain to be finalized during architecture/design.
 
 This revision records the approved Vue/Vite theme, SQL Server with Django
-ORM, and Widget Zones decisions. The revised scope and requirements
-remain in Draft pending final user review and approval.
+ORM, Widget Zones, Django Admin, and multi-currency pricing decisions. The
+revised scope and requirements remain in Draft pending final user review and
+approval.
 
 No architecture design, implementation task breakdown, or code
 generation should begin until the user explicitly approves the relevant
