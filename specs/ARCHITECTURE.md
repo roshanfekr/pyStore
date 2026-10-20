@@ -1,829 +1,703 @@
 # Architecture Specification
 
 **Document:** `specs/ARCHITECTURE.md`\
-**Version:** 0.1\
-**Status:** Draft — proposed for user review. This document is **not approved**.
-It is a proposal for SDD Phase 3 (Architecture) and must not be treated as an
-authorization to implement.\
+**Version:** 0.3\
+**Status:** Draft — proposed for user review. This document is **not approved**
+and must not be treated as an authorization to implement.\
 **Last updated:** 2026-10-20\
-**Basis:** `PROJECT_SCOPE.md` v0.7 and `REQUIREMENTS.md` v0.8 (both Draft).
-Approved technology constraints are marked **Approved**; design choices made
-in this document are marked **Proposed** and require explicit user approval.
-Repository observations are marked **Evidence** and describe current behavior,
-not intended behavior.
+**Basis:** `PROJECT_SCOPE.md` v0.7 and `REQUIREMENTS.md` v0.8 (both Draft),
+plus direct inspection of the current repository.
 
-## 1. Purpose and Relationship to Other Documents
+## 1. Architecture Purpose and Status
 
-This specification defines the system's high-level structure: component
-responsibilities, boundaries, communication patterns, and major trade-offs.
+### 1.1 Brownfield Context
 
-- `PROJECT_SCOPE.md` defines *what* the platform is and which technology
-  decisions are approved. This document must not widen that scope.
-- `REQUIREMENTS.md` defines *what the system must do* (functional,
-  technical, and non-functional requirements with stable identifiers). This
-  document explains *how the system will be shaped* so those requirements can
-  be satisfied.
-- Detailed data structures, endpoint contracts, plugin manifests, and
-  deployment runbooks belong to later detailed-design documents
-  (`DATA_MODEL.md`, `API_SPEC.md`, `PLUGIN_SYSTEM.md`, `DEPLOYMENT.md`,
-  `IMPLEMENTATION_PLAN.md`). This document deliberately does not define them.
+pyStore is an **existing application** developed before Spec-Driven
+Development was adopted. It is not a greenfield project: a large working
+Django codebase, a Vue SPA, a plugin engine, themes, and an extensive test
+suite already exist. The purpose of this document is to:
 
-**Normative language.** "Approved" restates an already-approved decision and
-must not be re-litigated here. "Proposed" is a recommendation awaiting user
-approval. "Open" is a decision that must be resolved before or during detailed
-design; options are listed where known.
+1. **Document the current system** (As-Is) based on repository evidence.
+2. **Define the target architecture** (To-Be) that satisfies the approved
+   scope and requirements.
+3. **Describe the transitional architecture** and an incremental evolution
+   strategy so the existing system can reach the target without a rewrite
+   and without disrupting working functionality.
 
-## 2. Architectural Goals and Constraints
+The existing code is never assumed to be wrong simply because it differs
+from the target. Where the implementation conflicts with an approved
+requirement, the conflict is recorded with a migration path (§5, §6);
+requirements are never silently changed to match the code.
 
-### 2.1 Approved Constraints (from PROJECT_SCOPE §2, §8–§9 and REQUIREMENTS §2)
+### 1.2 Labels Used in This Document
 
-| Constraint | Source |
+| Label | Meaning |
 | --- | --- |
-| Python + Django backend; DRF API-first | TR-STACK-001, TR-STACK-002 |
-| Separate Vue.js/Vite storefront consuming the DRF API; client-side rendering only (no SSR) | TR-STACK-003, TR-STACK-006 |
-| Bootstrap for the storefront and custom UI; Django Admin keeps built-in styling in V1 | TR-STACK-004, TR-STACK-007 |
-| SQL Server is the initial database; PostgreSQL only a potential future target | TR-STACK-005, TR-DB-001 |
-| Django ORM only; no second ORM; database-specific behavior isolated | TR-DB-002, TR-DB-003 |
-| Database portability is a design goal, never assumed configuration-only | TR-DB-006 |
-| Plugin-based extensibility and a Vue theme system with fallback behavior | FR-PLUG-001, FR-THEME-001–002, FR-EXT-001–004, FR-THEME-LAYOUT-001–012 |
-| Multilingual and RTL support | FR-I18N-001–003 |
-| Product variants with combination-specific price, SKU, stock, images, enabled state | FR-CAT-002–004 |
-| V1 uses only explicitly configured per-currency prices; no automatic conversion | FR-CUR-002–004, UD-009 |
-| Refunds deferred to a future release | FR-CUR-008, UD-017 |
-| Payment providers must support the order currency; order currency never silently changed | FR-PAY-002, FR-CUR-006–007, UD-016 |
-| Approved V1 performance targets (baseline load test, API p95 targets/thresholds, LCP p75) | NFR-PERF-001–003, AC-PERF-001–003 |
+| **As-Is** | Verified current behavior, citing concrete repository paths |
+| **To-Be** | Proposed target architecture, requiring approval |
+| **Transitional** | Deliberate temporary arrangement during migration, to be retired |
+| **Gap** | Distance between As-Is and To-Be |
+| **Approved** | Already-approved scope/requirements constraint (not re-decided here) |
+| **Unknown** | Area not yet inspected or not verifiable from evidence gathered |
 
-### 2.2 Architectural Goals
+### 1.3 Relationship to Other Documents
 
-1. **Modular monolith.** One deployable Django backend with strict internal
-   module boundaries; no microservices-first architecture (scope exclusion).
-2. **API-first storefront.** The Vue/Vite storefront owns all customer-facing
-   presentation and consumes the versioned DRF API.
-3. **Extensibility without core edits.** Plugins and themes extend behavior
-   through documented contracts and extension points
-   (NFR-EXT-001, NFR-MAINT-001).
-4. **Server-side trust.** Business rules, validation, and authorization are
-   enforced in Django, never in the SPA (NFR-SEC-001, FR-CAT-004).
-5. **Failure-safe state transitions.** Cart-to-order, inventory, and payment
-   operations are transactional and validated (NFR-REL-001).
-6. **Measurable performance.** The architecture must make the approved
-   baseline load test and targets reproducible (NFR-PERF-001–003).
-7. **Portability by isolation.** Backend-specific SQL and settings are
-   isolated behind documented boundaries (TR-DB-003, TR-DB-006).
+- `PROJECT_SCOPE.md` defines the approved scope and technology direction.
+- `REQUIREMENTS.md` defines functional/technical/non-functional requirements
+  with stable identifiers; this document shows how the architecture serves
+  them (§13).
+- Detailed data structures, endpoint contracts, plugin manifests, and
+  deployment runbooks belong to later phases (`DATA_MODEL.md`,
+  `API_SPEC.md`, `PLUGIN_SYSTEM.md`, `DEPLOYMENT.md`,
+  `IMPLEMENTATION_PLAN.md`) and are deliberately not defined here.
 
-### 2.3 Architectural Non-Goals (V1)
+## 2. Existing-System Summary (Evidence-Based, As-Is)
 
-- SSR or a second rendering path for the storefront.
-- Refund processing, automatic currency conversion, PostgreSQL migration.
-- Multi-vendor marketplace as a storefront concept (vendor data models exist
-  as implementation evidence; marketplace scope is excluded by
-  `PROJECT_SCOPE.md` §9).
-- Replacing Django Admin with a Vue administration interface.
+Every claim below was verified in the working tree during this revision.
+Areas that could not be verified are marked **Unknown** rather than guessed.
+A stale git worktree exists at `src/.kilo/worktrees/`; it is excluded from
+all evidence. `src/Architcture.md` (misspelled name) is a legacy Persian
+master-instruction document from the pre-SDD era (it references PostgreSQL
+and a 22-phase build plan); it is **not** an approved specification and
+`specs/` is authoritative (`specs/README.md` §5).
 
-## 3. High-Level Architecture Overview
+### 2.1 Django Project, Settings, and Applications
 
-**Proposed shape:** a modular-monolith Django backend exposing a versioned
-HTTP API consumed by an independent Vue/Vite SPA, plus a server-rendered
-Django Admin, over SQL Server, with Redis (cache / Celery broker) as
-supporting infrastructure and a plugin/theme layer for extensibility.
+- **Verified.** Django 5.2 modular monolith under `src/` with `config/`
+  (`settings/base.py`, `development.py`, `production.py`, `test.py`,
+  `urls.py`, `api_urls.py`, `wsgi.py`, `asgi.py`, `celery.py`), a `core/`
+  framework kernel, 17 business apps under `apps/` (identity, stores,
+  vendors, catalog, inventory, pricing, cart, checkout, orders, payments,
+  shipping-API, notifications, reviews, cms, media, search, storefront,
+  admin_panel), plus `plugins/`, `themes/`, `frontend/` (As-Is).
+- **Verified.** `config/settings/base.py`: environment-driven via
+  django-environ; installed apps split into `DJANGO_APPS`, `THIRD_PARTY_APPS`
+  (`rest_framework.authtoken`), `BUSINESS_APPS`, `CORE_APPS`,
+  `PLUGIN_APPS` (discovered at import time via
+  `core.plugins.loader.get_discovered_plugin_apps()`); middleware includes
+  `apps.stores.middleware.DbLocaleMiddleware` (DB-driven translations) and
+  custom `core.security.headers`/`cors` middleware; templates DIRS include
+  the active theme's directory; `ACTIVE_THEME` from environment
+  (`STOREFRONT_SPA_ENABLED` flag default off; SPA build served from
+  `apps/storefront/static/storefront-spa`).
+- **Verified.** Auth settings: `AUTH_USER_MODEL = "identity.User"`;
+  `AUTHENTICATION_BACKENDS` = custom `apps.identity.backends.PermissionBackend`
+  + `ModelBackend`; DRF defaults = `TokenAuthentication` + `SessionAuthentication`,
+  `AllowAny` default permission class, URL-path versioning (`v1`),
+  `StandardPagination`, anon/user/auth throttles, and a central exception
+  handler (`core.error_handling.api_exception_handler`).
+- **Partially verified.** Settings variants `development.py`, `production.py`,
+  `test.py` exist; their content was not fully inspected (**Unknown** in
+  detail).
+- **Verified.** Database: `mssql-django` (SQL Server) with default
+  `DATABASE_URL` `mssql://...ODBC+Driver+17...` (`requirements/base.txt`,
+  `settings/base.py`). SQL Server version support remains unvalidated (UD-013).
+- **Verified.** Redis (`django-redis`) configured as cache;
+  Celery (`celery[redis]`) configured with broker/backend and beat schedule
+  hook (`config/celery.py`).
+- **Unknown / Missing.** No Dockerfile, docker-compose, or other deployment
+  manifests were found in the repository; operational tooling is limited to
+  `scripts/test.ps1` / `scripts/test.sh` and `gunicorn` in dependencies.
+
+### 2.2 Existing Apps and Responsibilities
+
+Model classes verified via source inspection (not an exhaustive dump —
+only what materially affects architecture):
+
+- **identity**: `User` (custom, `AbstractBaseUser` + `PermissionsMixin`),
+  `Customer`, `Permission`, `Role`, `PasswordResetToken`,
+  `EmailVerificationToken`; services include
+  `services/authentication.py` (token issuance), registration, passwords,
+  roles, verification; `backends.py` implements the permission backend.
+- **stores**: `Store`, `Language`, `Currency` (with is-default behavior),
+  `LocaleStringResource` (DB catalog of translations),
+  `StoreDomain`; `middleware.py` locale middleware;
+  `seed_translations` management command.
+- **catalog**: `Product`, `ProductVariant`, `ProductAttribute`,
+  `ProductAttributeAssignment`, `ProductAttributeValue`,
+  `ProductVariantAttribute`, `ProductSpecification`, `ProductImage`,
+  `ProductRelation`, `ProductDownload`, `ProductBundleItem`,
+  `ProductSEO`, `Category`, `Brand`, `Tag`; plus `pricing.py` and
+  `events.py` integration.
+- **inventory**: `Warehouse`, `WarehouseLocation`, `InventoryItem`,
+  `InventoryTransaction` (auditable stock movements).
+- **pricing**: `PriceList`, `PriceListEntry`, `ScheduledPrice`, `Discount`,
+  `DiscountUsage`, `TaxClass`, `TaxRate`, `CustomerTaxInfo`,
+  `ProductTaxSetting`; `engine.py`, `discounts.py`, `taxes.py`.
+- **cart**: `Cart`, `CartItem`, `WishlistItem`, `CompareItem`;
+  `calculation.py` (dedicated calculation module), `wishlist.py`,
+  `compare.py`, `services.py`.
+- **checkout**: `pipeline.py` (`CheckoutPipeline` with ordered,
+  plugin-extensible steps: ValidateCart → Customer → Address → Shipping →
+  Tax → Discount → Inventory → Payment → OrderCreation), `steps.py`,
+  `services.py`, `context.py`, `models.py`.
+- **orders**: `Order` (with `currency` field, default `"USD"`),
+  `OrderItem`, `OrderAddress`, `OrderStatusLog`, `OrderNote`, `Refund`,
+  `ReturnRequest`, `ReturnRequestItem`; `state_machine.py` with validated
+  order/payment/shipment transitions; `services.py` and `events.py`.
+- **payments**: API layer only (`payments/api.py`); gateway logic lives in
+  the plugin layer behind `core.payments.interface.PaymentGateway`.
+- **notifications**: `NotificationTemplate`, `WebhookEndpoint`,
+  `WebhookDeliveryLog`, `NotificationMessage`, `Notification`; provider
+  registry integration.
+- **reviews**: `ProductReview`. **cms**: `Page`, `BlogCategory`,
+  `BlogPost`, `Menu`, `MenuItem`, `Widget`, `ContentBlock` (SEO mixins).
+- **media**: `MediaFile` with upload safety settings. **search**: database
+  backend (`SEARCH_BACKEND=database`). **vendors**: `Vendor`, `VendorUser`.
+- **admin_panel**: custom `AdminSite` (`admin_site.py`), dashboard, plugin
+  management pages, i18n seeded labels, custom widgets (tagify, searchable
+  selects, inline dialogs), vendored Bootstrap assets.
+- **storefront**: Django-template views for content routes, the SPA serving
+  module (`spa.py`), plugin hook rendering (`hooks.py`), theme helpers
+  (`themes.py`), context processors, template tags (`plugin_hooks`,
+  `strings`), and REST support for the SPA (bootstrap, hooks, search,
+  pages, blog, wishlist, compare).
+
+### 2.3 Existing APIs, Serializers, Permissions, Authentication
+
+- **Verified.** Versioned REST surface under `/api/<version>/`
+  (`config/api_urls.py`): auth (register/login/logout/password-reset/
+  verify-email), customers (`customers/me`), cart + coupon, checkout +
+  methods, payments initialize, shipping methods/rates/track,
+  products/categories/brands (DRF `DefaultRouter` viewsets), orders,
+  reviews, webhook endpoints/delivery logs, storefront bootstrap/hooks/
+  search/pages/blog/wishlist/compare.
+- **Verified.** Serialization and view logic live per app (`api.py` modules);
+  business rules live in services; default permission class is `AllowAny`
+  with per-view restrictions (permissive-by-default is a noted risk, §10).
+- **Verified (gap).** Dual authentication: login issues an API token and
+  also performs Django session login; logout revokes the token and ends the
+  session (`apps/identity/api.py`). The SPA keeps its token in
+  `localStorage` and forwards the CSRF cookie
+  (`frontend/src/api/client.js`).
+
+### 2.4 Existing Storefront Pages, Templates, Vue/Vite/Bootstrap
+
+- **Verified.** Django templates under `apps/storefront/templates/
+  storefront/`: base, home, category, product_detail, search, cart,
+  checkout, login, register, account, wishlist, compare, order_detail,
+  cms_page, blog list/detail — i.e., the **content routes are still
+  server-rendered** while the SPA owns interactive routes.
+- **Verified.** `base.html` is RTL-aware
+  (`dir="{{ storefront.active_language.direction|default:'ltr' }}"`), uses
+  DB-driven translations via the `{% tr %}` tag, plugin fragments via the
+  `{% plugin_hook %}` tag, and a **custom stylesheet**
+  (`storefront/css/main.css`) — **no Bootstrap references found** in
+  storefront templates or themes.
+- **Verified.** SPA (`src/frontend/`): Vue 3, Pinia, vue-router, Vite
+  (`package.json`, `vite.config.js`); router owns cart/checkout/login/
+  register/account/wishlist/compare/orders routes with a not-found fallback;
+  build output emitted to Django static so one origin serves SPA/API/Admin;
+  dev-server proxy for `/api`, `/static`, `/admin`.
+- **Partially verified.** Bootstrap: vendored in `admin_panel` (admin UI
+  uses it); **not present in the storefront SPA or templates** — a gap vs.
+  TR-STACK-004.
+- **Partially verified.** RTL exists in both rendering paths (template
+  `dir` attribute; SPA `App.vue`/`base.css`/`stores/storefront.js`
+  direction handling) — completeness unverified.
+
+### 2.5 Existing Theme and Plugin Mechanisms
+
+- **Verified.** Plugin engine in `core/plugins/`: `plugin.json` manifests
+  (`manifest.py`: id/name/version/entry_point/dependencies/
+  minimum_core_version), file-location loader (`loader.py`), `PluginManager`
+  with discover/install/enable/disable + dependency and version checks
+  (`manager.py`), `PluginState` persistence, permission registry, service
+  container, event-dispatcher integration; provider interfaces and
+  registries in `core/payments`, `core/shipping`, `core/notifications`.
+- **Verified.** Seven plugins under `src/plugins/`: `ajax_cart`,
+  `flash_sale`, `payment_dummy`, `sample_plugin`, `shipping_dummy`,
+  `slider`, `theme_pacific` (a theme-providing plugin).
+- **Verified.** Themes: `src/themes/default`, `src/themes/alt-theme`
+  (Django templates + `theme.json`); active theme resolved from
+  `ACTIVE_THEME` env var and injected into template/static dirs
+  (`settings/base.py`, `core/plugins/theme_discovery.py`,
+  `apps/storefront/themes.py`).
+- **Verified (gap).** Plugin storefront UI reaches the SPA as
+  **server-rendered HTML fragments** (plugin Django templates rendered by
+  `apps/storefront/hooks.py`, delivered via the hook API and injected with
+  `v-html`) — not Vue Widget Zone components.
+
+### 2.6 Existing Cart / Checkout / Order / Payment / Currency / Variant Functionality
+
+- **Verified.** Variant model foundation (catalog classes in §2.2);
+  cart calculation service; plugin-extensible checkout pipeline; order
+  state machine; payment gateway interface
+  (`core/payments/interface.py`: initialize/authorize/capture/void/refund);
+  `transaction.atomic` usage in `apps/cart/services.py`,
+  `apps/catalog/services.py`, `apps/checkout/models.py`,
+  `apps/orders/services.py`, `apps/stores/services.py`,
+  `apps/vendors/services.py`.
+- **Verified (gap).** `Order.currency` and `stores.Currency` exist, but
+  **no explicit per-currency product/variant price storage** and **no
+  provider currency-capability data** were found — the approved
+  explicit-prices-only and payment-currency rules are not yet implementable
+  end-to-end (CF-008, UD-015/UD-016).
+- **Verified (conflict with deferral).** `Refund`/`ReturnRequest` models
+  exist although refunds are deferred (UD-017); they must remain dormant in
+  V1.
+
+### 2.7 Existing Multilingual / RTL, Tests, Migrations, Dependencies
+
+- **Verified.** Multilingual foundation: `Language`, `LocaleStringResource`,
+  `DbLocaleMiddleware`, `{% tr %}` tag, gettext fallback
+  (`LOCALE_PATHS`), language/currency cookies, seed command; RTL direction
+  attributes in template and SPA paths. Fallback rules for admin-authored
+  content remain UD-010.
+- **Verified.** Tests: pytest suite under `tests/` with 20+ domain
+  directories (admin, api, cart, catalog, checkout, cms, core, identity,
+  inventory, notifications, orders, plugins, pricing, reviews, search,
+  security, storefront, stores, vendors) plus celery/errors/health tests;
+  `pyproject.toml` configures pytest + ruff; migrations exist per app
+  (versioned Django migrations).
+- **Verified.** Dependency management: `requirements/base.txt`
+  (Django 5.2, DRF, django-environ, mssql-django, redis, django-redis,
+  celery[redis], gunicorn, cryptography, Pillow), `requirements/dev.txt`.
+
+### 2.8 Current Architecture Diagram (As-Is, Verified Only)
+
+Everything in this diagram was verified in the working tree (§2.1–§2.7).
+Dashed links are partially verified or limited-usage paths (§2.8).
 
 ```mermaid
 flowchart LR
-    subgraph clients["Clients (browser)"]
-        VUE["Vue 3 / Vite storefront SPA"]
-        ADMINUI["Django Admin (server-rendered)"]
+    subgraph browser["Browser today"]
+        SPA["Vue 3 SPA<br/>(interactive routes only)"]
+        TPL["Django-template storefront<br/>(content routes + legacy pages)"]
+        ADMIN["Django Admin"]
     end
 
-    subgraph backend["pyStore Django backend (modular monolith)"]
-        API["DRF API layer (versioned /api/v1)"]
-        PAGES["Django storefront views (legacy/hybrid routes)"]
-        SVCS["Application services (business logic)"]
-        DOM["Domain apps: catalog, cart, checkout, orders, pricing, inventory, identity, stores, cms, ..."]
-        PLUG["Plugin engine and theme discovery (core.plugins)"]
-        CORE["Core framework: models, events, security, settings, audit"]
+    subgraph backend["Django backend (verified)"]
+        API["DRF API /api/v1"]
+        VIEWS["Storefront Django views"]
+        SVCS["App services"]
+        PLUG["Plugin engine + hooks rendering"]
+        CORE["Core kernel"]
     end
 
-    DB[("SQL Server")]
-    REDIS[("Redis: cache + Celery broker")]
-    WORKERS["Celery workers (background jobs)"]
-    PAY["External payment providers"]
-    MAIL["Email / notification channels"]
+    DB[("SQL Server (mssql-django)")]
+    REDIS[("Redis cache (verified consumer:<br/>brute-force protection only)")]
+    CEL["Celery workers (events/notifications)"]
+    GW["Payment gateway plugins<br/>(e.g. payment_dummy)"]
+    FRAG["Plugin hook fragments<br/>(server-rendered HTML -> v-html)"]
 
-    VUE -->|"HTTPS JSON"| API
-    VUE -->|"plugin hook fragments"| API
-    ADMINUI --> PAGES
+    SPA -->|"JSON, token in localStorage + session cookie"| API
+    TPL --> VIEWS
+    VIEWS --> SVCS
     API --> SVCS
-    PAGES --> SVCS
-    SVCS --> DOM
+    SVCS --> CORE
+    PLUG --> CORE
+    SVCS --> DB
+    CORE --> REDIS
+    CEL --> REDIS
+    SVCS --> GW
+    PLUG --> FRAG
+    FRAG -->|"hook API"| SPA
+    FRAG --> TPL
+```
+
+### 2.8 Unknowns Requiring Further Inspection
+
+- Full content of `settings/production.py` and `development.py` variants.
+- Per-view permission coverage across all API modules (default `AllowAny`
+  makes a per-endpoint audit necessary during security design).
+- Extent of Redis cache usage in the main tree: the `core.cache` service is
+  verified (`core/cache/service.py`) and its only verified main-tree
+  consumer is `core/security/brute_force.py`; catalog/storefront caching
+  usage was **not** found and may not exist yet.
+- Completeness of RTL behavior across all themes/components.
+- Actual `theme_pacific` and CMS/widget capabilities in depth.
+- The full `docs/` directory content.
+
+## 3. Target High-Level Architecture (To-Be — Proposed)
+
+**Proposed target:** the same modular-monolith Django backend, evolved —
+the SPA owns **all** storefront routes behind the active Vue theme; DRF API
+remains the only storefront→backend contract; Django Admin stays separate;
+SQL Server/Django ORM persist; Redis/Celery support caching and background
+work subject to validation; plugins extend through core contracts and Vue
+Widget Zones.
+
+```mermaid
+flowchart LR
+    subgraph browser["Browser (same origin — proposed)"]
+        VUE["Vue 3 / Vite SPA<br/>(all storefront routes, themed)"]
+        ADMIN["Django Admin (server-rendered)"]
+    end
+
+    subgraph django["Django backend (modular monolith)"]
+        API["DRF API (versioned)"]
+        SVCS["Application services"]
+        APPS["Domain apps: catalog, cart, checkout, orders,<br/>pricing, inventory, identity, stores, cms, ..."]
+        PLUG["Plugin engine + theme metadata"]
+        CORE["Core kernel: models, events, cache, security, settings, audit"]
+        LEGACY["Django storefront templates<br/>(retired per migration plan)"]
+    end
+
+    DB[("SQL Server + Django ORM")]
+    REDIS[("Redis (proposed): cache + broker")]
+    WORK["Celery workers (proposed)"]
+    PAY["Payment providers (currency-compatible only)"]
+    MAIL["Email / channels"]
+
+    VUE -->|"JSON + session cookie + CSRF"| API
+    ADMIN -->|"server-side"| SVCS
+    API --> SVCS
+    SVCS --> APPS
     SVCS --> PLUG
-    DOM --> CORE
+    APPS --> CORE
     PLUG --> CORE
     SVCS -->|"Django ORM"| DB
     CORE --> REDIS
-    WORKERS --> REDIS
+    WORK --> REDIS
     SVCS -->|"gateway interface"| PAY
     CORE --> MAIL
+    LEGACY -.->|"removed at end of migration"| VUE
 ```
 
-Key points:
+Dashed elements are transitional/proposed, not current behavior. The
+target **keeps the existing backend business logic** — the target changes
+*who renders the storefront* (SPA + themes), *how browsers authenticate*
+(session cookie + CSRF, D8), and *how plugins contribute UI* (Widget
+Zones), not the domain model or service layer.
 
-- The **SPA is the storefront presentation layer**; it never implements
-  business rules (FR-THEME-LAYOUT-009). All pricing, cart, checkout, and
-  order logic runs behind the API.
-- **Django Admin** is a separate server-rendered interface for the initial
-  release (TR-STACK-007); storefront themes and Widget Zones do not control
-  it (FR-ADMIN-003, AC-THEME-LAYOUT-013).
-- The **plugin engine** runs in-process inside the Django backend; plugins
-  contribute services, gateways, event handlers, admin pages, and storefront
-  UI fragments through registries.
-- **Redis/Celery** appear in the current codebase as cache and background-job
-  infrastructure (Evidence). Their production deployment role is an **open
-  decision** (§17, §18).
+## 4. Major Components and Their Responsibilities (To-Be)
 
-## 4. System Context and External Actors
+| Component | Responsibility | Status | Key requirements |
+| --- | --- | --- | --- |
+| Vue/Vite SPA | All storefront presentation; API consumption; theme component rendering | Exists for interactive routes; **target: all routes** | TR-STACK-003/006, FR-THEME-LAYOUT-001–012 |
+| Theme layer | Active theme layouts/components/assets with deterministic fallback | Proposed (Vue side missing) | FR-THEME-001–002 |
+| DRF API layer | Versioned REST, serialization, throttling, error envelope | Exists | TR-STACK-002, NFR-API-001 |
+| Django storefront views/templates | Content-route rendering today | As-Is; **Transitional** — retired per §6 stages | CF-002 record |
+| Django Admin (`admin_panel`) | Administration interface | Exists, stays for V1 | TR-STACK-007, FR-ADMIN-001–003 |
+| Business apps + services | Domain logic (catalog/variants, pricing, cart, checkout, orders, inventory, identity, stores, cms, ...) | Exists; extended for currency prices | §8, §13 traceability |
+| Core kernel | Cross-cutting framework | Exists | NFR-MAINT-001 |
+| Plugin engine | Discovery, lifecycle, registries, provider interfaces, hooks | Exists; Vue Widget Zone contract proposed | FR-PLUG-001, FR-EXT-001–004 |
+| Identity & access | Users, customers, roles/permissions, session/token auth | Exists; session-first browser direction proposed | FR-CUST-001, NFR-SEC-001 |
+| Persistence | SQL Server via Django ORM, versioned migrations | Exists; validation pending | TR-DB-001–006 |
+| Redis + Celery | Cache + background tasks | Configured; **proposed, operationally unvalidated** | §10.3 |
+
+## 5. Current-to-Target Gap Analysis
+
+| # | Area | As-Is (evidence) | To-Be (proposed) | Migration impact |
+| --- | --- | --- | --- | --- |
+| G1 | Storefront route ownership | Content routes (home/category/product/search/blog/CMS) server-rendered Django templates; SPA owns interactive routes; legacy templates also remain for SPA-owned routes | SPA owns all storefront routes with uniform theme coverage | Largest work item; per-route cutover (§6) |
+| G2 | Theme system | Django-template themes + env-var activation; no Vue component resolution | Vue theme packages, root layout, page/shared component resolution, asset fallback; admin-managed activation | New resolution contract (UD-002/003/004/005) |
+| G3 | Widget Zones | Plugin UI as server-rendered HTML fragments via `v-html` | Vue Widget Zone registry with ordering/fallback; plugin Vue components | UD-006/007; fragments interim-supported |
+| G4 | Multi-currency | `Order.currency` + `Currency` model only; no per-currency prices; no provider currency-capability data; guard flow unverified | Explicit per-currency prices; provider support validated before payment initiation; order currency preserved | UD-015/016; data + service changes |
+| G5 | Browser auth | Dual token (`localStorage`) + session | Session cookie + CSRF as browser mechanism (D8) | Transition after detailed design; no code changed by this doc |
+| G6 | Refund scope | `Refund`/`ReturnRequest` models exist | Dormant in V1 (UD-017); disposition decided later | Guardrails only |
+| G7 | Bootstrap | Admin only; storefront uses custom CSS | Bootstrap as storefront UI baseline (TR-STACK-004) | Styles migrate with theme work |
+| G8 | SQL Server validation | `mssql-django` configured | Validated backend/version + portability checks | UD-013/014 |
+| G9 | Performance verification | Targets approved (NFR-PERF-001–003); no test tooling | Reproducible baseline load test + LCP lab method | UD-018 |
+| G10 | Cache/jobs necessity | Redis/Celery configured; cache mainly used by brute-force protection | Validated necessity and operational design | §10.3 |
+| G11 | Deployment | No manifests; gunicorn dep only | Defined topology (one origin, D14) in deployment design | Later phase |
+
+## 6. Incremental Evolution Strategy (Proposed)
+
+### 6.1 Principles
+
+- **M1 — Preserve working functionality.** Existing behavior is not touched
+  without a requirement-driven reason; the app remains functional at every
+  stage.
+- **M2 — Reuse before rewrite.** Existing apps, services, models, APIs, and
+  tests are reused; the target architecture is largely an evolution of the
+  current layering (§2), not a replacement. A full rewrite is explicitly
+  rejected.
+- **M3 — Incremental refactoring.** Changes land in small, verifiable
+  increments; no all-at-once migration of every storefront page.
+- **M4 — Separate storefront migration from backend logic.** Theme/SPA
+  migration consumes the existing API/services; backend business-logic
+  changes (e.g., per-currency pricing) are independent workstreams.
+- **M5 — Temporary ≠ target.** Every transitional arrangement (Django
+  templates for content routes, server-rendered hook fragments,
+  `localStorage` token) is explicitly labeled and retired by a later stage.
+- **M6 — Single source of business truth.** Business rules live in backend
+  services only — never duplicated in Django templates or Vue components
+  (FR-THEME-LAYOUT-009, NFR-SEC-001).
+- **M7 — Regression protection.** The existing per-domain test suites and
+  requirement acceptance criteria (REQUIREMENTS §4) protect behavior during
+  migration; route cutovers require their relevant ACs to pass first.
+- **M8 — Alternatives kept open.** Where evidence is uncertain (e.g., per-
+  route cutover vs. SPA-shell-with-server-fallback), options are documented
+  rather than mandated.
+- **M9 — Requirements conflicts documented, not absorbed.** Any conflict
+  between As-Is behavior and approved requirements is recorded with a
+  migration path (e.g., G4, G6, G7).
+
+### 6.2 High-Level Migration Stages (Proposed, Not a Plan of Record)
+
+High-level staging only; sequencing, tasks, and scheduling are
+`IMPLEMENTATION_PLAN.md` work requiring separate approval.
 
 ```mermaid
-flowchart TB
-    Customer["Customer / shopper (browser)"]
-    Admin["Administrator (browser)"]
-    pyStore["pyStore platform"]
+flowchart LR
+    S0["S0 Baseline protection<br/>tests green, route classification (UD-001)"]
+    S1["S1 SPA storefront shell<br/>content routes via API, per-route cutover"]
+    S2["S2 Theme system in SPA<br/>resolution + fallback, Widget Zones (UD-003..007)"]
+    S3["S3 Currency data<br/>explicit per-currency prices, provider guard (UD-015/016)"]
+    S4["S4 Auth transition<br/>session cookie + CSRF (D8)"]
+    S5["S5 Operational validation<br/>SQL Server, portability, Redis/Celery, perf (UD-013/014/018)"]
 
-    PSP["Payment provider(s) — must support the order currency"]
-    SMTP["Email delivery"]
-    Hook["Third-party systems via webhooks (outbound)"]
-
-    Customer -->|"browses, carts, checks out"| pyStore
-    Admin -->|"manages catalog, orders, plugins, themes"| pyStore
-    pyStore -->|"payment initialization / result, in order currency only"| PSP
-    pyStore -->|"notifications"| SMTP
-    pyStore -->|"signed webhook deliveries"| Hook
+    S0 --> S1 --> S2 --> S5
+    S0 --> S3 --> S5
+    S0 --> S4 --> S5
 ```
 
-Actors and external systems:
-
-- **Customer (anonymous or authenticated):** browses catalog, manages cart,
-  checks out, views own orders. Data isolation between customers is a
-  requirement (FR-CUST-001, FR-ORD-001).
-- **Administrator:** manages the platform exclusively through Django Admin in
-  V1 (FR-ADMIN-001–002).
-- **Payment providers:** external. The platform validates that a provider
-  supports the order currency *before* payment initiation and never changes
-  the order currency to fit a provider (FR-PAY-002, AC-PAY-002/003).
-  Provider-specific capabilities are pluggable data, not hardcoded platform
-  knowledge.
-- **Email/notification channels:** outbound; delivery via configured channels
-  (FR-NOTIF-001).
-- **Webhook consumers:** systems registered by administrators receiving
-  signed event deliveries (existing implementation evidence).
-- **Exchange-rate providers: none in V1.** Automatic conversion is deferred
-  (FR-CUR-003, UD-009); the context contains no rate source.
-
-## 5. Major Components and Responsibilities
-
-| Component | Responsibility | Key requirements |
-| --- | --- | --- |
-| **Vue/Vite storefront SPA** | Presentation, route handling, client state, API consumption, theme component rendering | TR-STACK-003, FR-THEME-LAYOUT-001–012 |
-| **Theme layer (SPA + backend metadata)** | Active theme resolves layouts, page components, shared components, assets with fallback | FR-THEME-001–002, FR-EXT-001 |
-| **DRF API layer** | Versioned REST endpoints, serialization, throttling, error format | TR-STACK-002, NFR-API-001 |
-| **Django storefront views (transitional)** | Server-rendered content routes during the migration gap; SPA bootstrapping | CF-002 gap record (REQUIREMENTS §5.2) |
-| **Django Admin (`admin_panel`)** | Administration interface: catalog, orders, plugins, themes, settings, reports, audit | FR-ADMIN-001–003 |
-| **Business apps (Django)** | Domain logic per bounded area (§13) | FR-CAT/CART/CHK/ORD/PAY/SHIP/DISC/SET/I18N/CUR/REV/NOTIF/REP |
-| **Core framework (`core`)** | Cross-cutting: base models, services/result pattern, events, cache, security, settings, audit, plugin engine | NFR-MAINT-001 |
-| **Plugin engine** | Discovery, manifest parsing, lifecycle (install/enable/disable), service and permission registries, provider interfaces (payment/shipping/notification), hook rendering | FR-PLUG-001 |
-| **Identity & access** | Custom user model, customers, roles/permissions, auth backends, password/email tokens | FR-CUST-001, FR-ADMIN-002, NFR-SEC-001 |
-| **Persistence** | SQL Server via Django ORM, versioned migrations | TR-DB-001–006 |
-| **Background jobs** | Celery tasks for async work (notifications, webhooks, events) | FR-NOTIF-001 (delivery channels) |
-| **Cache** | Redis-backed caching with namespace/invalidation service | NFR-PERF-001 support |
-
-## 6. Application Boundaries and Communication Patterns
-
-### 6.1 Boundary Rules
-
-**Proposed** boundary rules (consistent with the existing layered code):
-
-1. **API layer** (DRF views/viewsets, serializers): HTTP concerns only —
-   authentication, request parsing, serialization, response codes. No
-   business decisions.
-2. **Service layer** (per-app `services.py`): all business rules, validation
-   beyond field format, cross-app orchestration, transaction boundaries.
-3. **Model layer**: persistence, invariants expressible at the data level,
-   querysets. No HTTP or cross-app orchestration.
-4. **Core** provides reusable abstractions; it must not import business apps
-   (dependency direction: apps → core, never core → apps).
-5. **Plugins** depend on core contracts only; core must not depend on
-   specific plugins.
-
-### 6.2 Communication Patterns
-
-- **Browser → API:** HTTPS + JSON, URL-path versioned (`/api/v1/`), DRF
-  token or session authentication, CSRF-protected for session flows,
-  standardized error envelope via the central exception handler,
-  paginated collections (Evidence; final contract details are detailed-design
-  material, NFR-API-001).
-- **Service → service:** direct Python calls within the monolith; cross-app
-  behavior through services and the event dispatcher, not models of another
-  app reaching into business logic.
-- **In-process events:** domain events (e.g., order created) dispatched
-  synchronously or via Celery to registered handlers, including plugin
-  handlers (Evidence: `core.events`).
-- **Backend → external providers:** only through provider interfaces
-  registered by payment/shipping/notification plugins (§13.4).
-- **Backend → plugins:** registry lookups (services, gateways, hooks,
-  permissions) mediated by the plugin manager.
-- **SPA → plugin UI:** server-rendered hook fragments delivered over the
-  storefront hook API and injected via `v-html` today (Evidence). The target
-  is plugin-contributed Vue components in Widget Zones (FR-EXT-001); the
-  migration contract is an **open decision** (UD-006, UD-007).
-
-### 6.3 Representative Request Flow
-
-Order placement (checkout), showing the proposed/observed flow from the SPA
-through the API to services and persistence. It illustrates boundaries, not a
-complete contract:
-
-```mermaid
-sequenceDiagram
-    participant SPA as Vue storefront SPA
-    participant API as DRF CheckoutView (api layer)
-    participant CS as CheckoutService (service layer)
-    participant Steps as CheckoutPipeline steps
-    participant DB as SQL Server (Django ORM)
-    participant PG as Payment gateway plugin
-
-    SPA->>API: POST /api/v1/checkout (session/token, CSRF)
-    API->>API: authenticate, throttle, serialize/validate payload
-    API->>CS: execute(cart, customer, shipping, payment selection)
-    CS->>DB: BEGIN TRANSACTION (atomic block)
-    Steps->>DB: validate cart, address, shipping method
-    Steps->>DB: revalidate combination, availability, explicit currency price
-    Steps->>DB: tax, discount, inventory reservation
-    Steps->>PG: provider supports order currency? initialize payment
-    PG-->>Steps: PaymentResult (reference)
-    Steps->>DB: create Order + items (currency and amounts preserved)
-    CS->>DB: COMMIT (or rollback: no partial order)
-    CS-->>API: Result (order confirmation data)
-    API-->>SPA: 201/200 JSON confirmation
-    CS--)Async: OrderCreated event -> notifications, webhooks
-```
-
-Qualifications:
-
-- **Payment timing:** order-placement API timing excludes external
-  payment-provider processing time and other documented external delays
-  (NFR-PERF-002). Where the API design requires an external call, the
-  boundary above shows where the exclusion applies.
-- Payment result handling (e.g., provider redirects/callbacks) is
-  detailed-design material and is not fixed here.
-- Sensitive operations run inside a single transaction so that failures never
-  leave contradictory order, inventory, or payment state (NFR-REL-001,
-  Evidence: `transaction.atomic` usage in cart/checkout/orders services).
-
-## 7. Current Implementation Snapshot (Repository Evidence)
-
-This section distinguishes what exists, what is proposed, and the gaps. It is
-a snapshot of the working tree at the time of writing and makes no claim that
-proposed components exist.
-
-### 7.1 Verified in Source Code
-
-- **Django 5.2 modular monolith** under `src/` with `config/` (settings
-  package base/development/production/test, root/api URLs, Celery app),
-  `core/` framework, 17 business apps under `apps/`, `plugins/`, `themes/`,
-  `frontend/` (Evidence).
-- **SQL Server** as configured database (`mssql-django` in
-  `requirements/base.txt`, default `DATABASE_URL` is `mssql://...` with ODBC
-  Driver 17) (Evidence; version support still unvalidated — UD-013).
-- **Redis** cache (`django-redis`) and **Celery** workers/broker configured
-  in settings (Evidence).
-- **DRF** with JSON renderer, token + session authentication, URL-path
-  versioning (`v1`), standard pagination, anon/user/auth throttles, central
-  exception handler (Evidence: `config/settings/base.py`).
-- **Versioned API surface** `/api/<version>/` covering auth, customers, cart,
-  checkout, payments initialization, shipping, products/categories/brands,
-  orders, reviews, webhooks, storefront bootstrap/hooks/search/pages/blog/
-  wishlist/compare (Evidence: `config/api_urls.py`).
-- **Custom identity**: `identity.User` (email-based), `Customer`, `Role`,
-  `Permission`, password-reset/email-verification tokens, `PermissionBackend`
-  (Evidence).
-- **Catalog domain**: `Product`, `ProductVariant`, attributes/assignments/
-  values, variant-attribute links, specifications, images, relations,
-  downloads, bundle items, SEO (Evidence) — the data foundation for variants
-  (FR-CAT-002).
-- **Inventory domain**: warehouses, `InventoryItem`, `InventoryTransaction`
-  (Evidence).
-- **Pricing domain**: `PriceList`/`PriceListEntry`, `ScheduledPrice`,
-  `Discount`/`DiscountUsage`, `TaxClass`/`TaxRate`, per-product tax settings
-  (Evidence). **No explicit per-currency price storage found** — `stores.
-  Currency` exists and `Order.currency` is stored, but product/variant prices
-  are not per-currency (gap, CF-008/UD-015).
-- **Cart/checkout/orders**: cart models + calculation module; checkout
-  pipeline with ordered steps (validate → customer → address → shipping →
-  tax → discount → inventory → payment → order creation) extensible by
-  plugins; `OrderStateMachine` with validated transitions; `transaction.
-  atomic` used in cart/checkout/orders services (Evidence).
-- **Plugin engine**: `plugin.json` manifest (id/name/version/entry_point/
-  dependencies/minimum_core_version), file-location loader, `PluginManager`
-  (discover/install/enable/disable), `PluginState` persistence, service
-  container, event dispatcher integration, permission registry, payment/
-  shipping/notification provider interfaces and registries in `core`
-  (Evidence). Sample plugins: `payment_dummy`, `shipping_dummy`,
-  `ajax_cart`, `flash_sale`, `slider`, `sample_plugin`, `theme_pacific`
-  (Evidence).
-- **Theme discovery (Django-template era)**: `themes/default` and
-  `themes/alt-theme` provide Django templates + `theme.json`; active theme
-  from `ACTIVE_THEME` env var injects template/static dirs; themes can be
-  supplied by plugins (Evidence).
-- **Vue 3 SPA** (`src/frontend`): Vue 3, Pinia, vue-router, Vite; build output
-  emitted into `apps/storefront/static/storefront-spa`; Django serves
-  `index.html` for interactive routes when `STOREFRONT_SPA_ENABLED`; SPA owns
-  cart/checkout/login/register/account/wishlist/compare/orders routes;
-  content routes (home/category/product/search/blog/CMS) are still
-  server-rendered Django templates (Evidence — the CF-002 hybrid gap).
-- **Plugin hooks for the SPA**: hook fragments rendered server-side from
-  plugin Django templates and delivered through the storefront hook API
-  (Evidence) — not yet Vue Widget Zone components.
-- **Django Admin customization**: custom `AdminSite`, group navigation, i18n
-  seeded labels, widgets (tagify, searchable selects, inline dialogs) with
-  vendored Bootstrap (Evidence).
-- **Extensive test suite** per domain plus `test_security`, `test_plugins`
-  (Evidence).
-- **`src/Architcture.md` (misspelled name)** is a historical Persian
-  master-instruction document describing build phases (it references
-  PostgreSQL as database). It predates the specs and is **not** an approved
-  specification; `specs/` is authoritative (README §5). It was not modified.
-
-### 7.2 Proposed by This Document (Not Fully Implemented)
-
-- Full Vue/theme coverage of *all* storefront routes with a component
-  resolution contract (UD-001, UD-003).
-- Vue Widget Zone registry, plugin Vue component contract, ordering and
-  fallback rules (UD-006, UD-007).
-- Explicit per-currency price storage and resolution; provider
-  currency-capability data and pre-payment currency validation (UD-015,
-  FR-PAY-002).
-- Complete enforcement that payment is offered only for order-currency-
-  compatible providers (FR-PAY-002 — models exist, end-to-end flow unverified).
-- Performance test environment/tooling to demonstrate NFR-PERF-001–003
-  (UD-018).
-- Database-portability checks and SQL Server version validation (TR-DB-006,
-  UD-013, UD-014).
-
-### 7.3 Implementation Gaps (Target − Current)
-
-| # | Gap | Requirement impact |
-| --- | --- | --- |
-| G1 | Content routes (home, category, product, search, blog, CMS) still Django-template rendered; legacy templates for SPA-owned routes also remain | CF-002, UD-001, FR-THEME-LAYOUT-001 |
-| G2 | Themes are Django-template based; no Vue root layout/page/shared component resolution or theme asset fallback in the SPA | FR-THEME-LAYOUT-002–012, UD-003/004/005 |
-| G3 | No Vue Widget Zones; plugin UI reaches the SPA as server-rendered HTML fragments | FR-EXT-001–004, UD-006/007 |
-| G4 | No explicit per-currency product/variant prices; no provider currency-capability storage; order currency defaults exist but the guard flow is unverified | FR-CUR-002/004, FR-PAY-002, UD-015/016, CF-008 |
-| G5 | Theme activation is environment-variable based; admin-managed persistence/invalidation undefined | CF-003, UD-002, FR-THEME-001 |
-| G6 | `Refund`/`ReturnRequest` models exist even though refunds are deferred; they must not be exposed as V1 capability | FR-CUR-008, UD-017 |
-| G7 | Redis/Celery are wired in code but the production topology and their V1 necessity are unapproved deployment decisions | §17, UD list §18 |
-| G8 | SQL Server backend/version support and portability checks unvalidated | TR-DB-001/006, UD-013/014 |
-| G9 | Performance baseline (load test tooling, LCP lab method, page set) not yet established | NFR-PERF-001–003, UD-018 |
-
-### 7.4 Inspection Limitations
-
-- Third-party vendored assets and the built SPA bundle
-  (`storefront-spa/assets/*`) were not read line-by-line; they are treated as
-  build artifacts.
-- `docs/` content and plugin template internals were not fully reviewed;
-  plugin behavior was verified through the engine interfaces and sampled
-  plugins only.
-- The `.env` file was not read (secrets); configuration was assessed from
-  `.env.example`-style settings defaults in code.
-
-## 8. Backend Architectural Organization
-
-**Proposed** organization (matches and formalizes the existing layout):
-
-```text
-src/
-├── config/          # Project configuration: settings package, root/API URLs, WSGI/ASGI, Celery app
-├── core/            # Shared framework kernel (no storefront business domains)
-│   ├── api/         # Pagination, filters
-│   ├── models/      # BaseModel (timestamps/UUID), soft-delete
-│   ├── services/    # BaseService, Result pattern
-│   ├── events/      # Dispatcher, registry, Celery-backed async handlers
-│   ├── infrastructure/ # Dependency container, transaction helpers
-│   ├── payments/ shipping/ notifications/  # Provider interfaces + registries
-│   ├── plugins/     # Plugin engine (manifest, loader, manager, registry, theme discovery)
-│   ├── security/    # Headers, CORS, brute-force, SSRF guards
-│   ├── settings/    # Typed, encrypted system settings
-│   ├── audit/ cache/ jobs/ health/ validators/ utils/ exceptions/
-├── apps/            # Business modules (bounded contexts)
-│   ├── identity/ stores/ vendors/ catalog/ inventory/ pricing/ cart/
-│   ├── checkout/ orders/ payments/ notifications/ reviews/
-│   ├── cms/ media/ search/ storefront/ admin_panel/
-├── plugins/         # Plugin packages (each with plugin.json manifest)
-├── themes/          # Theme packages (currently Django templates; target: SPA themes)
-└── frontend/        # Vue 3 / Vite SPA (separate application, own package.json)
-```
-
-Notes:
-
-- **Shipping methods** currently live inside the `checkout` app's models
-  (`ShippingMethod`) and the shipping API; a dedicated `apps.shipping` does
-  not exist. Whether shipping becomes its own bounded module is an **open
-  low-level decision**; the interface and registry already exist in
-  `core.shipping`.
-- The `payments` app currently contains only its API layer; gateway
-  implementations live in plugins (`payment_dummy`) behind the `core.
-  payments` interface. This split (interface in core, implementation in
-  plugins) is **proposed to keep**.
-- App import discipline: apps may import from `core` and expose services; the
-  API layer may call services of its own app; cross-app calls go through the
-  other app's service interface. Violations should be detectable (future
-  check; see §18 risk R7).
-
-### 8.1 Validation and Authorization Boundaries
-
-- **Shape validation** at the API boundary (DRF serializers).
-- **Business validation** in services (combination validity, availability,
-  currency rules, discount eligibility) — server-side revalidation is
-  mandatory (FR-CAT-004, NFR-SEC-001).
-- **Authorization** through Django permissions + the custom `PermissionBackend`
-  role/permission model, enforced in services/API permission classes, not
-  only in the UI (FR-ADMIN-002).
-- **Admin operations** additionally guarded by Django Admin permissions.
-
-### 8.2 Transactions
-
-Sensitive operations — cart mutations that change totals, checkout/order
-creation, inventory changes, payment-state changes — run in service-level
-atomic blocks (Evidence). **Proposed rule:** one transaction per business
-operation; external provider calls are not held inside the DB transaction
-longer than necessary; idempotency and retry behavior for provider callbacks
-is detailed-design material.
-
-## 9. Vue/Vite Storefront Organization
-
-**Proposed** target organization for `src/frontend` (current SPA has `api/`,
-`assets/`, `components/`, `router/`, `stores/`, `views/` — Evidence):
-
-```text
-frontend/src/
-├── api/            # HTTP clients only (no business rules)
-├── stores/         # Pinia state (client state, not business truth)
-├── router/         # Route table for storefront routes
-├── theme/          # Theme resolution: root layout, page/shared component lookup, fallback
-├── components/     # Default (fallback) shared components
-├── views/          # Default (fallback) page components
-└── assets/
-```
-
-- **Presentation vs. business interaction:** components render data from
-  stores/API clients; pricing, eligibility, and order rules come from the
-  server (FR-THEME-LAYOUT-009). The SPA must not compute authoritative prices
-  or order state.
-- **Bootstrap integration:** Bootstrap is the styling baseline for default
-  and theme components (TR-STACK-004). Current SPA uses a minimal custom CSS
-  baseline (Evidence); full Bootstrap adoption in the SPA is part of theme
-  implementation work.
-- **State management:** Pinia is the existing choice (Evidence). Keeping
-  Pinia is **proposed**; no additional state libraries are introduced.
-- **Routing:** vue-router with `createWebHistory`; routes map 1:1 to
-  storefront page types; the route→page-type→component mapping is the input
-  to theme resolution (UD-001/UD-003).
-- **Global layout:** a root layout component (header/outlet/footer/widget
-  regions) composes every route (FR-THEME-LAYOUT-002), replacing today's
-  `App.vue`/`SiteHeader`/`SiteFooter` arrangement (Evidence) as themes are
-  introduced.
-- **Build/deploy integration:** Vite emits into Django static so one origin
-  serves SPA, API, admin (Evidence). Whether long-term hosting separates the
-  SPA is a deployment-topology **open decision**.
-
-## 10. Theme Architecture (Conceptual)
-
-**Approved requirement:** installable themes apply consistently to all
-supported storefront routes with deterministic resolution and fallback
-(FR-THEME-001–002, FR-THEME-LAYOUT-001/005). The mechanism below is
-**proposed**; exact contracts remain UD-003/004/005.
-
-- **Theme package:** a theme is a package of a root layout, page components,
-  shared components, layout variants, assets, and metadata (manifest). It may
-  override any subset; missing optional pieces fall back to defaults.
-- **Resolution (proposed contract):** `theme.<logical-name>` → active theme's
-  component → default component → explicit empty state. Applied uniformly to
-  layouts, pages, shared components, layout variants, and plugin UI. A
-  missing optional component never breaks a route (FR-THEME-LAYOUT-005).
-- **Activation:** administrator activates a theme (authorized action,
-  FR-THEME-001); activation is persisted and exposed to the SPA (today: an
-  environment variable plus backend metadata — Evidence; target persistence
-  is UD-002).
-- **Assets:** theme CSS/JS/images resolve through the documented asset
-  contract with versioned URLs; missing optional assets fall back or are
-  declared optional (FR-THEME-LAYOUT-011).
-- **Isolation from Django Admin:** themes are a *storefront-only* mechanism.
-  Django Admin templates, static files, and its styling policy are separate
-  (TR-STACK-007, FR-ADMIN-003, AC-THEME-LAYOUT-013). Theme activation must
-  not alter admin rendering; a storefront theme delivered by a plugin must
-  not register admin UI automatically.
-- **Direction/metadata:** themes carry language/direction attributes and
-  route metadata contracts for RTL and document title (FR-I18N-002,
-  FR-THEME-LAYOUT-002/012).
-- **Trust model:** themes are untrusted presentation code until the trust
-  model is specified (REQUIREMENTS §1.13 theme constraints, UD-011).
-
-## 11. Plugin System (Conceptual)
-
-**Approved requirement:** plugin lifecycle (discover/install/enable/disable/
-remove) without core-file edits, contributing UI through Widget Zones and
-registering services/providers (FR-PLUG-001, FR-EXT-001–004). The engine
-below exists in code (Evidence); the final contracts are **proposed/open**.
-
-- **Boundary:** a plugin is a self-contained package with a manifest, an
-  entry class, optional services/routes/event handlers/templates/static
-  assets/migrations/admin UI. Plugins depend only on core contracts and
-  documented extension points — never on other plugins' internals unless they
-  declare dependencies.
-- **Discovery/registration (current baseline, Evidence):** the plugins
-  directory is scanned for `plugin.json`; enabled plugins are added to
-  `INSTALLED_APPS`; the manager exposes registries for services, events,
-  permissions, payment gateways, shipping providers, notification providers,
-  and storefront hooks; `PluginState` persists lifecycle status.
-- **Extension points:** backend (services, events, checkout steps, provider
-  gateways, admin) and storefront (Widget Zones). Backend extension points
-  exist today; the Vue Widget Zone registry, identifiers, capabilities
-  (append vs. controlled replacement), ordering, and fallback are **open**
-  (UD-007) — the *conceptual* responsibilities are: stable identifiers,
-  theme-compatible rendering, predictable ordering, visibility/permission
-  checks, defined fallback, and no arbitrary core replacement
-  (PROJECT_SCOPE §7).
-- **Plugin UI without bypassing themes:** plugin UI reaches storefront pages
-  only through Widget Zones and the theme component-resolution contract;
-  plugins may ship theme-specific variants plus a default component
-  (FR-EXT-002, FR-THEME-LAYOUT-007). Interim server-rendered hook fragments
-  remain supported during migration (Evidence) but are not the target.
-- **Isolation and security risks:** plugins run in-process with full Django
-  access — they are trusted code at install time by default. Capabilities,
-  permission registration, and review workflow for untrusted plugins are
-  risk-managed in §16 and UD-011. Resource-heavy plugin hooks must not
-  bypass caching/perf budgets (NFR-PERF).
-
-## 12. Data Access and Database Strategy
-
-- **Django ORM everywhere** (TR-DB-002); no raw cross-app SQL. Any backend-
-  specific SQL is isolated behind documented boundaries with portable ORM
-  equivalents preferred (TR-DB-003).
-- **SQL Server specifics:** collation/date-type differences, pagination and
-  locking behavior must be validated on the supported version (UD-013).
-  `mssql-django` is implementation evidence, not a validated support
-  decision (TR-DB-001).
-- **Migrations:** versioned Django migrations, reversible where practical;
-  data migrations explicit and validated; portability checked by repeatable
-  checks (TR-DB-004–006, UD-014).
-- **Query discipline for performance:** list endpoints paginate; detail
-  serializers prefetch related data (variants, images, attributes) to avoid
-  N+1 under the baseline load test (NFR-PERF-001–002). Caching uses the
-  Redis-backed cache service with defined invalidation points (catalog,
-  storefront content, plugin settings) — cache technology remains a
-  proposed/current-choice, not newly approved (§17).
-- **Model strategy:** UUID-capable `BaseModel`, timestamps, soft delete where
-  configured (Evidence). Detailed ERD and field-level design belong to
-  `DATA_MODEL.md` (later phase) and are out of scope here.
-
-## 13. Domain Responsibilities
-
-### 13.1 Catalog and Product Variants
-
-Catalog owns products, categories, brands, tags, attributes, images, SEO.
-A product may define **combinations (variants)**; each combination carries
-its own price inputs, SKU, stock linkage, image set, and enabled state
-(FR-CAT-002). Combination selection is revalidated server-side on add-to-cart
-and order placement (FR-CAT-004). The storefront displays combination
-price/availability reactively without page reloads (FR-CAT-003). Currency-
-specific prices are *pricing data attached to* products/variants, not a
-catalog concern by itself (§13.3).
-
-### 13.2 Inventory
-
-Inventory owns stock levels per item/warehouse, transactions (audit trail),
-availability computation, and concurrency-safe reservations during checkout
-(NFR-REL-001). Overselling protection and stock status are business rules in
-the inventory service (Evidence of `InventoryTransaction`; detailed rules are
-feature-level).
-
-### 13.3 Currency-Specific Explicit Pricing
-
-- The **base currency** is the canonical reference; the storefront exposes
-  only configured, active currencies (FR-CUR-001).
-- **V1 resolves prices only from explicitly configured per-currency prices**
-  (FR-CUR-002/004, UD-009). No exchange-rate retrieval, no conversion, no
-  fallback to the base-currency amount (FR-CUR-003).
-- If no explicit price exists for the selected currency, the item is not
-  purchasable in that currency and the UI must communicate unavailability
-  without changing the selected currency (FR-CUR-004, AC-CUR-009).
-- Cart and checkout compute **in one currency only** (FR-CUR-005); the order
-  preserves the currency and amounts agreed at placement, immune to later
-  price/currency config changes (FR-CUR-006).
-- Current gap: per-currency price storage does not exist yet (G4/UD-015).
-
-### 13.4 Cart, Checkout, Orders, and Payment Attempts
-
-- **Cart:** persistent cart lines with server-side recalculation through a
-  dedicated calculation service (Evidence: `cart/calculation.py`); validation
-  of combinations, availability, and currency price on every mutation.
-- **Checkout:** an ordered, plugin-extensible pipeline of steps; each step
-  validates one concern; order creation is transactional and fails closed
-  (no partial orders) (Evidence; NFR-REL-001).
-- **Orders:** state-machine-validated transitions for order/payment/shipment
-  statuses (Evidence); customers see only their own orders (FR-ORD-001);
-  historical amounts never rewritten (FR-CUR-006).
-- **Payment attempts:** recorded against the order (FR-PAY-001). Gateways are
-  plugins behind the `PaymentGateway` interface (Evidence). Before initiation
-  the system validates provider support for the **order currency**; a
-  non-supporting method is never offered or initiated, and the order currency
-  or amounts are never converted or substituted (FR-PAY-002, AC-PAY-002/003).
-  **The order's currency and the provider's supported currencies are distinct
-  concepts**; V1 does not assume any provider supports every currency.
-- **Refunds:** out of V1 (UD-017). Existing `Refund`/`ReturnRequest` models
-  are dormant implementation evidence, must not be exposed in V1 flows, and
-  their future treatment is undefined (G6).
-
-### 13.5 Customer Identity and Access Control
-
-Custom user model with customers separated from staff roles; RBAC via
-roles/permissions with a custom auth backend (Evidence). Registration,
-authentication, password reset, email verification are API-exposed
-(Evidence). Ownership isolation is enforced server-side (FR-CUST-001,
-FR-ORD-001). The detailed session/token strategy is an **open decision**
-(§17 D8).
-
-### 13.6 Storefront Theme and Plugin Configuration
-
-Store settings (store identity, default/supported currencies and languages),
-theme activation/settings, and plugin lifecycle/settings are administered in
-Django Admin and consumed by storefront services and the SPA bootstrap API
-(Evidence: `storefront/bootstrap` endpoint; `core.settings` typed/encrypted
-settings; `PluginState`). Configuration changes must not alter business
-logic — only behavior parameters and presentation (FR-THEME-001,
-FR-THEME-LAYOUT-009).
-
-## 14. Multilingual, RTL, and Multi-Currency Considerations
-
-- **Languages:** configured `Language` records and DB-driven string
-  resources (`LocaleStringResource`) resolved by middleware, with gettext
-  catalogs as fallback (Evidence). Customers select a language; content and
-  UI render in the active language where translations exist (FR-I18N-001).
-  Fallback rules for admin-authored content are UD-010.
-- **RTL:** when an RTL language is active, the document direction and
-  mirrored layout apply without breaking navigation/forms (FR-I18N-002,
-  AC-I18N-002). The SPA root layout owns `lang`/`dir` attributes and
-  direction-aware layout variants (FR-THEME-LAYOUT-002/012). Locale-driven
-  presentation must not require per-language edits of core components
-  (FR-I18N-003).
-- **Multi-currency:** see §13.3. Display uses the active currency's symbol
-  and precision (FR-CUR-005); selection is consistent across catalog, cart,
-  checkout, and account pages (FR-CUR-007). Admin, reports, and audit
-  surfaces remain in configured store currencies; no cross-currency
-  aggregation is introduced in V1.
-
-## 15. Performance and Scalability Considerations
-
-The approved targets (NFR-PERF-001–003) are preserved unchanged; this section
-only identifies architectural characteristics needed to make them
-reproducible. Test environment/tooling decisions remain UD-018.
-
-- **Workload shape:** baseline load test = 100 concurrent virtual users for
-  30 minutes over a representative mixture (browsing, product detail, cart,
-  checkout/order placement), error rate < 1% excluding documented expected
-  responses and harness errors (NFR-PERF-001). Concurrency ≠ connection or
-  throughput assumptions.
-- **API latency budget:** the architecture supports the p95 targets via
-  pagination, prefetching, selective serialization, and caching of hot
-  catalog/storefront reads (NFR-PERF-002).
-- **Rendering budget:** LCP p75 ≤ 2.5 s for representative pages implies
-  lean initial payloads, code-split routes (already produced by Vite build —
-  Evidence), and theme assets served with versioned URLs (NFR-PERF-003).
-- **Background offloading:** notifications, webhooks, and event handlers run
-  via Celery so request paths stay within budget (Evidence).
-- **Scaling model:** the modular monolith scales horizontally behind a
-  WSGI/ASGI server; statelessness is preserved (session data in DB/Redis).
-  Capacity planning and production topology are **open** (§17 D7).
-
-## 16. Security and Extensibility Risks
-
-| # | Risk | Assessment / mitigation direction |
-| --- | --- | --- |
-| R1 | In-process plugins hold full Django privileges; a malicious plugin can bypass all boundaries | Plugin trust model, permission registry, review/install workflow — UD-011; treat plugin install as privileged action |
-| R2 | Theme/plugin assets and fragments are untrusted presentation code | Isolation, CSP, sanitization of hook fragments currently injected via `v-html` (Evidence) — UD-011; XSS review required before Widget Zone v1 |
-| R3 | DRF token stored in SPA `localStorage` (Evidence) is XSS-exposed | Authentication strategy decision (§17 D8) must weigh session vs. token storage; required for AC-SEC-001 alignment |
-| R4 | `mssql-django` maturity and SQL Server behavioral differences | Validate backend/version (UD-013); portability checks (TR-DB-006) |
-| R5 | Hybrid storefront doubles rendering paths during migration | Time-box migration per UD-001; legacy templates must be classified in the coverage record (REQUIREMENTS §5.2) |
-| R6 | Payment provider integration variance (currency support, callbacks) | Provider capability data + pre-initiation validation (FR-PAY-002); never trust provider defaults |
-| R7 | Boundary erosion (apps importing app internals, logic in views) grows silently | Introduce repeatable boundary/import checks in later implementation planning |
-| R8 | Performance targets fail on real data volumes | Test data volume and cache-state policy are part of the recorded test conditions (NFR-PERF-001, UD-018) |
-
-## 17. Major Architecture Decisions and Alternatives
-
-Approved **constraints** (§2.1) are not re-decided here. The entries below
-are **proposals** for approval unless marked otherwise.
-
-| # | Decision | Proposal | Rationale | Alternatives considered | Status |
+- **S0:** keep the suite green; classify every route (Vue-covered vs.
+  legacy) in the coverage record (UD-001); inventory legacy templates.
+- **S1:** extend the SPA to render content routes from existing APIs;
+  cut over **route by route**, keeping each Django template as fallback
+  until its cutover passes acceptance (**alternative considered:** keeping
+  content routes server-rendered indefinitely — rejected as a target
+  because it contradicts FR-THEME-LAYOUT-001; kept only as the fallback
+  during transition).
+- **S2:** introduce theme resolution/fallback (UD-003/004/005) and convert
+  plugin UI to Vue Widget Zones (UD-006/007); server-rendered fragments
+  remain the interim mechanism until a zone's components exist.
+- **S3:** implement explicit per-currency price storage/resolution and
+  payment-currency validation on top of existing pricing/order models
+  (UD-015/016) — independent of S1/S2 (M4).
+- **S4:** move browser flows to session cookie + CSRF after detailed design;
+  retire the `localStorage` token for browser use.
+- **S5:** validate SQL Server support/portability (UD-013/014), Redis/Celery
+  necessity (D7), and the performance baseline (UD-018).
+
+## 7. Theme and Plugin Architecture (Conceptual, To-Be)
+
+- **Theme package (proposed):** root layout, page components, shared
+  components, layout variants, assets, metadata. Resolution is
+  deterministic: active theme component → default component → explicit
+  empty state; missing optional pieces never break a route
+  (FR-THEME-LAYOUT-005). Contracts are UD-003/004/005.
+- **Activation (proposed):** administrator-authorized action persisted in
+  the backend (replacing the `ACTIVE_THEME` environment variable as target —
+  UD-002; current env-var behavior remains functional in transition, CF-003).
+- **Admin isolation (approved constraint):** themes/Widget Zones never
+  control Django Admin (TR-STACK-007, FR-ADMIN-003, AC-THEME-LAYOUT-013).
+- **Plugins (existing engine, evolving contracts):** the verified
+  manifest/loader/manager/registry engine (§2.5) is kept (D5). Backend
+  extension points (services, events, checkout steps, gateways, admin)
+  already exist; the **Vue Widget Zone registry, plugin Vue component
+  contract, ordering, and fallback** are proposed concepts whose exact
+  definitions remain UD-006/007. Plugins reach storefront UI only through
+  zones; no arbitrary core replacement (PROJECT_SCOPE §7).
+- **Trust:** themes and plugins are untrusted presentation/extension code
+  until the trust model is specified (UD-011); in-process plugins hold full
+  Django privileges (risk R1).
+
+## 8. Data and Business Boundaries
+
+- **Catalog & variants:** products with attribute combinations carrying
+  combination-specific price inputs, SKU, stock linkage, images, enabled
+  state (FR-CAT-002); server-side revalidation on add-to-cart and order
+  placement (FR-CAT-004). Data exists (§2.2).
+- **Inventory:** stock per item/warehouse with auditable transactions and
+  concurrency-safe reservation inside checkout (NFR-REL-001).
+- **Currency-specific explicit pricing (To-Be):** only explicitly configured
+  per-currency prices are usable (FR-CUR-002/004, UD-009); no conversion or
+  base-currency fallback in V1 (FR-CUR-003); unpurchasable items in a
+  currency without an explicit price, with clear UI communication and no
+  silent currency change (FR-CUR-004, AC-CUR-009); single-currency cart
+  math (FR-CUR-005); orders preserve currency and amounts (FR-CUR-006).
+  **Gap G4:** storage and guard flow not yet implemented (UD-015).
+- **Cart / checkout / orders:** cart recalculated server-side
+  (`apps/cart/calculation.py`); checkout is an ordered, plugin-extensible
+  pipeline whose order creation is transactional and fails closed;
+  order/payment/shipment transitions validated by the state machine
+  (`apps/orders/state_machine.py`); customers see only their own orders
+  (FR-ORD-001).
+- **Payments:** attempts recorded against the order (FR-PAY-001); gateways
+  are plugins behind `core.payments.interface` (existing). The **order
+  currency** and the **provider's supported currencies** are distinct
+  concepts: provider support for the order currency is validated before
+  initiation; incompatible providers are never offered; currency/amounts
+  are never converted or substituted (FR-PAY-002, AC-PAY-002/003). Provider
+  capabilities are pluggable data, not platform assumptions.
+- **Refunds:** deferred (UD-017); existing models stay dormant (G6).
+- **Identity & access:** custom user/customer model, roles/permissions,
+  custom permission backend (§2.2); ownership isolation server-enforced.
+- **Store/theme/plugin configuration:** store settings, currencies,
+  languages, theme activation/settings, plugin lifecycle/settings
+  administered in Django Admin; consumed via typed/encrypted settings
+  services and the storefront bootstrap API; configuration changes affect
+  behavior parameters and presentation, never business logic.
+
+## 9. Authentication and Authorization Boundaries
+
+- **Approved constraint:** authorization is enforced server-side; hiding
+  frontend controls is not authorization (NFR-SEC-001, FR-ADMIN-002).
+- **Proposed direction (user-approved direction, pending final architecture
+  approval):** same-origin deployment (D14) with **session-cookie +
+  Django CSRF** as the browser-authentication approach for storefront
+  requests; all state-changing requests follow CSRF requirements; Django
+  Admin remains the V1 admin interface (D8).
+- **Transition gap (As-Is → To-Be):** dual token+session today with the SPA
+  token in `localStorage` (§2.3, G5). Existing authentication code is not
+  removed or changed by this document; the transition is future approved
+  work after detailed design covers cookie security settings, HTTPS
+  requirements, session expiration, login/logout behavior, and CSRF
+  integration. Same-origin deployment alone does not resolve these concerns.
+- **Non-browser clients / external integrations:** a separate mechanism
+  (e.g., token API access) is an **open design consideration** — not
+  silently extended into V1 scope (the existing DRF token infrastructure is
+  candidate input, not an approved storefront contract).
+- **Default permission posture risk:** DRF's default permission class is
+  `AllowAny` with per-view overrides (§2.1); a per-endpoint authorization
+  audit is required during security design (risk R3b in §12).
+
+## 10. Performance, Security, and Operational Considerations
+
+### 10.1 Performance
+
+- Approved targets NFR-PERF-001–003 are preserved unchanged (baseline load:
+  100 VUs / 30 min / <1% error; API p95 targets/thresholds; LCP p75 ≤ 2.5 s
+  lab-verified). This document adds no new targets.
+- Architectural supports: pagination + prefetching (N+1 avoidance) on list
+  endpoints; caching of hot reads (proposed — current cache usage is
+  limited, G10); Vite code-split bundles (existing); background offload for
+  notifications/webhooks via Celery (existing) so request paths stay lean.
+- Migration-specific concern: during transition, both rendering paths must
+  respect the budgets; per-route cutovers are verified against the LCP
+  method (UD-018).
+
+### 10.2 Security
+
+- Server-side trust for all business rules (M6); upload safety, security
+  headers, CORS, brute-force, SSRF modules exist (`core/security/`).
+- Key risks: in-process plugin privilege (R1), untrusted theme/hook code
+  with `v-html` fragments (R2), token-in-`localStorage` XSS exposure until
+  the D8 transition completes (R3), permissive DRF default permissions
+  (R3b).
+
+### 10.3 Operational (Redis / Celery — Proposed, Validation Required)
+
+- **Distinguishing evidence from role:** Redis/Celery are *installed and
+  configured* (§2.1) — installation is **not proof of architectural
+  necessity** for every workflow. Verified main-tree usage is narrow
+  (brute-force protection via `core.cache`; Celery used for event/notification
+  tasks with an eager/test mode).
+- **Proposed role:** Redis as the caching component; Celery as the
+  background-task mechanism (D7) — **subject to validation** of actual
+  need, operational complexity, deployment requirements, failure handling,
+  and resource cost before final architecture approval.
+- **Consistency rule:** the architecture does not require business
+  operations to run asynchronously; order placement and other critical
+  operations keep their synchronous transactional behavior (NFR-REL-001).
+- **Not defined here:** cache key conventions, TTL policies, Celery queue
+  definitions, retry policies, worker counts, schedules — later phases.
+- **Deployment:** one-origin direction (D14, proposed); no deployment
+  manifests exist today (G11); the serving/reverse-proxy arrangement is a
+  later deployment design decision; the Vite dev server is never assumed in
+  production.
+
+## 11. Architecture Decision Table
+
+Approved constraints (§2.1 of the baseline: Django/DRF, Vue/Vite, Bootstrap,
+Django Admin for V1, SQL Server, Django ORM, portability, plugins/themes,
+i18n/RTL, variants, explicit currency prices, refund deferral,
+payment-currency rule, performance targets) are not re-decided. Statuses
+below are **proposed / pending final architecture approval** unless noted.
+
+| # | Decision | Proposal | Rationale | Alternatives | Status |
 | --- | --- | --- | --- | --- | --- |
-| D1 | Overall style | Modular monolith (one Django deployable) | Matches approved scope exclusion of microservices; simplest path to NFR-REL consistency | Microservices (rejected: scope, ops cost); multi-repo separation of frontend/backend deploys (deployment topology still open) | Proposed |
-| D2 | Layering | API → service → model with core kernel; business rules only in services | Matches existing code; testability; boundary clarity (NFR-MAINT-001) | Fat models / logic in views (rejected: violates maintainability and server-side trust) | Proposed |
-| D3 | Storefront rendering | Vue SPA owns all storefront routes as target; Django template routes remain only as transitional gap | FR-THEME-LAYOUT-001 requires uniform theme coverage; SSR excluded | Keep hybrid permanently (rejected: violates theme-coverage requirement); SSR (rejected: not approved) | Proposed (target), migration sequencing = UD-001 |
-| D4 | Theme mechanism | Theme packages with deterministic resolution + default fallback, resolved in the SPA | FR-THEME-LAYOUT-005; enables partial overrides | Runtime-compiled remote themes (rejected: complexity/security); Django-template themes for the SPA (rejected: approved scope says Vue components) | Proposed; contract details UD-003/004/005 |
-| D5 | Plugin engine | Keep the existing manifest/manager/registry engine; evolve the Widget Zone and Vue component contracts on top | Existing, tested (Evidence); satisfies FR-PLUG-001 | Rebuild on external plugin host/process isolation (rejected for V1: complexity; revisit under UD-011) | Proposed |
-| D6 | Provider extensibility | Payment/shipping/notification implementations as plugins behind core interfaces | FR-PAY/SHIP, plugin approval; core stays provider-agnostic | Hardcoded provider integrations (rejected: extensibility requirement) | Proposed |
-| D7 | Cache & background jobs | Retain Redis (cache) + Celery (async) as current implementation evidence | Already wired and tested (Evidence); needed for offloading and cache targets | DB-only cache, sync processing (rejected for V1 perf targets); other brokers — no approved need | Proposed (technology retention); production topology open |
-| D8 | Authentication for the SPA | Dual-mode (DRF token + session) as today, pending a dedicated decision | Working end-to-end (Evidence); CSRF + token flows | JWT-only; cookie-session-only; rotating refresh tokens — **not decided**; storage/XSS trade-offs must be assessed | **Open** (security-sensitive; user must approve) |
-| D9 | API versioning | URL-path versioning with `v1` default | Existing (Evidence); simple cacheability | Header/media-type versioning (no current need) | Proposed |
-| D10 | Error handling | Central DRF exception handler with structured error envelope | Existing (Evidence); consistent SPA handling | Ad-hoc per-view errors (rejected) | Proposed |
-| D11 | IDs and base model | BigAutoField/UUID-capable BaseModel with timestamps; soft delete where configured | Existing (Evidence) | UUID-only PKs — revisit in `DATA_MODEL.md` | Proposed baseline, detail open |
-| D12 | Search backend | Database-backed search in V1 with adapter boundary for future engines | Existing `SEARCH_BACKEND=database` (Evidence); scope-appropriate | Elasticsearch/OpenSearch (deferred; not approved) | Proposed |
-| D13 | Media storage | Django storage API; local filesystem default | Existing (Evidence); swappable later | S3-compatible storage (future option, no V1 decision) | Proposed baseline |
+| D1 | System style | Modular monolith (existing) | Working As-Is; scope excludes microservices; simplest consistency model | Microservices (rejected); front/back repo split for deploy (deployment design) | Proposed (evolution, not rewrite — M1/M2) |
+| D2 | Layering | API → service → model with core kernel | Matches verified code; testability | Fat models / views logic (rejected) | Proposed (formalization of existing) |
+| D3 | Storefront rendering | SPA owns all routes as target; Django templates transitional, retired per route | FR-THEME-LAYOUT-001; SSR excluded by scope | Permanent hybrid (rejected as target); SSR (not approved) | Proposed; sequencing = UD-001 |
+| D4 | Theme mechanism | Vue theme packages; deterministic resolution + default fallback | FR-THEME-LAYOUT-005; partial overrides supported | Django-template themes for SPA (rejected by scope); remote runtime themes (rejected: security/complexity) | Proposed; details UD-003/004/005 |
+| D5 | Plugin engine | Keep existing engine (verified §2.5); add Vue Widget Zone contracts | Tested; satisfies FR-PLUG-001 | External process isolation (not for V1; revisit UD-011) | Proposed |
+| D6 | Providers | Payment/shipping/notification implementations as plugins behind core interfaces | Existing; extensibility approved | Hardcoded integrations (rejected) | Proposed |
+| D7 | Cache & background jobs | Retain Redis (cache) + Celery (tasks) | Existing wiring; offload supports perf targets | DB-only cache / fully synchronous (insufficient for targets); other brokers (no need shown) | **Proposed — operational validation required** (§10.3) |
+| D8 | Browser authentication | Same-origin **session cookie + CSRF**; server-side enforcement; token in `localStorage` retired for browser flows after design | User-approved direction; aligns with Admin session model; removes `localStorage` XSS surface (G5) | DRF token `localStorage` (current As-Is — rejected as target); JWT-only; separate non-browser mechanism (open consideration) | **Proposed — pending final approval**; detailed design later |
+| D9 | API versioning | URL-path `v1` | Existing | Header/media-type versioning (no need) | Proposed |
+| D10 | Error handling | Central DRF exception handler + error envelope | Existing | Per-view ad hoc (rejected) | Proposed |
+| D11 | Base model/IDs | `BaseModel` (timestamps, UUID-capable), soft delete where configured | Existing | UUID-only PKs (detail design) | Proposed baseline |
+| D12 | Search | Database backend with adapter boundary | Existing `SEARCH_BACKEND=database` | Elasticsearch/OpenSearch (deferred) | Proposed |
+| D13 | Media storage | Django storage API, local filesystem default | Existing | S3-compatible (future option) | Proposed baseline |
+| D14 | Initial deployment | **One origin** for SPA + API + Admin; logical separation; Vite is dev/build tool only | Simplifies cookies/CSRF/CORS; single unit; brownfield-friendly (M1) | Separate frontend host/CDN (not mandated); microservices (rejected) | **Proposed — pending final approval**; proxy/topology later |
 
-Explicitly **not decided** here (per task constraints): final plugin loading/
-isolation mechanism, exact Widget Zone registry and ordering, exact SQL
-Server version/compatibility settings, detailed auth/session/token strategy,
-production deployment topology, specific caching/queue technologies beyond
-current evidence, exact frontend state libraries beyond the existing Pinia,
-exact API endpoint contracts, and detailed schemas. Each is listed in §18 or
-reserved for detailed design.
+## 12. Open Decisions and Risks
 
-## 18. Open Architectural Decisions and Risks
+Tracked against `REQUIREMENTS.md` §6 (authoritative identifiers):
 
-Tracked in `REQUIREMENTS.md` §6.2/§6.3; restated here with architectural
-impact. (Identifiers are authoritative there.)
-
-| ID | Decision | Phase to resolve |
+| ID / item | Decision | Resolve by |
 | --- | --- | --- |
-| UD-001 | Route classification and Vue migration mapping | Before architecture approval of detailed design |
-| UD-002 | Theme activation scope/persistence/invalidation | Before architecture |
-| UD-003 | Theme component-resolution contract | Before architecture |
-| UD-004 | Theme package layout and Vite integration | Before architecture |
-| UD-005 | Layout-variant selection and fallback | Before architecture |
-| UD-006 | Plugin Vue component contract and conflict rules | Before architecture |
-| UD-007 | Widget Zone registry, ordering, coverage enforcement | Before architecture |
-| UD-010 | Translation fallback and content localization | Before architecture |
-| UD-011 | Theme/plugin trust and security model | Before architecture |
-| UD-013 | SQL Server backend/version/driver validation | Before architecture |
-| UD-014 | Portability checks and migration strategy | Before architecture |
-| UD-015 | Per-currency price storage and resolution | Before architecture |
-| UD-018 | Performance test environment/tooling/workload detail | Architecture & implementation planning |
-| — | Production deployment topology (web/worker placement, SPA hosting, TLS) | Architecture approval |
-| — | Authentication/session/token strategy for the SPA (D8) | Architecture approval (security-sensitive) |
-| — | Whether `apps.shipping` becomes a separate bounded module | Detailed design |
-| — | Disposition of dormant refund/return models (keep dormant vs. remove) | Detailed design (must not expose V1 refunds, UD-017) |
+| UD-001 | Route classification & migration mapping | Architecture/design |
+| UD-002 | Theme activation persistence/invalidation | Architecture/design |
+| UD-003–005 | Theme resolution contract, package layout, layout variants | Architecture/design |
+| UD-006–007 | Plugin Vue component contract; Widget Zone registry/ordering | Architecture/design |
+| UD-010 | Translation fallback/content localization | Architecture/design |
+| UD-011 | Theme/plugin trust and security model | Architecture/design |
+| UD-013/014 | SQL Server version validation; portability checks | Architecture/design |
+| UD-015 | Per-currency price storage/resolution | Architecture/design |
+| UD-018 | Performance test environment/tooling/workload | Architecture & implementation planning |
+| — | Cookie security/HTTPS/expiration/CSRF integration detail (follows D8) | Detailed design |
+| — | Non-browser client authentication mechanism | Open consideration |
+| — | Redis/Celery operational validation (D7) | Before final approval |
+| — | Final serving/reverse-proxy arrangement (within D14) | Deployment design |
+| — | `apps.shipping` module split | Detailed design |
+| — | Disposition of dormant refund/return models | Detailed design (UD-017 guardrail) |
 
-## 19. Requirements Traceability
+Risks: R1 in-process plugin privilege; R2 untrusted theme/hook fragments
+(`v-html`); R3 `localStorage` token XSS until D8 transition; R3b permissive
+DRF default permissions require per-endpoint audit; R4 `mssql-django`
+maturity/version differences; R5 double rendering paths during migration
+(mitigated by per-route cutover, M7); R6 payment provider variance;
+R7 boundary erosion over time; R8 performance targets on realistic data
+volumes; R9 Redis/Celery operational cost; R10 same-origin concentration of
+SPA/API/Admin.
 
-Mapping of major architecture components to requirement groups in
-`REQUIREMENTS.md` (v0.8). All referenced IDs exist there; components marked
-"(target)" are not yet implemented.
+## 13. Requirements Traceability
 
-| Architecture component / section | Requirements |
+Component→requirement mapping (IDs from `REQUIREMENTS.md` v0.8; all exist
+there):
+
+| Architecture element | Requirements |
 | --- | --- |
-| DRF API layer, versioning, error envelope (§6, §17 D9–D10) | TR-STACK-002, NFR-API-001 |
-| Vue/Vite SPA organization (§9) | TR-STACK-003, TR-STACK-006, FR-THEME-LAYOUT-001, FR-THEME-LAYOUT-009 |
-| Bootstrap integration (§9) | TR-STACK-004 |
-| Django Admin (§5, §10) | TR-STACK-007, FR-ADMIN-001–003, AC-ADMIN-003, AC-THEME-LAYOUT-013 |
-| Theme architecture (§10) | FR-THEME-001–002, FR-THEME-LAYOUT-001–012 |
-| Plugin engine and Widget Zones (§11) | FR-PLUG-001, FR-EXT-001–004 |
-| Catalog & variants (§13.1) | FR-CAT-001–005 |
-| Inventory (§13.2) | FR-CAT-004, NFR-REL-001 |
-| Pricing / explicit currency (§13.3, §14) | FR-CUR-001–007, FR-SET-001, FR-DISC-001 |
-| Cart / checkout / orders / payments (§13.4) | FR-CART-001, FR-CHK-001, FR-ORD-001, FR-PAY-001–002, FR-SHIP-001, NFR-REL-001 |
-| Identity & access (§13.5) | FR-CUST-001, NFR-SEC-001, FR-ADMIN-002 |
-| Notifications / reports / reviews / CMS (§5) | FR-NOTIF-001, FR-REP-001, FR-REV-001 |
-| Persistence & database strategy (§12) | TR-DB-001–006 |
-| Performance considerations (§15) | NFR-PERF-001–003, AC-PERF-001–003 |
-| Core framework, boundaries (§8, §6.1) | NFR-MAINT-001, NFR-EXT-001, NFR-TEST-001 |
-| i18n / RTL (§14) | FR-I18N-001–003 |
-| Deferred items noted (§13.4, §2.3) | FR-CUR-003, FR-CUR-008 (AC-CUR-003/008) |
-| Accessibility (presentation-level, carried to UI specs) | NFR-ACC-001 |
+| DRF API, versioning, error envelope (§2.3, D9, D10) | TR-STACK-002, NFR-API-001 |
+| Vue/Vite SPA, target route ownership (§3, D3) | TR-STACK-003, TR-STACK-006, FR-THEME-LAYOUT-001, FR-THEME-LAYOUT-009 |
+| Bootstrap (G7) | TR-STACK-004 |
+| Django Admin (§2.1, §4) | TR-STACK-007, FR-ADMIN-001–003, AC-ADMIN-003, AC-THEME-LAYOUT-013 |
+| Theme architecture (§7) | FR-THEME-001–002, FR-THEME-LAYOUT-001–012 |
+| Plugin engine / Widget Zones (§7) | FR-PLUG-001, FR-EXT-001–004 |
+| Catalog & variants (§8) | FR-CAT-001–005 |
+| Inventory (§8) | FR-CAT-004, NFR-REL-001 |
+| Pricing / explicit currency / i18n (§8, §2.7) | FR-CUR-001–007, FR-SET-001, FR-DISC-001, FR-I18N-001–003 |
+| Cart / checkout / orders / payments (§8) | FR-CART-001, FR-CHK-001, FR-ORD-001, FR-PAY-001–002, FR-SHIP-001, NFR-REL-001 |
+| Identity & access (§9) | FR-CUST-001, NFR-SEC-001, FR-ADMIN-002 |
+| Persistence strategy (§2.1) | TR-DB-001–006 |
+| Performance (§10.1) | NFR-PERF-001–003, AC-PERF-001–003 |
+| Core kernel / boundaries (§4) | NFR-MAINT-001, NFR-EXT-001, NFR-TEST-001 |
+| Deferred items (§8) | FR-CUR-003, FR-CUR-008 (AC-CUR-003, AC-CUR-008) |
+| Accessibility (UI-level, later specs) | NFR-ACC-001 |
 
-Unmapped-by-design: detailed per-feature acceptance criteria (AC-*) verify
-behavior at implementation time and are not architecture components; they
-are reachable through the requirement groups above.
+Per-feature acceptance criteria (AC-*) verify behavior at implementation
+time via the requirement groups above; no requirement IDs were invented.
 
-## 20. Architecture Review and Approval Checklist
+## 14. Architecture Review and Approval Checklist
 
-For user review of this Draft:
+- [ ] Brownfield framing accepted: evolution of the existing system, no
+      rewrite (M1–M3).
+- [ ] As-Is evidence summary (§2) reviewed; unknowns (§2.8) acceptable or
+      assigned for inspection.
+- [ ] Gap analysis G1–G11 (§5) acknowledged as planned work.
+- [ ] Incremental strategy and stages S0–S5 (§6) accepted as direction
+      (detailed plan separately approved later).
+- [ ] Target architecture (§3, §4) accepted.
+- [ ] Same-origin deployment direction (D14, §10.3) accepted.
+- [ ] Session-cookie + CSRF browser-auth direction (D8, §9) accepted;
+      detailed security design deferred.
+- [ ] Redis/Celery retention (D7) accepted subject to operational
+      validation (§10.3).
+- [ ] Theme/plugin direction (§7) accepted as basis for UD-002–007.
+- [ ] Currency/order-currency boundaries (§8) confirmed as architecture
+      guards for FR-PAY-002 / FR-CUR-*.
+- [ ] Decision table D1–D14 (§11) reviewed; conflicts flagged.
+- [ ] Open decisions and risks (§12) assigned resolution points.
+- [ ] Requirements conflicts (G4, G6, G7) acknowledged with migration paths
+      — no baseline change made silently.
 
-- [ ] Modular-monolith structure and layer/boundary rules (§6, §8) accepted.
-- [ ] System context and external interaction boundaries (§4) accepted.
-- [ ] Storefront target: SPA owns all storefront routes; hybrid retained only
-      as a migration gap (D3, G1) accepted.
-- [ ] Theme architecture direction (resolution + fallback; theme/Admin
-      isolation) (§10) accepted as the basis for UD-003/004/005.
-- [ ] Plugin direction: keep existing engine; Widget Zone contracts finalized
-      in design (D5, §11, UD-006/007) accepted.
-- [ ] Data/database strategy including SQL Server validation path (§12,
-      UD-013/014) accepted.
-- [ ] Currency/order-currency boundaries (§13.3–13.4) confirmed as
-      architecture-level guards for FR-PAY-002/FR-CUR-*.
-- [ ] Retention of Redis/Celery as current infrastructure (D7) accepted or
-      redirected.
-- [ ] Authentication strategy decision scheduled (D8) — input needed.
-- [ ] Performance approach (§15) consistent with NFR-PERF-001–003 confirmed.
-- [ ] Gaps G1–G9 (§7.3) acknowledged as planned work, not silently deferred.
-- [ ] Open decisions (§18) assigned resolution points.
-
-Approval of this document authorizes detailed design (Phase 4) only;
+Approval of this document authorizes detailed design (SDD Phase 4) only;
 implementation remains gated per `specs/README.md` §7.
 
 ---
