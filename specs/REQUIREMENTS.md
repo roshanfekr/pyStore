@@ -142,8 +142,9 @@ acceptance-criteria identifiers are stable and must not be reused.
   settlement currency and amount basis. A refund must not silently apply a
   different currency or exchange rate; if the payment provider cannot refund
   in the required currency, the operation must fail clearly and be recorded as
-  requiring an approved alternative. Currency conversion, rounding, and
-  provider refund policy remain open decisions in section 6.2.
+  requiring an approved alternative. Whether refunds are part of the initial
+  release, and the currency conversion, rounding, and provider refund policy,
+  remain open decisions in section 6.2.
 
 ### 1.9 Reviews & Ratings
 - FR-REV-001: Product reviews and ratings can be submitted and displayed,
@@ -814,6 +815,10 @@ resolved. A lower phase may resolve it sooner.
   implementation).** Define provider currency-capability representation,
   settlement-currency behavior when it differs from the order currency,
   disclosure requirements, and the allowed refund/alternative-currency policy.
+- **UD-017 — Refund feature scope (before requirements approval).** Confirm
+  whether refunds are supported in the initial release or are a later
+  enhancement, and therefore whether the conditional refund requirements are
+  part of initial acceptance.
 
 ## 7. Approval Gate
 
