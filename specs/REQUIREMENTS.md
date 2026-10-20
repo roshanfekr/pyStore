@@ -1,13 +1,14 @@
 # Requirements
 
-**Status:** Draft (revised requirements awaiting approval)
+**Status:** Draft (revision reflecting approved Vue theme, SQL Server, and
+Widget Zones decisions; awaiting final review)
 
-**Version:** 0.3
+**Version:** 0.4
 
 **Last updated:** 2026-10-20
 
-**Authority:** Derived from the approved `PROJECT_SCOPE.md`. Where this document
-and the approved scope differ, the conflict must be reported and resolved
+**Authority:** Derived from `PROJECT_SCOPE.md` version 0.3. Where this document
+and the revised scope differ, the conflict must be reported and resolved
 rather than silently changing either document. See section 6.
 
 **Normative language:** “Must” denotes a requirement; “should” denotes an
@@ -79,7 +80,7 @@ acceptance-criteria identifiers are stable and must not be reused.
   must be applied without breaking navigation, forms, or content.
 - FR-I18N-003: Locale-dependent presentation, including translated labels and
   language-appropriate formatting, must be driven by the active language and
-  must not require editing core templates per language.
+  must not require editing core Vue components per language.
 - FR-CUR-001: Multiple currencies can be configured. Prices are displayed in
   the active currency using its configured symbol and decimal precision.
 - FR-CUR-002: Multi-currency support extends to payment and order processing.
@@ -115,145 +116,178 @@ acceptance-criteria identifiers are stable and must not be reused.
   are applied to that theme's presentation.
 - FR-THEME-002: The active theme applies consistently across supported
   storefront pages as detailed in section 1.13.
-- FR-EXT-001: Plugins contribute UI via defined extension points. A plugin's
-  presentation may be theme-aware, with a default presentation fallback when a
-  theme-specific implementation is unavailable. Plugins must not need to
-  modify core files or the active theme's core templates to contribute UI.
+- FR-EXT-001: Widget Zones and plugin UI extension points are approved
+  requirements. Plugins contribute Vue UI components through documented
+  extension points across relevant storefront regions, including header
+  regions, home page sections, product-details regions, category and product
+  listing pages, cart and checkout, customer account pages, and footer
+  regions. These examples are not an exhaustive final list. Contributions
+  must support theme-compatible rendering, predictable ordering, visibility
+  and permission rules where relevant, and defined fallback behavior.
+- FR-EXT-002: Each Widget Zone must define a stable identifier, the Vue
+  component or region where it appears, allowed contribution types, ordering,
+  conflict-resolution rules, and fallback behavior. A plugin that provides no
+  theme-specific component must use its default UI component where available.
+  A missing or unavailable contribution must not break the storefront page.
+- FR-EXT-003: The extension-point registry must be extensible so additional
+  zones can be introduced without rewriting core Vue components or the active
+  theme's core components. The final zone registry, naming conventions, and
+  capabilities are architecture/design decisions.
+- FR-EXT-004: Plugins may add menu items or submenus and may contribute links
+  to supported Vue navigation areas. Contributions must support appropriate
+  ordering, visibility, and permission checks and must not require editing
+  core or theme components directly.
 
-### 1.13 Theme Layout and Template Override
+### 1.13 Vue Theme Layout, Components, and Overrides
 
 These requirements extend `FR-THEME-001`, `FR-THEME-002`, and `FR-EXT-001`.
 They govern storefront presentation only and do not authorize changes to
 business logic, application data, APIs, or administrative behavior.
 
+The storefront is an independent Vue/Vite application consuming the Django REST
+Framework API. Requirements in this section define functional equivalents of
+nopCommerce-style views and themes using Vue layouts, components, and assets.
+They do not require Django server-side templates such as `.cshtml` or Django
+HTML templates to control the Vue storefront. Server-side rendering is not
+introduced by these requirements.
+
 - **FR-THEME-LAYOUT-001: Global Theme Activation.** When an administrator
-  activates a theme, every supported storefront page must render using that
-  theme's layouts, page templates, reusable partials, and static assets. This
-  includes, at minimum: home; product listing, category, and brand pages;
-  product details; search results; cart; checkout and order confirmation;
-  registration, login, and customer account pages; wishlist; compare; order
-  history and order details; contact and informational/CMS pages; blog or
-  news pages where provided; and other storefront pages supplied by core
-  modules or installed plugins. Individual pages must not require separate
-  theme selection. A storefront page that cannot use theme templates (for
-  example, a page rendered by a client-side application shell) must either
-  consume an equivalent presentation contract from the active theme or be
-  explicitly documented as outside the theme-template scope. No supported
-  page may silently bypass the active theme.
+  activates a theme, every supported Vue storefront route must use that
+  theme's root layout, page components, shared components, and static assets.
+  Supported routes include, at minimum: home; product listing, category, and
+  brand pages; product details; search results; cart; checkout and order
+  confirmation; registration, login, and customer account pages; wishlist;
+  compare; order history and order details; contact and informational/CMS
+  pages; blog or news pages where provided; and other storefront routes
+  supplied by core modules or installed plugins. Individual routes must not
+  require separate theme selection. A supported route must not silently
+  bypass the active theme; any route outside theme coverage must be explicitly
+  documented.
 
-- **FR-THEME-LAYOUT-002: Root Layout Template.** The system must support a
-  theme-owned root layout that defines the shared HTML document structure and
-  main rendering areas for storefront pages. It must support, where
-  applicable: document type and language/direction attributes; the head
-  section; header; main content area; footer; global styles and scripts; and
-  configurable layout regions and widget/extension zones. Page templates must
-  be able to inherit from or compose this root layout. The root layout must
-  have a default fallback. The exact template name and inheritance mechanism
-  must follow the project's existing Django conventions and be documented
-  during architecture.
+- **FR-THEME-LAYOUT-002: Root Layout Component.** The system must support a
+  theme-owned Vue root layout that defines the shared application shell and
+  main rendering regions for storefront routes. It must support, where
+  applicable: language/direction attributes; metadata and document title
+  management; header; main content/router outlet; footer; global styles and
+  scripts; and configurable layout regions and Widget Zones. Page components
+  must be able to compose or be rendered within this root layout. The root
+  layout must have a default fallback. The exact component name, composition
+  mechanism, and routing integration must be documented during architecture.
 
-- **FR-THEME-LAYOUT-003: Reusable Template Partials.** Themes must support
-  reusable partials for shared storefront presentation, including functional
-  equivalents of: head and metadata; header and navigation; footer;
-  breadcrumbs; sidebar; one-, two-, and three-column layout regions; product
-  cards; product images and galleries; pagination; cart components; customer
-  account navigation; notifications and messages; and other reusable
-  components. A partial must be reusable by multiple page templates. Updating
-  a shared partial in the active theme must affect every page that uses it
-  without editing those pages individually. Partials must follow the same
-  fallback rules as page templates.
+- **FR-THEME-LAYOUT-003: Reusable Shared Components.** Themes must support
+  reusable Vue components for shared storefront presentation, including:
+  header and navigation; footer; metadata management; breadcrumbs; sidebar;
+  one-, two-, and three-column layout regions; product cards; product images
+  and galleries; pagination; cart components; customer account navigation;
+  notifications and messages; and other reusable components. A shared
+  component must be reusable by multiple page components. Updating a shared
+  component in the active theme must affect every page that uses it without
+  editing those pages individually. Shared components must follow the same
+  resolution and fallback rules as page components.
 
-- **FR-THEME-LAYOUT-004: Page-Specific Templates.** A theme must be able to
-  provide its own template for an individual page type, including home,
-  category/listing, product details, search, cart, checkout, customer
-  account, wishlist, compare, order history, and informational pages. The
-  system must select the appropriate page template automatically based on
-  the current route, view, page type, or another documented application
-  convention. A theme must be able to override one page template while
-  continuing to use the theme's root layout and shared partials, and while
-  other page types continue to use default templates.
+- **FR-THEME-LAYOUT-004: Theme-Specific Page Components.** A theme must be
+  able to provide its own Vue page component for an individual page type,
+  including home, category/listing, product details, search, cart, checkout,
+  customer account, wishlist, compare, order history, and informational pages.
+  The system must select the appropriate page component automatically based on
+  the current Vue route, route name, page type, or another documented
+  application convention. A theme must be able to override one page component
+  while continuing to use the theme's root layout and shared components, and
+  while other page types continue to use default components.
 
-- **FR-THEME-LAYOUT-005: Theme Template Resolution and Fallback.** Template
+- **FR-THEME-LAYOUT-005: Theme Component Resolution and Fallback.** Component
   resolution must be deterministic and consistent for root layouts, page
-  templates, reusable partials, and plugin-contributed presentation. At
-  minimum: (1) when the active theme provides the requested logical template,
-  that template is used; (2) when it does not, the corresponding default
-  core/application template is used; (3) a missing optional theme template or
-  partial must not cause a storefront page to fail; (4) a theme must not be
-  required to copy every core template; (5) overrides must not require
-  modifying core application source files; and (6) the complete resolution
-  order and naming rules must be documented during architecture and used
-  consistently by all storefront rendering paths.
+  components, shared components, layout variants, and plugin-contributed
+  presentation. At minimum: (1) when the active theme provides the requested
+  logical component, that component is used; (2) when it does not, the
+  corresponding default theme/core component is used; (3) a missing optional
+  theme component must not cause a storefront route to fail; (4) a theme must
+  not be required to copy every default component; (5) overrides must not
+  require modifying core application source files; and (6) the complete
+  resolution order, fallback rules, and component naming contract must be
+  documented during architecture and used consistently by all supported Vue
+  routes and plugin UI.
 
-- **FR-THEME-LAYOUT-006: Theme Directory Structure.** Each theme must be able
-  to organize its files in a structured, maintainable directory supporting
-  layout templates, shared partials, page-specific templates, CSS and
-  JavaScript assets, images/icons/fonts, theme configuration and metadata,
-  and optional theme-specific component templates. The final directory
-  layout, manifest fields, and template naming conventions must be defined
-  during architecture after inspecting the existing repository. The
-  structure must support a theme that overrides only a subset of templates.
+- **FR-THEME-LAYOUT-006: Theme Package and Directory Organization.** Each
+  theme must organize its files in a structured, maintainable package
+  supporting Vue layouts, shared components, page-specific components, layout
+  variants, plugin/extension components where applicable, CSS and JavaScript
+  assets, images/icons/fonts, and theme configuration and metadata. The final
+  directory layout, manifest fields, build/discovery integration, and
+  component naming conventions must be defined during architecture after
+  inspecting the existing Vue application. The structure must support a theme
+  that overrides only a subset of components.
 
-- **FR-THEME-LAYOUT-007: Theme-Aware Plugins.** The theme system must support
-  storefront UI contributions from installed plugins through defined
-  extension points and widget zones. A plugin may contribute reusable UI
-  components, templates, or widget content. A plugin may optionally provide
-  a theme-specific presentation template; when it does not, the system must
-  use the plugin's default presentation template where available. A plugin
-  must not need to modify the active theme's core templates to contribute UI.
-  Theme overrides and plugin-provided templates must follow documented,
-  deterministic resolution and compatibility rules, including the
-  interaction between a theme override and a plugin's theme-specific and
-  default templates. Extension-point identifiers and capabilities remain
-  subject to their own approved specification; this requirement does not
-  approve the proposed widget-zone catalog in `PROJECT_SCOPE.md` section 7.
+- **FR-THEME-LAYOUT-007: Theme-Aware Plugin Components.** The theme system
+  must support storefront UI contributions from installed plugins through
+  approved Widget Zones and extension points. A plugin may contribute reusable
+  Vue UI components or widget content. A plugin may optionally provide a
+  theme-specific component; when it does not, the system must use the plugin's
+  default component where available. A plugin must not need to modify the
+  active theme's core components or the Vue application's core components to
+  contribute UI. Theme overrides and plugin-provided components must follow
+  documented, deterministic resolution, ordering, and compatibility rules,
+  including the interaction between a theme override and a plugin's
+  theme-specific and default components.
 
-- **FR-THEME-LAYOUT-008: Layout Variants.** Themes must support multiple page
-  layouts, including full-width, one-column, two-column with left sidebar,
-  two-column with right sidebar, and three-column layouts. The applicable
-  layout must be selectable by the relevant page or layout configuration
-  according to documented project capabilities. Changing a page's layout
-  must not require duplicating the entire page template. A missing
-  theme-provided layout variant must fall back to a documented default.
+- **FR-THEME-LAYOUT-008: Layout Variants.** Themes must support multiple Vue
+  layout variants, including full-width, one-column, two-column with left
+  sidebar, two-column with right sidebar, and three-column layouts. The
+  applicable layout must be selectable by the relevant page or layout
+  configuration according to documented project capabilities. Changing a
+  route's layout must not require duplicating the entire page component. A
+  missing theme-provided layout variant must fall back to a documented default
+  layout variant.
 
 - **FR-THEME-LAYOUT-009: Separation of Business Logic and Presentation.**
-  Theme templates are responsible for presentation only. They must consume
-  data and context supplied by the application and must not independently
+  Theme components are responsible for presentation only. They must consume
+  data and services supplied by the application and must not independently
   implement pricing, discounts, tax, order processing, inventory, payment,
-  permissions, or other business rules. Activating, deactivating, or
-  switching a theme must not change business logic, persisted data, API
-  behavior, or order-processing behavior.
+  permissions, or other business rules. Activating, deactivating, or switching
+  a theme must not change business logic, persisted data, API behavior, or
+  order-processing behavior.
 
 - **FR-THEME-LAYOUT-010: Global Storefront Coverage and Traceability.** Theme
-  coverage must be evaluated across all applicable storefront routes,
+  coverage must be evaluated across all applicable Vue storefront routes,
   including routes registered by core modules and installed plugins. The
-  project must maintain traceability between page types, their rendering
-  templates, shared layouts/partials, and relevant extension points so that
-  pages do not unintentionally bypass the active theme. The coverage record
-  must identify any storefront route that is outside theme-template scope.
-  The administration interface has a separate layout/theme policy; activating
-  a storefront theme must not unintentionally change the administration
-  interface.
+  project must maintain traceability between page types, Vue route or page
+  component, root layout, shared components, layout variant, and relevant
+  Widget Zones so that routes do not unintentionally bypass the active theme.
+  The coverage record must identify any storefront route that is outside theme
+  coverage. The administration interface has a separate layout/theme policy;
+  activating a storefront theme must not unintentionally change the
+  administration interface.
 
 - **FR-THEME-LAYOUT-011: Theme Asset Resolution and Fallback.** CSS,
   JavaScript, images, icons, and fonts supplied by the active theme must be
-  resolved and referenced consistently without editing core files. A theme may
+  resolved and loaded consistently without editing core files. A theme may
   override only a subset of assets. Missing optional theme assets must fall
   back to the documented default asset or be treated as an explicitly optional
-  asset; they must not produce broken storefront rendering or a server error.
-  Asset URL/versioning and caching behavior must be documented during
-  architecture.
+  asset; they must not produce broken storefront rendering or an application
+  failure. Asset URL/versioning, loading order, and caching behavior must be
+  documented during architecture.
+
+- **FR-THEME-LAYOUT-012: Metadata Management.** The active theme must
+  participate in managing document-level metadata for supported Vue routes,
+  including the document title, applicable meta tags, language, and direction.
+  Page and shared components must be able to supply route-specific metadata
+  through a documented contract without each component manipulating global
+  document state independently. Metadata changes must not alter business data
+  or API behavior.
 
 **Theme constraints:**
 
 - Theme activation is an administrative action and must be subject to
   authorization. The mechanism for storing and applying the active theme is
   an architecture/design decision.
-- Theme templates and theme-supplied assets must be treated as untrusted
+- Theme components and theme-supplied assets must be treated as untrusted
   presentation code from an installation and security perspective until the
   theme trust model is specified.
-- Requirements in this section do not prescribe the final template names,
-  loader implementation, manifest schema, or resolution algorithm.
+- The storefront remains client-side Vue. SSR must not be introduced unless it
+  is separately evaluated and approved.
+- Requirements in this section do not prescribe the final component names,
+  resolution implementation, manifest schema, build integration, or layout
+  variant algorithm.
 
 ## 2. Technical Requirements
 
@@ -264,28 +298,58 @@ architecture decisions.
 - TR-STACK-001: The backend is implemented with Python and Django.
 - TR-STACK-002: The backend exposes a Django REST Framework (DRF) API using an
   API-first approach.
-- TR-STACK-003: The frontend direction is a standalone Vue.js application
-  consuming the backend API. Its relationship to server-rendered theme
-  templates is unresolved; see CF-002 in section 6.1.
+- TR-STACK-003: The storefront frontend is a separate Vue.js application,
+  built with Vite, that consumes the Django REST Framework API. Storefront
+  themes are implemented with Vue layouts, components, and assets rather than
+  server-rendered Django templates.
 - TR-STACK-004: Bootstrap is the UI framework for the storefront and
   administration interface unless an approved exception is documented.
-- TR-STACK-005: PostgreSQL is the approved database. A deployment or settings
-  configuration using a different database engine is a documented deviation
-  requiring approval; it must not silently replace this decision. The current
-  repository's SQL Server configuration is recorded in section 6.1 and is not
-  approval to change the PostgreSQL decision.
+- TR-STACK-005: SQL Server is the initial database. PostgreSQL is a potential
+  future database target, not the currently selected database. Migrating to
+  PostgreSQL must not be assumed to require only a configuration change.
+- TR-STACK-006: Storefront rendering remains client-side Vue. Server-side
+  rendering must not be introduced unless it is separately evaluated and
+  approved.
+
+### 2.1 Database Requirements
+
+- **TR-DB-001:** The initial database target is SQL Server. The compatible
+  Django database backend and the minimum supported SQL Server version must be
+  validated during architecture/design. The currently observed
+  `mssql-django` integration is implementation evidence, not by itself a
+  validated version-support decision.
+- **TR-DB-002:** Django ORM is the preferred and approved ORM. SQLAlchemy or
+  another ORM must not be introduced alongside Django ORM without explicit
+  approval.
+- **TR-DB-003:** Database-specific queries, raw SQL, schema assumptions, data
+  types, and backend-specific behavior must be isolated behind documented
+  boundaries. Portable Django ORM features must be used wherever practical so
+  that a future PostgreSQL evaluation is feasible.
+- **TR-DB-004:** All schema changes must use versioned Django migrations.
+  Migrations must be testable against the supported SQL Server backend and
+  must be reversible where practical. Any irreversible migration must be
+  documented with its rationale and recovery approach.
+- **TR-DB-005:** Data migrations must be explicit, validated, and safe to
+  re-run where practical. They must define affected data, transformation
+  rules, failure handling, and rollback or recovery strategy.
+- **TR-DB-006:** Database portability must be verified through automated or
+  repeatable checks that detect unsupported backend-specific queries and
+  migration incompatibilities. A database switch requires separate evaluation
+  of schema differences, data types, queries, migrations, and deployment
+  configuration; it must not be claimed as configuration-only.
 
 ## 3. Non-Functional Requirements
 - NFR-SEC-001: Authentication, authorization, validation, and safe handling of
   sensitive operations are enforced server-side. Secrets and sensitive data
-  must not be exposed in logs, templates, or client responses.
+  must not be exposed in logs, rendered UI, or client responses.
 - NFR-EXT-001: Plugins and themes add capabilities without unnecessary core
   changes. Supported extensions must use documented contracts and extension
   points.
 - NFR-MAINT-001: Clear module boundaries and documented contracts exist for
   core, plugins, themes, and feature modules.
 - NFR-TEST-001: Automated tests cover critical business rules, workflows,
-  authorization boundaries, template fallback, and theme coverage.
+  authorization boundaries, theme component fallback, Widget Zone behavior, and
+  storefront theme coverage.
 - NFR-API-001: APIs are documented and versionable, with stable request and
   response contracts.
 - NFR-REL-001: Order, inventory, payment, and other state transitions are
@@ -304,54 +368,61 @@ but the criteria below are binding for requirement verification. Every
 acceptance criterion must be traceable to at least one requirement in section
 5.
 
-### 4.1 Theme Layout and Coverage
+### 4.1 Vue Theme Layout and Coverage
 
 - **AC-THEME-LAYOUT-001** (`FR-THEME-LAYOUT-001`, `FR-THEME-002`): Activate a
-  theme and render every route classified as theme-rendered in the coverage
-  record. Each page uses the active theme's layout and assets and displays an
-  observable theme-specific marker. No supported page silently renders only
-  the default theme.
-- **AC-THEME-LAYOUT-002** (`FR-THEME-LAYOUT-002`): A theme with a custom root
-  layout renders pages that inherit from or compose it, including the
-  document structure, language/direction attributes, header, main content
-  area, footer, and global assets.
+  theme and open every Vue route classified as theme-covered in the coverage
+  record. Each route uses the active theme's root layout, page component, and
+  assets and displays an observable theme-specific marker. No supported route
+  silently renders only the default theme.
+- **AC-THEME-LAYOUT-002** (`FR-THEME-LAYOUT-002`, `FR-THEME-LAYOUT-012`): A
+  theme with a custom Vue root layout renders its routes through that layout,
+  including metadata/document title, language/direction attributes, header,
+  main content/router outlet, footer, Widget Zones, and global assets.
 - **AC-THEME-LAYOUT-003** (`FR-THEME-LAYOUT-003`): Change a shared header
-  partial in the active theme; every page that includes the partial reflects
-  the change without modifying individual page templates.
+  component in the active theme; every route that uses the shared component
+  reflects the change without modifying individual page components.
 - **AC-THEME-LAYOUT-004** (`FR-THEME-LAYOUT-004`): A theme can override the
-  product-details template and render the override while continuing to use the
-  theme's root layout and shared partials, without copying the application.
+  product-details page component and render it while continuing to use the
+  theme's root layout and shared components, without copying the application.
 - **AC-THEME-LAYOUT-005** (`FR-THEME-LAYOUT-004`, `FR-THEME-LAYOUT-005`): A
-  theme can override the category page while other page types continue to use
-  default templates, with no rendering failures.
+  theme can override the category page component while other routes continue
+  to use default components, with no rendering failures.
 - **AC-THEME-LAYOUT-006** (`FR-THEME-LAYOUT-005`): Remove an optional theme
-  template or partial. The affected page renders using the appropriate default
-  template and does not fail.
+  component. The affected route renders using the appropriate default
+  component and does not fail.
 - **AC-THEME-LAYOUT-007** (`FR-THEME-LAYOUT-005`): Installing a theme and
-  overriding a template requires no modification to core application source
-  files.
+  overriding a component requires no modification to core application or
+  default-theme source files.
 - **AC-THEME-LAYOUT-008** (`FR-THEME-LAYOUT-009`): Switching themes leaves
   pricing, inventory, permissions, API responses, persisted data, and order
   processing behavior unchanged.
-- **AC-THEME-LAYOUT-009** (`FR-THEME-LAYOUT-007`, `FR-EXT-001`): A plugin's UI
-  contribution renders through its defined extension point on theme-rendered
-  pages.
-- **AC-THEME-LAYOUT-010** (`FR-THEME-LAYOUT-007`): A plugin with no
-  theme-specific template continues to render through its default template.
+- **AC-THEME-LAYOUT-009** (`FR-THEME-LAYOUT-007`, `FR-EXT-001`): A plugin's Vue
+  UI contribution renders through its defined Widget Zone on theme-covered
+  routes.
+- **AC-THEME-LAYOUT-010** (`FR-THEME-LAYOUT-007`, `FR-EXT-002`): A plugin with
+  no theme-specific component continues to render through its default
+  component, and an unavailable contribution does not break the page.
 - **AC-THEME-LAYOUT-011** (`FR-THEME-LAYOUT-008`): Full-width, one-column,
-  two-column-left, two-column-right, and three-column layouts render their
-  expected regions using a single page template per page type.
+  two-column-left, two-column-right, and three-column Vue layout variants
+  render their expected regions using a single page component per page type.
 - **AC-THEME-LAYOUT-012** (`FR-THEME-LAYOUT-010`): The coverage record lists
-  every core and installed-plugin storefront route, its page type, rendering
-  template, root layout, shared partials, and extension points. No route is
-  unclassified.
+  every core and installed-plugin storefront route, its page type, Vue route
+  or page component, root layout, shared components, layout variant, and
+  Widget Zones. No route is unclassified.
 - **AC-THEME-LAYOUT-013** (`FR-THEME-LAYOUT-010`): Activating or deactivating a
   storefront theme does not change the administration interface unless a
   separate administrative theme feature is explicitly applied.
-- **AC-THEME-LAYOUT-014** (`FR-THEME-LAYOUT-011`): Theme CSS, JavaScript, and
-  image assets are used by theme-rendered pages; removing an optional theme
-  asset produces the documented fallback rather than a broken page or server
-  error.
+- **AC-THEME-LAYOUT-014** (`FR-THEME-LAYOUT-006`, `FR-THEME-LAYOUT-011`): A
+  theme can organize its Vue layouts, shared and page components, configuration
+  and metadata, and CSS/JavaScript/image/font assets in the documented
+  structure; theme-covered routes use the theme assets, and removing an
+  optional theme component or asset produces the documented fallback rather
+  than a broken page or application error.
+- **AC-THEME-LAYOUT-015** (`FR-THEME-LAYOUT-012`): Route-specific document
+  metadata is applied through the documented theme contract, and navigating
+  between routes updates the title/language/direction metadata without
+  inconsistent global state.
 
 ### 4.2 Core Functional Acceptance
 
@@ -390,7 +461,7 @@ acceptance criterion must be traceable to at least one requirement in section
   settings affect storefront display and order processing as configured.
 - **AC-I18N-001** (`FR-I18N-001`, `FR-I18N-003`): Switching the active language
   changes available translated content and interface labels without requiring
-  a core template edit.
+  a core Vue component edit.
 - **AC-I18N-002** (`FR-I18N-002`): Selecting an RTL language sets RTL document
   direction and produces a usable mirrored layout without overlapping or
   inaccessible controls.
@@ -413,20 +484,45 @@ acceptance criterion must be traceable to at least one requirement in section
   configure, activate, and deactivate a theme; configured settings affect that
   theme's presentation.
 - **AC-THEME-002** (`FR-THEME-002`, `FR-THEME-LAYOUT-001`): The activated theme
-  is the theme used by the supported storefront pages covered by section 4.1.
-- **AC-EXT-001** (`FR-EXT-001`): An enabled plugin contributes UI through a
-  documented extension point without editing core files or the active theme's
-  core templates.
+  is the theme used by the supported storefront routes covered by section 4.1.
+- **AC-EXT-001** (`FR-EXT-001`): An enabled plugin contributes a Vue UI
+  component through a documented Widget Zone without editing core files or
+  the active theme's core components.
+- **AC-ZONE-001** (`FR-EXT-002`): A Widget Zone applies its documented ordering
+  and fallback rules; a plugin without a theme-specific component renders its
+  default component, and a missing contribution does not break the route.
+- **AC-ZONE-002** (`FR-EXT-003`): A new Widget Zone can be registered and used
+  by a theme/page component without rewriting unrelated core Vue components.
+- **AC-EXT-003** (`FR-EXT-004`): A plugin can contribute a navigation item or
+  link with documented ordering, visibility, and permission behavior without
+  editing core or theme components.
 
 ### 4.3 Technical and Non-Functional Acceptance
 
-- **AC-STACK-001** (`TR-STACK-001` through `TR-STACK-005`): Project and
-  deployment configuration evidence identifies Django, DRF, Vue, Bootstrap,
-  and the approved database decision; any deviation is recorded and approved
-  as required by section 6.
+- **AC-STACK-001** (`TR-STACK-001` through `TR-STACK-006`): Project and
+  deployment configuration evidence identifies Django, DRF, Vue/Vite,
+  Bootstrap, SQL Server as the initial database, and client-side Vue rendering
+  without SSR; any deviation is recorded and approved as required by section 6.
+- **AC-DB-001** (`TR-DB-001`): Architecture/design evidence identifies the
+  compatible SQL Server Django backend, the minimum supported SQL Server
+  version, and how that support will be validated.
+- **AC-DB-002** (`TR-DB-002`): The implemented persistence layer uses Django
+  ORM and contains no unapproved secondary ORM.
+- **AC-DB-003** (`TR-DB-003`): Database-specific queries or schema assumptions
+  are isolated and documented, and portable ORM usage is verified for the
+  supported flows.
+- **AC-DB-004** (`TR-DB-004`): Schema changes are represented by versioned
+  migrations that can be applied on the supported SQL Server backend; every
+  irreversible migration has a documented recovery approach.
+- **AC-DB-005** (`TR-DB-005`): Data migrations are explicit and validated;
+  where declared re-runnable, running them more than once does not corrupt or
+  duplicate data.
+- **AC-DB-006** (`TR-DB-006`): Repeatable checks detect unsupported
+  backend-specific queries or migration incompatibilities, and no documentation
+  claims that a PostgreSQL switch is configuration-only.
 - **AC-SEC-001** (`NFR-SEC-001`): Unauthorized and invalid operations are
-  rejected server-side, and no configured secret is present in rendered
-  templates or API responses.
+  rejected server-side, and no configured secret is present in rendered UI or
+  API responses.
 - **AC-EXT-002** (`NFR-EXT-001`, `NFR-MAINT-001`): A supported plugin or theme
   can be added through documented contracts without modifying core application
   source files.
@@ -464,9 +560,10 @@ acceptance criterion must be traceable to at least one requirement in section
 | FR-REP-001 | PROJECT_SCOPE §3 | AC-REP-001 |
 | FR-PLUG-001 | PROJECT_SCOPE §3, §6.2 | AC-PLUG-001 |
 | FR-THEME-001, FR-THEME-002 | PROJECT_SCOPE §3, §6 | AC-THEME-001, AC-THEME-002 |
-| FR-EXT-001 | PROJECT_SCOPE §6.2 – §7 | AC-EXT-001, AC-THEME-LAYOUT-009 |
-| FR-THEME-LAYOUT-001 – FR-THEME-LAYOUT-011 | Theme layout extension; `PROJECT_SCOPE.md` §6 | AC-THEME-LAYOUT-001 – AC-THEME-LAYOUT-014 |
-| TR-STACK-001 – TR-STACK-005 | PROJECT_SCOPE §2 | AC-STACK-001 |
+| FR-EXT-001 – FR-EXT-004 | PROJECT_SCOPE §6.2 – §7 | AC-EXT-001, AC-ZONE-001 – AC-ZONE-002, AC-EXT-003, AC-THEME-LAYOUT-009 |
+| FR-THEME-LAYOUT-001 – FR-THEME-LAYOUT-012 | PROJECT_SCOPE §6 | AC-THEME-LAYOUT-001 – AC-THEME-LAYOUT-015 |
+| TR-STACK-001 – TR-STACK-006 | PROJECT_SCOPE §2 | AC-STACK-001 |
+| TR-DB-001 – TR-DB-006 | PROJECT_SCOPE §2, §8 | AC-DB-001 – AC-DB-006 |
 | NFR-SEC-001 | PROJECT_SCOPE §8 | AC-SEC-001 |
 | NFR-EXT-001, NFR-MAINT-001 | PROJECT_SCOPE §8 | AC-EXT-002 |
 | NFR-TEST-001 | PROJECT_SCOPE §8 | AC-TEST-001 |
@@ -477,59 +574,62 @@ acceptance criterion must be traceable to at least one requirement in section
 
 ### 5.2 Storefront Page Coverage Baseline
 
-The following table is evidence from the current repository, provided to
-support traceability. Route names, template names, and rendering mechanisms
-remain subject to architecture/design and the unresolved decisions in section
-6.2. A page marked as SPA-conditional has a server-rendered fallback but may
-bypass Django templates when the SPA is enabled.
+The approved decision is that the storefront is a separate Vue/Vite application
+and themes control presentation through Vue layouts, components, and assets.
+The current repository is still a hybrid: the Vue SPA owns the interactive
+routes listed below, while several content routes are currently served by
+Django templates. The table records both the approved target coverage and the
+current implementation evidence so the gap is not hidden. Route names, page
+component names, and the final resolution mechanism remain subject to
+architecture/design and section 6.2.
 
-| Page type | Current route(s) | Current rendering evidence | Theme/extension notes |
+| Page type | Approved target theme coverage | Current repository evidence | Theme/Widget Zone notes |
 | --- | --- | --- | --- |
-| Home | `/` | `storefront/home.html` | Theme can override page template and shared partials; plugin hook `home_middle` exists. |
-| Category / listing | `/category/<slug>/` | `storefront/category.html` | Theme page override required; category extension points proposed in scope. |
-| Product details | `/product/<slug>/` | `storefront/product_detail.html` | Theme page override required; product extension points proposed in scope. |
-| Search results | `/search/` | `storefront/search.html` | Theme page override required. |
-| Cart | `/cart/` | `storefront/cart.html` | SPA-conditional; plugin hook `cart_page` can claim server rendering. |
-| Checkout | `/checkout/` | `storefront/checkout.html` | SPA-conditional; order confirmation route exists. |
-| Order history / details | `/account/`, `/orders/<number>/` | `storefront/account.html`, `storefront/order_detail.html` | SPA-conditional; account/order theme templates required. |
-| Registration / login | `/register/`, `/login/` | `storefront/register.html`, `storefront/login.html` | SPA-conditional. |
-| Account pages | `/account/` | `storefront/account.html` | SPA-conditional; account navigation partial required. |
-| Wishlist | `/wishlist/` | `storefront/wishlist.html` | SPA-conditional. |
-| Compare | `/compare/` | `storefront/compare.html` | SPA-conditional; included because it is an existing storefront page. |
-| Contact / informational | `/<slug>/` | `storefront/cms_page.html` | CMS page; theme page/partial coverage required. |
-| Blog / news | `/blog/`, `/blog/<slug>/` | `storefront/blog_list.html`, `storefront/blog_detail.html` | Theme page overrides required where the feature is enabled. |
-| Plugin-contributed storefront UI | Extension points rendered by `plugin_hook` | Plugin templates such as `ajax_cart/*`, `flash_sale/*`, `slider/*` | Current hooks include `head`, `header_cart`, `body_end`, `home_middle`, and `cart_page`; widget-zone catalog is not approved. |
-| Administration | `/admin/` (and admin-specific routes) | Admin templates | Separate layout/theme policy; storefront activation must not change it. |
-| Robots / sitemap / autocomplete / suggestion endpoints | `/robots.txt`, `/sitemap.xml`, `/search/autocomplete/`, `/search/suggest/` | Non-page or partial responses | Must be classified in the coverage record; not required to render theme HTML unless specified. |
+| Home | Vue route with theme home page component, root layout, shared components | Django `storefront/home.html`; not yet a Vue route | Theme page override and header/home/footer Widget Zones required. |
+| Category / listing | Vue route with theme category page component | Django `storefront/category.html`; not yet a Vue route | Category/listing Widget Zones required. |
+| Product details | Vue route with theme product page component | Django `storefront/product_detail.html`; not yet a Vue route | Product-details Widget Zones required. |
+| Search results | Vue route with theme search page component | Django `storefront/search.html`; not yet a Vue route | Theme page override required. |
+| Cart | Vue route with theme cart page component | Vue `CartView.vue` | Theme page override; cart Widget Zones required. |
+| Checkout | Vue route with theme checkout page component | Vue `CheckoutView.vue` | Theme page override; checkout Widget Zones required. |
+| Order history / details | Vue routes with theme account/order page components | Vue `AccountView.vue`, `OrderView.vue` | Theme page overrides; account/order Widget Zones required. |
+| Registration / login | Vue routes with theme authentication page components | Vue `RegisterView.vue`, `LoginView.vue` | Theme page overrides required. |
+| Account pages | Vue route with theme account page component | Vue `AccountView.vue` | Account navigation shared component required. |
+| Wishlist | Vue route with theme wishlist page component | Vue `WishlistView.vue` | Theme page override required. |
+| Compare | Vue route with theme compare page component | Vue `CompareView.vue` | Existing storefront page; theme page override required. |
+| Contact / informational | Vue route with theme informational page component | Django `storefront/cms_page.html`; route not yet in Vue router | Theme page override and content Widget Zones required. |
+| Blog / news | Vue routes with theme list/detail page components | Django blog templates; routes not yet in Vue router | Theme page overrides required where enabled. |
+| Plugin-contributed storefront UI | Plugin Vue components rendered in approved Widget Zones | Current plugins provide Django hook templates such as `ajax_cart/*`, `flash_sale/*`, and `slider/*` | Migration to Vue plugin components and the approved Zone registry is required. |
+| Administration | Separate admin interface and layout policy | Django admin templates | Storefront theme activation must not change the admin interface. |
+| Robots / sitemap / autocomplete / suggestion endpoints | Non-page/API responses or explicitly documented theme coverage | Existing Django views/endpoints | Must be classified in the coverage record; not required to render a theme page unless specified. |
 
 ## 6. Conflicts, Deviations, and Unresolved Decisions
 
 ### 6.1 Scope Conflicts and Known Deviations
 
-- **CF-001 — Database decision vs. current configuration.** `PROJECT_SCOPE.md`
-  section 2 approves PostgreSQL, while the current repository's default
-  settings and README identify SQL Server (`mssql-django`). This requirements
-  revision retains PostgreSQL as the approved decision per the task. The
-  implementation discrepancy must be reconciled or the database change must
-  be explicitly approved; it must not be resolved silently in either
-  direction.
-- **CF-002 — Standalone Vue direction vs. template-driven storefront.**
-  `PROJECT_SCOPE.md` section 2 specifies a standalone Vue.js frontend consuming
-  the API, while the current repository is a hybrid of server-rendered Django
-  templates and a Vue SPA, and the requested theme requirements assume
-  theme-owned HTML layouts and page templates. The coexistence model, the
-  theme-control boundary for SPA-rendered routes, and whether both rendering
-  paths are in scope require explicit approval before architecture. This
-  document does not choose between them.
+- **CF-001 — Database decision (resolved by approved decision).** SQL Server is
+  the initial database and PostgreSQL is a potential future target, not the
+  current database. The current repository's `mssql-django` configuration is
+  consistent with the initial target. The compatible backend and minimum
+  supported SQL Server version remain to be validated in architecture/design;
+  see UD-013.
+- **CF-002 — Vue theme decision vs. current hybrid implementation (resolved at
+  requirement level).** The user approved a separate Vue/Vite storefront with
+  Vue component/layout themes; Django server-side templates must not control
+  the independent Vue storefront. The current repository still renders several
+  content routes with Django templates and limits the Vue router to interactive
+  routes. This is now an implementation gap recorded in section 5.2, not an
+  unresolved requirements conflict. The gap must be addressed through later
+  approved implementation work; this task does not modify application code.
 - **CF-003 — Theme activation mechanism.** The scope says an administrator
   activates a theme; the current implementation resolves the active theme from
   the `ACTIVE_THEME` environment setting with a default. This is an
   implementation gap, not a change to the requirement. Persistence,
   per-store/global scope, and cache invalidation remain unresolved.
-- **CF-004 — Widget-zone proposal status.** `PROJECT_SCOPE.md` section 7 is
-  marked as a proposal awaiting explicit approval. `FR-EXT-001`,
-  `FR-THEME-LAYOUT-007`, and the acceptance criteria refer to defined extension
-  points and do not approve the proposed widget-zone groups or identifiers.
+- **CF-004 — Widget Zones approved; registry pending.** Widget Zones and plugin
+  UI extension points are approved requirements. The exact final zone registry,
+  identifiers, naming conventions, and ordering contract remain architecture
+  decisions; the examples in `PROJECT_SCOPE.md` section 7 are not an exhaustive
+  final list.
 - **CF-005 — Localization and currency detail.** Multilingual, RTL, and
   multi-currency display/payment are treated as approved project requirements
   for this revision, but `PROJECT_SCOPE.md` does not fully specify translation
@@ -545,49 +645,63 @@ bypass Django templates when the SPA is enabled.
 These decisions are not approved requirements. They must be resolved and,
 where they affect scope, explicitly approved.
 
-- **UD-001 — Storefront rendering model.** Confirm the relationship between
-  the standalone Vue application and server-rendered theme templates, and
-  classify which storefront routes are theme-rendered, SPA-rendered with a
-  theme presentation contract, or outside theme-template scope.
+- **UD-001 — Vue route coverage and migration.** Classify every storefront
+  route as Vue/theme-covered or explicitly outside theme coverage, and define
+  how current Django-rendered content routes are migrated to the approved Vue
+  storefront without bypassing the active theme. Final route/component names
+  remain architecture decisions.
 - **UD-002 — Active-theme scope and persistence.** Decide whether the active
   theme is global, per store, or otherwise scoped; where activation is stored;
-  how activation/deactivation takes effect; and how cached pages/assets are
+  how activation/deactivation takes effect; and how cached routes/assets are
   invalidated.
-- **UD-003 — Template naming and resolution order.** Define logical template
-  names, namespacing, and the exact precedence among active theme, default
-  core template, plugin theme-specific template, and plugin default template.
-  Apply the same rules to root layouts, page templates, and partials.
-- **UD-004 — Theme directory and manifest schema.** Define the final
-  directory structure, metadata fields, static-asset organization, optional
-  template subsets, and asset URL/versioning policy.
-- **UD-005 — Layout-variant selection.** Define how a page chooses full-width,
-  one-, two-, or three-column layouts and how a missing theme variant falls
-  back.
-- **UD-006 — Plugin theme-specific presentation contract.** Define how plugins
-  declare theme-specific templates, how compatibility is determined, and how
-  conflicts with theme overrides are resolved.
-- **UD-007 — Coverage enforcement.** Define the route registry or equivalent
-  mechanism and automated checks that prevent new core or plugin routes from
-  silently bypassing theme classification.
-- **UD-008 — Administration theme policy.** Confirm that the admin interface
-  has a separate layout/theme policy and whether any administrative theming is
-  in scope.
+- **UD-003 — Theme component-resolution contract.** Define logical component
+  names, namespacing, route/page mapping, and the exact precedence among active
+  theme components, default theme/core components, plugin theme-specific
+  components, and plugin default components. Apply the same rules to root
+  layouts, page components, shared components, and layout variants.
+- **UD-004 — Theme package and Vite integration.** Define the final theme
+  directory structure, manifest schema, component/module format, discovery,
+  build integration, static-asset organization, and asset URL/versioning
+  policy.
+- **UD-005 — Layout-variant selection.** Define how a route chooses full-width,
+  one-, two-, or three-column Vue layout variants and how a missing theme
+  variant falls back.
+- **UD-006 — Plugin component contract.** Define how plugins declare Vue
+  components and theme-specific variants, how compatibility is determined, and
+  how ordering and conflicts with theme overrides are resolved across Widget
+  Zones.
+- **UD-007 — Widget Zone registry and coverage enforcement.** Define the final
+  zone registry, identifiers, capabilities, ordering rules, and automated
+  checks that prevent new core or plugin routes and zones from silently
+  bypassing theme classification.
+- **UD-008 — Administration theme policy.** Confirm the separate layout/theme
+  policy for the admin interface and whether any administrative theming is in
+  scope.
 - **UD-009 — Currency conversion and payment policy.** Define exchange-rate
   source, conversion timing, rounding, display vs. charge currency, and
   behavior when a payment provider does not support the selected currency.
 - **UD-010 — Translation fallback and content localization.** Define language
   fallback behavior, translated content ownership, and RTL handling for
   admin-authored content and generated storefront UI.
-- **UD-011 — Theme trust and security model.** Define how theme templates and
-  assets are validated, what capabilities theme authors have, and how
+- **UD-011 — Theme trust and security model.** Define how Vue theme components
+  and assets are validated, what capabilities theme authors have, and how
   untrusted theme code is isolated from secrets and business operations.
 - **UD-012 — Performance targets.** Define measurable page/API performance and
   theme-rendering budgets before `AC-PERF-001` can be verified.
+- **UD-013 — SQL Server backend and version support.** Validate the compatible
+  Django SQL Server backend, supported SQL Server versions, driver/ODBC
+  prerequisites, and connection/deployment requirements.
+- **UD-014 — Database portability and migration strategy.** Define the
+  portability checks, migration testing approach, irreversible-migration
+  recovery rules, data-migration validation, and the conditions under which a
+  future PostgreSQL evaluation may occur.
 
 ## 7. Approval Gate
 
-This revision is a requirements proposal. It does not approve architecture,
-detailed design, dependencies, database changes, or implementation. No
+This revision records the user-approved decisions on the Vue/Vite theme system,
+SQL Server with Django ORM, and Widget Zones. It remains in Draft pending final
+review and approval. It does not approve architecture, detailed design,
+dependencies, database changes, migration work, or implementation. No
 architecture/design or implementation work should begin until the user
-explicitly approves these requirements and resolves the scope conflicts in
-section 6.1 that require a decision.
+explicitly approves the revised scope and requirements and authorizes the next
+phase.
