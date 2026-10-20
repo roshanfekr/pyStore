@@ -1,14 +1,15 @@
 # Requirements
 
-**Status:** Draft (revision reflecting approved Vue theme, SQL Server, Widget
-Zones, Django Admin, and multi-currency pricing decisions; awaiting final
+**Status:** Draft (revision reflecting the approved Vue theme, SQL Server,
+Widget Zones, Django Admin, multi-currency, multilingual/RTL, refund-deferral,
+explicit-currency-pricing, and payment-currency decisions; awaiting final
 review)
 
-**Version:** 0.6
+**Version:** 0.7
 
 **Last updated:** 2026-10-20
 
-**Authority:** Derived from `PROJECT_SCOPE.md` version 0.5. Where this document
+**Authority:** Derived from `PROJECT_SCOPE.md` version 0.6. Where this document
 and the revised scope differ, the conflict must be reported and resolved
 rather than silently changing either document. See section 6.
 
@@ -72,11 +73,16 @@ acceptance-criteria identifiers are stable and must not be reused.
   offered at checkout, and the outcome of a payment attempt is recorded against
   the order.
 - FR-PAY-002: Each payment method/provider must declare or otherwise expose
-  the currencies it supports. A method that cannot support the selected
-  currency must not be offered, or must fail clearly before charging. The
-  order and payment attempt must record the settlement currency; if settlement
-  differs from the order currency, the conversion and disclosure policy must
-  be explicitly approved rather than assumed.
+  the currencies it supports. The system may offer only payment methods that
+  support the order currency. Before initiating payment, the system must
+  validate that the selected provider supports the order currency. If no
+  available provider supports the order currency, the system must clearly
+  inform the customer that payment is unavailable for that currency and must
+  not initiate an incompatible payment. The system must not silently convert
+  the order amount, change the order currency, or substitute a different
+  currency to accommodate a provider. Not every payment provider is assumed
+  to support every currency; specific providers and provider-specific
+  capabilities are not defined by this requirement.
 - FR-SHIP-001: Shipping methods are configurable. Only enabled methods are
   offered at checkout, and the selected method is recorded against the order.
 
@@ -85,6 +91,21 @@ acceptance-criteria identifiers are stable and must not be reused.
   according to their configured eligibility, scope, and validity rules.
 
 ### 1.8 Store Settings, Localization & Currency
+
+Currency terms used below:
+
+- **Base currency:** the store's single configurable canonical reference
+  currency for price definition and the default storefront currency.
+- **Explicit currency price:** a price an administrator configures for a
+  specific supported currency on a product or variant. The base-currency
+  price is not an explicit price for any other currency.
+- **Selected (order) currency:** the currency the customer selects for
+  display and order placement and that is confirmed for the order.
+- **Provider-supported currency:** a currency the selected payment
+  method/provider declares it can accept. In v1 the provider must support
+  the order currency; the order currency is never changed to accommodate a
+  provider.
+
 - FR-SET-001: Store settings, currency, and tax configuration are configurable
   and applied consistently to storefront display and order processing.
 - FR-I18N-001: The storefront supports multiple configured languages.
@@ -99,52 +120,59 @@ acceptance-criteria identifiers are stable and must not be reused.
 - FR-CUR-001: Each store has exactly one configurable base currency. The base
   currency is the canonical reference for price definition and the default
   storefront currency. Customers may select any configured, active supported
-  currency; the selected currency is the display and order currency unless a
-  separately approved settlement policy states otherwise. Only configured,
-  active currencies are offered to customers.
+  currency, and the selected currency is the display and order currency.
+  Only configured, active currencies are offered to customers.
 - FR-CUR-002: The system supports explicitly configured prices for individual
   currencies. Administrators can define a price for a product or product
   variant in the base currency and independently in other supported
-  currencies. An explicit currency price is distinct from a price obtained by
-  conversion and must be usable without executing an exchange-rate conversion.
-- FR-CUR-003: Automatic exchange-rate conversion is a separate, configurable
-  capability. When it is disabled, no automatic conversion occurs. When it is
-  enabled, conversion must use an approved rate source, refresh policy,
-  rounding policy, and conversion timing. No exchange-rate provider or
-  automatic-conversion policy is selected by this requirement; see section
-  6.2.
-- FR-CUR-004: For a requested storefront currency, an explicitly configured
-  price for that currency takes precedence over an automatically converted
-  price. The base-currency price must not be treated as an explicit price for
-  another currency. When neither an explicit price nor a usable conversion
-  rate is available, the system must fail safe: it must not display a
-  misleading price or complete a purchase/charge in another currency. The
-  exact fallback (for example, mark unavailable, hide, or use an approved
-  configured fallback) is an open business decision in UD-009.
-- FR-CUR-005: Price display and cart calculations use the resolved price for
-  the active currency, with that currency's configured symbol and decimal
-  precision. Cart line amounts, discounts, shipping, tax, and totals are
-  calculated in one selected currency and must not mix currencies within a
-  cart.
+  currencies. A currency-specific price applies only to the product or
+  variant for which it is configured. An explicit currency price must be
+  usable without any exchange-rate conversion; v1 performs no automatic
+  conversion (see FR-CUR-003).
+- FR-CUR-003 (Deferred to a future release): Automatic exchange-rate
+  retrieval and automatic price conversion are out of scope for v1. V1 must
+  not retrieve exchange rates, convert prices automatically, or expose
+  automatic-conversion configuration. No exchange-rate provider, conversion
+  schedule, rounding policy for converted prices, or automatic-conversion
+  fallback is introduced by this requirement. The deferral is an approved
+  decision recorded in section 6.3 (UD-009).
+- FR-CUR-004: V1 uses only explicitly configured prices. For the selected
+  currency, the system must use the explicit price configured for that
+  currency on the applicable product or variant. The base-currency price
+  must not be used as an implicit conversion source for another currency. If
+  no explicit price is configured for the selected currency, the system must
+  not invent, estimate, or silently convert a price: the affected product or
+  variant must not be purchasable in that currency, the storefront must
+  clearly communicate that the price is unavailable in that currency, and
+  the customer's selected currency must not be silently changed.
+- FR-CUR-005: Price display and cart calculations use the explicitly
+  configured price for the active currency, with that currency's configured
+  symbol and decimal precision. Cart line amounts, discounts, shipping, tax,
+  and totals are calculated in one selected currency and must not mix
+  currencies within a cart. Items without an explicit price in the selected
+  currency cannot be added to or remain purchasable in the cart (see
+  FR-CUR-004).
 - FR-CUR-006: Checkout, payment initialization, and order creation use the
   selected currency. The resulting order must preserve the currency and the
-  monetary amounts agreed at order placement, including line prices, subtotal,
-  discounts, shipping, tax, and total. Later price, exchange-rate, or currency
-  configuration changes must not rewrite historical order amounts.
+  monetary amounts agreed at order placement, including line prices,
+  subtotal, discounts, shipping, tax, and total. Later price or currency
+  configuration changes must not rewrite historical order amounts. The order
+  currency is never changed to accommodate a payment provider (see
+  FR-PAY-002).
 - FR-CUR-007: Currency selection and display must be consistent across
-  catalog, cart, checkout, order history, and informational pages. The system
-  must distinguish the order/payment settlement currency from display and
-  conversion inputs and must record the settlement currency. A payment method
-  that does not support the selected currency must not be offered or must fail
-  clearly rather than silently charging a different currency; payment-provider
-  currency compatibility is required (see FR-PAY-002).
-- FR-CUR-008: Refunds, where supported, must use the order's recorded
-  settlement currency and amount basis. A refund must not silently apply a
-  different currency or exchange rate; if the payment provider cannot refund
-  in the required currency, the operation must fail clearly and be recorded as
-  requiring an approved alternative. Whether refunds are part of the initial
-  release, and the currency conversion, rounding, and provider refund policy,
-  remain open decisions in section 6.2.
+  catalog, cart, checkout, order history, and informational pages. In v1 the
+  settlement currency is the order currency; the system must record it and
+  must not maintain a differing settlement currency. A payment method that
+  does not support the order currency must not be offered or initiated;
+  payment-provider currency compatibility is required (see FR-PAY-002).
+- FR-CUR-008 (Deferred — out of scope for v1): Refund processing and refund
+  automation are deferred to a future release by approved decision (section
+  6.3, UD-017). The initial release must not claim to support a complete or
+  partial refund workflow, and storing order and payment records must not be
+  presented as refund capability. This deferral does not alter the approved
+  order status and history requirements and does not add cancellation or
+  payment-reversal capabilities to v1. The future refund workflow, including
+  refund currency and provider policy, is not defined by this revision.
 
 ### 1.9 Reviews & Ratings
 - FR-REV-001: Product reviews and ratings can be submitted and displayed,
@@ -514,8 +542,15 @@ traceability tables in section 5).
 - **AC-PAY-001** (`FR-PAY-001`): Only enabled payment methods are offered, and
   a payment outcome is recorded against the order.
 - **AC-PAY-002** (`FR-PAY-002`): A payment method that does not support the
-  selected currency is not offered or fails before charging, and the payment
-  attempt records its settlement currency.
+  order currency is not offered. When no available provider supports the
+  order currency, the customer is clearly informed that payment is
+  unavailable for that currency, no payment is initiated, and the order
+  currency and amounts are not changed or converted.
+- **AC-PAY-003** (`FR-PAY-002`, `FR-CUR-006`): For an order whose currency is
+  supported by an available provider, payment is initiated only in the order
+  currency after a pre-initiation support validation, and the order
+  confirmation and payment record show the same currency and monetary
+  amounts.
 - **AC-SHIP-001** (`FR-SHIP-001`): Only enabled shipping methods are offered,
   and the selected method is recorded against the order.
 - **AC-DISC-001** (`FR-DISC-001`): A valid discount, coupon, or promotion is
@@ -529,27 +564,36 @@ traceability tables in section 5).
   direction and produces a usable mirrored layout without overlapping or
   inaccessible controls.
 - **AC-CUR-001** (`FR-CUR-001`, `FR-CUR-005`): A store has one configured base
-  currency, only configured active currencies are offered, and displayed
-  prices use the active currency's symbol and decimal precision consistently.
+  currency, a customer can select an active display/order currency, only
+  configured active currencies are offered, and displayed prices use the
+  active currency's symbol and decimal precision consistently.
 - **AC-CUR-002** (`FR-CUR-002`, `FR-CUR-004`): An explicitly configured price
   for a product or variant in a non-base currency is used for that currency
   without requiring automatic conversion.
-- **AC-CUR-003** (`FR-CUR-003`): With automatic conversion disabled, no
-  converted price is produced; with it enabled in a controlled test, the
-  configured rate source, timing, and rounding policy are applied.
-- **AC-CUR-004** (`FR-CUR-004`): When both an explicit currency price and an
-  automatically converted price exist, the explicit price is used.
+- **AC-CUR-003** (`FR-CUR-003`): No storefront, cart, or checkout flow
+  produces an automatically converted price in v1; only explicitly configured
+  prices are used, and no automatic-conversion capability is exposed or
+  executed.
+- **AC-CUR-004** (`FR-CUR-002`, `FR-CUR-004`): For each supported currency,
+  the explicitly configured price is used for the product or variant it is
+  configured on, and the base-currency price is never used as an implicit
+  price for another currency.
 - **AC-CUR-005** (`FR-CUR-005`): Cart lines, discounts, shipping, tax, and
   totals are calculated in one selected currency and do not mix currencies.
 - **AC-CUR-006** (`FR-CUR-006`): Checkout and the resulting order retain the
   selected currency and the agreed monetary amounts; later price or rate
   changes do not alter the historical order.
-- **AC-CUR-007** (`FR-CUR-007`, `FR-PAY-002`): The order and payment attempt
-  record the settlement currency, and an incompatible payment/currency
-  combination is not silently charged in another currency.
-- **AC-CUR-008** (`FR-CUR-008`): Where refunds are supported, a refund uses the
-  order's recorded settlement currency and amount basis, or fails clearly when
-  the provider cannot support that refund currency.
+- **AC-CUR-007** (`FR-CUR-007`, `FR-PAY-002`): The order and payment records
+  show the order currency, and an incompatible payment/currency combination
+  is never charged or silently converted to another currency.
+- **AC-CUR-008** (`FR-CUR-008`): Deferred with FR-CUR-008 — refund processing
+  is out of scope for v1 and is not part of initial acceptance; v1
+  verification must not claim refund support.
+- **AC-CUR-009** (`FR-CUR-004`): When no explicit price is configured for the
+  selected currency, the affected product or variant cannot be added to the
+  cart or purchased in that currency, the storefront clearly communicates the
+  unavailability, the customer's selected currency is not silently changed,
+  and no estimated or converted price is displayed or charged.
 - **AC-REV-001** (`FR-REV-001`): A permitted customer can submit a review and
   rating, and accepted reviews are displayed according to configured rules.
 - **AC-NOTIF-001** (`FR-NOTIF-001`): A qualifying event produces a notification
@@ -630,11 +674,11 @@ traceability tables in section 5).
 | FR-CAT-001 – FR-CAT-005 | PROJECT_SCOPE §3 – §4 | AC-CAT-001 – AC-CAT-005 |
 | FR-CART-001, FR-CHK-001 | PROJECT_SCOPE §3 | AC-CART-001, AC-CHK-001 |
 | FR-ORD-001 | PROJECT_SCOPE §3 | AC-ORD-001 |
-| FR-PAY-001 – FR-PAY-002, FR-SHIP-001 | PROJECT_SCOPE §3 | AC-PAY-001 – AC-PAY-002, AC-SHIP-001 |
+| FR-PAY-001 – FR-PAY-002, FR-SHIP-001 | PROJECT_SCOPE §3 | AC-PAY-001 – AC-PAY-003, AC-SHIP-001 |
 | FR-DISC-001 | PROJECT_SCOPE §3 | AC-DISC-001 |
 | FR-SET-001 | PROJECT_SCOPE §3 | AC-SET-001 |
-| FR-I18N-001 – FR-I18N-003 | PROJECT_SCOPE §3; project localization decision; see section 6 | AC-I18N-001 – AC-I18N-002 |
-| FR-CUR-001 – FR-CUR-008 | PROJECT_SCOPE §3 – §4; see UD-009, UD-015, UD-016 | AC-CUR-001 – AC-CUR-008 |
+| FR-I18N-001 – FR-I18N-003 | PROJECT_SCOPE §3, §5 | AC-I18N-001 – AC-I18N-002 |
+| FR-CUR-001 – FR-CUR-008 | PROJECT_SCOPE §3 – §4; UD-015 open; UD-009, UD-016, UD-017 resolved (§6.3) | AC-CUR-001 – AC-CUR-009 |
 | FR-REV-001 | PROJECT_SCOPE §3 | AC-REV-001 |
 | FR-NOTIF-001 | PROJECT_SCOPE §3 | AC-NOTIF-001 |
 | FR-REP-001 | PROJECT_SCOPE §3 | AC-REP-001 |
@@ -719,10 +763,11 @@ CF-002 and UD-001 and must be classified in the coverage record.
   final list.
 - **CF-005 — Localization and currency detail.** Multilingual, RTL, and
   multi-currency display/payment are approved project requirements. This
-  revision adds base-currency, explicit per-currency price, optional automatic
-  conversion, precedence, order-record, refund, and payment-compatibility
-  requirements. Translation fallback, automatic-conversion policy, and
-  currency business rules not explicitly decided remain open in section 6.2.
+  revision adds base-currency, explicit per-currency price, precedence,
+  order-record, and payment-compatibility requirements. Translation fallback
+  remains open in section 6.2. The automatic-conversion, refund-scope, and
+  payment-settlement policy questions have since been approved and are
+  recorded as resolved in section 6.3.
 - **CF-006 — Performance targets.** `PROJECT_SCOPE.md` section 8 requires
   responsive performance but defers measurable targets. `NFR-PERF-001` and
   `AC-PERF-001` remain open until targets are approved.
@@ -738,7 +783,9 @@ CF-002 and UD-001 and must be classified in the coverage record.
   orders carry a single currency without provider currency-capability data.
   This is implementation evidence, not a change to the approved multi-currency
   requirements; the gap must be addressed in later approved implementation
-  work.
+  work. The approved explicit-pricing and payment-currency decisions (section
+  6.3, UD-009 and UD-016) make per-currency explicit price storage and
+  provider currency-capability data v1 needs.
 
 ### 6.2 Unresolved Decisions for Architecture/Design
 
@@ -748,11 +795,12 @@ where they affect scope, explicitly approved.
 Priority labels indicate the latest phase by which the decision should be
 resolved. A lower phase may resolve it sooner.
 
-- **UD-001 — Vue route coverage and migration (before requirements
-  approval).** Classify every storefront route as Vue/theme-covered or
-  explicitly outside theme coverage, and confirm how current Django-rendered
-  content routes enter the approved Vue storefront. Final route/component names
-  remain architecture decisions.
+- **UD-001 — Vue route coverage and migration (before architecture).** The
+  requirements establish the required page categories and explicitly track the
+  current Django-template gap in section 5.2. During architecture, classify
+  every concrete storefront route as Vue/theme-covered or explicitly outside
+  theme coverage and map the migration. Final route/component names remain
+  architecture decisions.
 - **UD-002 — Active-theme scope and persistence (before architecture).**
   Decide whether the active theme is global, per store, or otherwise scoped;
   where activation is stored; how activation/deactivation takes effect; and
@@ -778,15 +826,10 @@ resolved. A lower phase may resolve it sooner.
   architecture).** Define the final zone registry, identifiers, capabilities,
   ordering rules, and automated checks that prevent new core or plugin routes
   and zones from silently bypassing theme classification.
-- **UD-008 — Reserved identifier.** No unresolved decision is currently
-  defined under this identifier. The identifier is considered used and must
-  not be reassigned; UD-009 and later must not be renumbered.
-- **UD-009 — Automatic conversion and price-fallback policy (before
-  requirements approval for business rules; before architecture for
-  implementation).** Decide whether automatic conversion is enabled by
-  default, the approved rate source, refresh/timing, rounding, the behavior
-  when neither an explicit nor a converted price exists, and the customer
-  disclosure requirements. No provider or policy is assumed.
+- **UD-008 — Reserved identifier.** No unresolved decision is defined under
+  this identifier. This identifier and the identifiers of resolved decisions
+  (UD-009, UD-016, UD-017 — see section 6.3) must not be reassigned, and the
+  remaining identifiers must not be renumbered.
 - **UD-010 — Translation fallback and content localization (before
   architecture).** Define language fallback behavior, translated content
   ownership, and RTL handling for admin-authored content and generated
@@ -809,22 +852,53 @@ resolved. A lower phase may resolve it sooner.
   Define how explicit product, variant, and applicable price-list prices are
   stored per currency, how the base currency relates to them, how the data is
   administered, and how cart and checkout resolve the active currency price.
-  This is a data/design decision, not a business-rule change.
-- **UD-016 — Payment settlement and refund currency policy (before
-  requirements approval for customer-facing behavior; before architecture for
-  implementation).** Define provider currency-capability representation,
-  settlement-currency behavior when it differs from the order currency,
-  disclosure requirements, and the allowed refund/alternative-currency policy.
-- **UD-017 — Refund feature scope (before requirements approval).** Confirm
-  whether refunds are supported in the initial release or are a later
-  enhancement, and therefore whether the conditional refund requirements are
-  part of initial acceptance.
+  This is a data/design decision, not a business-rule change. The approved
+  explicit-prices-only rule (section 6.3, UD-009) applies; resolution never
+  falls back to automatic conversion.
+
+### 6.3 Resolved Decisions
+
+These decisions have been resolved by explicit user approval. Their
+identifiers remain reserved and must not be reassigned. The resolved outcomes
+are binding for v1; the future-release work they defer must not begin without
+separate user approval.
+
+- **UD-009 — Automatic conversion and price-fallback policy (Resolved —
+  approved 2026-10-20).** Approved outcome: v1 uses only explicitly
+  configured prices for supported currencies. Automatic exchange-rate
+  retrieval and automatic price conversion are deferred to a future release;
+  no rate source, conversion schedule, rounding policy for converted prices,
+  or automatic-conversion fallback is selected. When no explicit price is
+  configured for the selected currency, the affected product or variant is
+  not purchasable in that currency, the storefront must communicate that the
+  price is unavailable, and the customer's selected currency must not be
+  silently changed. See FR-CUR-003, FR-CUR-004, AC-CUR-003, and AC-CUR-009.
+- **UD-016 — Payment settlement and refund currency policy (Resolved —
+  approved 2026-10-20).** Approved outcome: the order currency is the
+  currency selected and confirmed for the order and is never changed to
+  accommodate a payment provider. Only payment methods supporting the order
+  currency may be offered, provider support must be validated before payment
+  is initiated, and the system must not silently convert the order amount or
+  substitute a currency. The refund portion of this decision is superseded by
+  the refund deferral (UD-017). The data-level representation of provider
+  currency capabilities remains an architecture decision. See FR-PAY-002,
+  FR-CUR-006, FR-CUR-007, AC-PAY-002, AC-PAY-003, and AC-CUR-007.
+- **UD-017 — Refund feature scope (Resolved — approved 2026-10-20).**
+  Approved outcome: refund processing and refund automation are outside the
+  initial release and are deferred to a future version. Refund requirements
+  are not part of initial acceptance, and v1 must not claim to support a
+  complete refund workflow. The future refund workflow and its technical
+  implementation are not defined by this decision. See FR-CUR-008 and
+  AC-CUR-008.
 
 ## 7. Approval Gate
 
 This revision records the user-approved decisions on the Vue/Vite theme system,
 SQL Server with Django ORM, Widget Zones, the initial Django Admin interface,
-and multi-currency pricing. It remains in Draft pending final review and
+multi-currency pricing, multilingual/RTL support, and the subsequently
+approved decisions that refunds and automatic currency conversion are
+deferred to a future release and that payment providers must support the
+order currency (section 6.3). It remains in Draft pending final review and
 approval. It does not approve architecture, detailed design, dependencies,
 database changes, migration work, or implementation. No architecture/design or
 implementation work should begin until the user explicitly approves the revised

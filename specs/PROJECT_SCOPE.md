@@ -1,13 +1,16 @@
 # Project Scope --- Plugin-Based E-commerce Platform
 
 **Document:** `specs/PROJECT_SCOPE.md`\
-**Version:** 0.5 (draft reflecting the approved Vue theme, SQL Server,
-Widget Zones, Django Admin, multi-currency pricing, and multilingual/RTL
+**Version:** 0.6 (draft reflecting the approved Vue theme, SQL Server,
+Widget Zones, Django Admin, multi-currency pricing, multilingual/RTL,
+refund-deferral, explicit-currency-pricing, and payment-currency
 decisions)\
 **Status:** Draft pending final review. The core scope remains approved; this
 revision records the user-approved decisions on the Vue/Vite theme system,
 SQL Server with Django ORM, Widget Zones, the initial Django Admin interface,
-multi-currency pricing, and multilingual/RTL support.\
+multi-currency pricing, multilingual/RTL support, the deferral of refunds and
+automatic currency conversion to a future release, and the rule that payment
+providers must support the order currency.\
 **Last updated:** 2026-10-20
 
 ## 1. Project Vision
@@ -59,24 +62,25 @@ The platform is intended to cover the following capabilities:
 -   Product variants and combinations of attributes.
 -   Product search, filtering, sorting, and catalog browsing.
 -   Shopping cart and checkout.
--   Orders, order status, customer order history, and refund processing where
-    supported.
--   Multilingual storefront and administration content, including RTL language
-    support.
+-   Orders, order status, and customer order history.
+-   Multilingual storefront content and interface languages, including
+    right-to-left (RTL) language support.
 -   Payment methods and payment-related configuration.
 -   Shipping methods and shipping-related configuration.
 -   Discounts, coupons, and promotions.
 -   Store settings, currency, and tax configuration.
--   Multilingual storefront content and interface languages, including
-    right-to-left (RTL) language support.
--   Multi-currency pricing: a configurable base currency, customer selection of
-    an active display/order currency, explicitly configured prices for
-    individual currencies, an optional and separately configurable automatic
-    conversion capability, and currency-aware payment and order settlement.
-    Orders must preserve the currency and monetary amounts agreed
-    when placed, and refunds must respect the order's settlement currency where
-    applicable. Payment providers are not assumed to support every currency.
-    Automatic conversion provider/policy is not selected by this scope.
+-   Multi-currency pricing: a configurable base currency, customer selection
+    of an active display/order currency, and explicitly configured prices for
+    individual supported currencies. V1 uses only explicitly configured
+    prices; automatic exchange-rate retrieval and automatic price conversion
+    are deferred to a future release. If no explicit price is configured for
+    the selected currency, the affected product or variant is not purchasable
+    in that currency and the storefront must communicate that the price is
+    unavailable without silently changing the customer's selected currency.
+    Orders must preserve the currency and monetary amounts agreed when
+    placed, and payment may be offered or initiated only with methods that
+    support the order currency; the order currency is never changed to
+    accommodate a payment provider.
 -   Product reviews and ratings.
 -   Notifications.
 -   Reports and audit logs.
@@ -370,6 +374,12 @@ Detailed measurable targets will be defined in later requirements work.
 -   Migrating the administration interface from Django Admin to Vue in the
     initial release. A future Vue-based admin is an optional, separately
     planned enhancement.
+-   Refund processing and refund automation in the initial release; refunds
+    are deferred to a future release by approved decision. Storing order and
+    payment records does not constitute refund capability.
+-   Automatic exchange-rate retrieval and automatic price conversion in v1;
+    deferred to a future release by approved decision. V1 uses only
+    explicitly configured currency prices.
 
 ## 10. Project Principles
 
@@ -396,7 +406,9 @@ naming conventions remain to be finalized during architecture/design.
 
 This revision records the approved Vue/Vite theme, SQL Server with Django
 ORM, Widget Zones, Django Admin, multi-currency pricing, and
-multilingual/RTL support decisions. The
+multilingual/RTL support decisions, and the subsequently approved decisions
+that refunds and automatic currency conversion are deferred to a future
+release and that payment providers must support the order currency. The
 revised scope and requirements remain in Draft pending final user review and
 approval.
 
