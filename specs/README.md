@@ -370,9 +370,12 @@ Only mark a document `Approved` when the user has explicitly approved it.
 
 **Current status (2026-10-20):** The project is at the scope/requirements
 approval gate. `PROJECT_SCOPE.md` and `REQUIREMENTS.md` are in final review,
-pending explicit user approval, and no other specification documents exist
-yet. Architecture, detailed design, and implementation must not begin until
-that approval is given and the next phase is authorized.
+pending explicit user approval. A first draft of `ARCHITECTURE.md` (v0.1,
+Draft — proposed for review, not approved) has been created for the
+architecture phase; no other specification documents exist yet. Architecture
+approval must not be assumed from the draft's existence, and detailed design
+and implementation must not begin until the scope/requirements approval is
+given and the next phase is authorized.
 
 ---
 
