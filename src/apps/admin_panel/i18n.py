@@ -76,10 +76,24 @@ def translate_help_text(form, model, field_name: str, key: str) -> None:
         form.fields[field_name].help_text = translated
 
 
+def translate_text(key: str, default: str) -> str:
+    """Translate admin template text from a namespaced ``key``.
+
+    The word collection is matched case-insensitively on the English source
+    string, so a source string shared with the storefront (for example
+    "No orders yet.") can only carry one translation. Admin text that
+    collides with a storefront string therefore uses a namespaced key
+    (``admin.<area>.<name>``) and keeps its own original text as fallback,
+    exactly like the form labels handled by :func:`translate_field`.
+    """
+    return _lookup_optional(key) or default
+
+
 __all__ = [
     "field_key",
     "lookup_translation",
     "translate_field",
     "translate_form_labels",
     "translate_help_text",
+    "translate_text",
 ]

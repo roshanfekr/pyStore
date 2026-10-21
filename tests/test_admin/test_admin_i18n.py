@@ -178,3 +178,31 @@ def test_admin_system_checks_survive_fresh_database(db):
         admin_i18n, "_catalog_for", side_effect=OperationalError("no such table")
     ):
         call_command("check")
+
+
+def test_admin_dashboard_keeps_its_own_empty_orders_wording(client, admin_user, fa_language):
+    # The admin orders empty state uses the namespaced key so it does not
+    # overwrite the storefront wording of "No orders yet.".
+    client.force_login(admin_user)
+    client.cookies["pystore_language"] = "fa"
+    content = client.get("/admin/").content.decode()
+    assert "هنوز سفارشی ثبت نشده است." in content
+    assert "هنوز سفارشی ندارید." not in content
+
+
+def test_admin_reports_keep_their_own_empty_orders_wording(client, admin_user, fa_language):
+    client.force_login(admin_user)
+    client.cookies["pystore_language"] = "fa"
+    content = client.get("/admin/reports/").content.decode()
+    assert "هنوز سفارشی ثبت نشده است." in content
+    assert "هنوز سفارشی ندارید." not in content
+
+
+def test_admin_empty_orders_falls_back_to_english_text(client, admin_user, fa_language):
+    # Without a translation the admin keeps its original text instead of
+    # showing a raw namespaced key.
+    client.force_login(admin_user)
+    client.cookies["pystore_language"] = "en"
+    content = client.get("/admin/").content.decode()
+    assert "No orders yet." in content
+    assert "admin.orders.no_orders" not in content

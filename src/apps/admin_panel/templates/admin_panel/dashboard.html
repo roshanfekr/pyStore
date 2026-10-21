@@ -1,5 +1,5 @@
 {% extends "admin/base_site.html" %}
-{% load strings %}
+{% load strings admin_extras %}
 {% block content %}
 <h1>{% tr 'Dashboard' %}</h1>
 
@@ -63,7 +63,7 @@
                 {% for entry in orders_by_status %}<tr><td>{{ entry.status }}</td><td>{{ entry.count }}</td></tr>{% endfor %}
                 </tbody>
             </table>
-        {% else %}<p class="ps-plugin-meta">{% tr 'No orders yet.' %}</p>{% endif %}
+        {% else %}<p class="ps-plugin-meta">{% admin_tr "admin.orders.no_orders" "No orders yet." %}</p>{% endif %}
     </div>
 </div>
 {% endblock %}

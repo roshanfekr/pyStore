@@ -285,6 +285,29 @@ def test_account_requires_login(client):
     assert response.status_code == 302
 
 
+def test_account_empty_orders_keeps_its_own_wording(client, store):
+    # The customer order history owns the plain "No orders yet." source
+    # string; the admin uses a namespaced key for the same English text.
+    from apps.stores.models import Language
+    from apps.stores.seed_translations import PERSIAN_STRINGS
+    from apps.stores.services import seed_language_resources, set_default_language
+
+    language, _ = Language.objects.get_or_create(
+        code="fa",
+        defaults={"name": "فارسی", "is_active": True, "direction": "rtl", "ordering": 1},
+    )
+    seed_language_resources("fa", PERSIAN_STRINGS)
+    set_default_language(language)
+
+    client.post("/register/", {"email": "noorders@example.com", "password": "Str0ng!Passw0rd"})
+    client.post("/logout/")
+    client.post("/login/", {"email": "noorders@example.com", "password": "Str0ng!Passw0rd"})
+
+    content = client.get("/account/").content.decode()
+    assert "هنوز سفارشی ندارید." in content
+    assert "هنوز سفارشی ثبت نشده است." not in content
+
+
 def test_wishlist_flow_in_views(client, store, published_product):
     client.post("/register/", {"email": "wishuser@example.com", "password": "Str0ng!Passw0rd"})
 

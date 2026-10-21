@@ -51,6 +51,39 @@ def test_placeholder_formatting(fa_language):
     assert "پیتزا" in lookup_translation("fa", key, site_name="پیتزا")
 
 
+def test_seed_dictionary_has_no_duplicate_keys():
+    # A repeated key literal silently overwrites the earlier value (the
+    # storefront/admin "No orders yet." collision). Guard the source of the
+    # word collection against reintroducing one.
+    import ast
+    from pathlib import Path
+
+    from apps.stores import seed_translations
+
+    source = Path(seed_translations.__file__).read_text(encoding="utf-8")
+    tree = ast.parse(source)
+    node = next(
+        statement.value
+        for statement in tree.body
+        if isinstance(statement, ast.AnnAssign) and statement.target.id == "PERSIAN_STRINGS"
+    )
+    keys = [key.value for key in node.keys]
+    duplicates = {key for key in keys if keys.count(key) > 1}
+    assert duplicates == set()
+
+
+def test_orders_empty_state_translations_are_separated(fa_language):
+    # The storefront order history and the admin dashboard/reports share the
+    # English source string but must keep their own wording.
+    assert PERSIAN_STRINGS["No orders yet."] == "هنوز سفارشی ندارید."
+    assert PERSIAN_STRINGS["admin.orders.no_orders"] == "هنوز سفارشی ثبت نشده است."
+
+    assert lookup_translation("fa", "No orders yet.") == "هنوز سفارشی ندارید."
+    assert lookup_translation("fa", "admin.orders.no_orders") == "هنوز سفارشی ثبت نشده است."
+    # English has no word collection: the source string stays untouched.
+    assert lookup_translation("en", "No orders yet.") == "No orders yet."
+
+
 def test_default_language_from_db(client, fa_language):
     """Setting fa as default makes the WHOLE storefront render Persian."""
     set_default_language(fa_language)

@@ -103,7 +103,6 @@ PERSIAN_STRINGS: dict[str, str] = {
     "All stock levels are healthy.": "موجودی همه اقلام سالم است.",
     "Orders by status": "سفارش‌ها بر اساس وضعیت",
     "Count": "تعداد",
-    "No orders yet.": "هنوز سفارشی ثبت نشده است.",
     "Total revenue": "درآمد کل",
     "Refunded": "بازگشت‌خورده",
     "Most used discounts": "بیشترین تخفیف‌های استفاده‌شده",
@@ -369,4 +368,9 @@ PERSIAN_STRINGS: dict[str, str] = {
     "admin.image.confirm_delete": "این تصویر حذف شود؟",
     "admin.image.deleted": "تصویر حذف شد.",
     "admin.image.main_updated": "تصویر اصلی به‌روزرسانی شد.",
+    # ----- Admin orders empty state (namespaced key) -----
+    # The storefront renders the plain "No orders yet." source string for the
+    # customer order history, so the admin keeps its own wording under a
+    # namespaced key instead of overwriting the storefront translation.
+    "admin.orders.no_orders": "هنوز سفارشی ثبت نشده است.",
 }
