@@ -18,6 +18,7 @@ The Persian values for those keys live in
 When no entry exists for the active language (e.g. English) the *original*
 label is kept, so the admin never shows a raw namespaced key.
 """
+from django.db import OperationalError, ProgrammingError
 from django.utils import translation
 
 from apps.stores.services import _catalog_for, lookup_translation
@@ -30,10 +31,20 @@ def field_key(model, field_name: str) -> str:
 
 
 def _lookup_optional(key: str) -> str | None:
-    """Return the translation for ``key`` or ``None`` when it is missing."""
-    value = _catalog_for(translation.get_language() or "en").get(
-        (key or "").strip().casefold(), ""
-    )
+    """Return the translation for ``key`` or ``None`` when it is missing.
+
+    The catalog lookup queries ``LocaleStringResource``. System checks and
+    admin autodiscovery run before migrations exist on a fresh database, so a
+    missing table (or otherwise unavailable catalog) must fall back to the
+    original label instead of breaking management commands such as
+    ``migrate`` and ``makemigrations``.
+    """
+    try:
+        value = _catalog_for(translation.get_language() or "en").get(
+            (key or "").strip().casefold(), ""
+        )
+    except (OperationalError, ProgrammingError):
+        return None
     value = value.strip()
     return value or None
 

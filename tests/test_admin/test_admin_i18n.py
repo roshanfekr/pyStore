@@ -1,3 +1,5 @@
+from unittest import mock
+
 import pytest
 from django.contrib.auth import get_user_model
 
@@ -146,3 +148,33 @@ def test_product_definition_falls_back_to_english_without_translation(
     content = client.get(f"/admin/catalog/product/{product.pk}/change/").content.decode()
     assert "admin.form.catalog.product." not in content
     assert "Name" in content
+
+
+def test_lookup_optional_tolerates_missing_catalog(db):
+    # On a fresh (unmigrated) database the ``LocaleStringResource`` table does
+    # not exist yet. The lookup must fall back to ``None`` (original label)
+    # instead of raising, so management commands can bootstrap the database.
+    from django.db import OperationalError
+
+    from apps.admin_panel import i18n as admin_i18n
+
+    with mock.patch.object(
+        admin_i18n, "_catalog_for", side_effect=OperationalError("no such table")
+    ):
+        assert admin_i18n._lookup_optional("admin.form.catalog.product.name") is None
+
+
+def test_admin_system_checks_survive_fresh_database(db):
+    # Django's admin system check instantiates every inline class
+    # (``inline(obj.model, obj.admin_site).check()``). With the catalog
+    # unavailable, instantiation must not raise — this is exactly the path
+    # that broke ``migrate`` / ``makemigrations`` on a fresh database.
+    from django.core.management import call_command
+    from django.db import OperationalError
+
+    from apps.admin_panel import i18n as admin_i18n
+
+    with mock.patch.object(
+        admin_i18n, "_catalog_for", side_effect=OperationalError("no such table")
+    ):
+        call_command("check")
