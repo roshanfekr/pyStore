@@ -1,17 +1,17 @@
 # Architecture Specification
 
 **Document:** `specs/ARCHITECTURE.md`\
-**Version:** 0.5\
-**Status:** Draft — proposed for user review. This document is **not approved**
-and must not be treated as an authorization to implement. Revision 0.5
-aligns the architectural concerns of §10.4 with the approved 2026-10-21
-release assignment of the four capability directions (scheduled tasks,
-events/consumers, and Google reCAPTCHA included in V1; SMS compatibility
-required in V1 with SMS delivery and phone-number verification deferred).
-Release-scope approval is not final approval of this architecture.\
+**Version:** 0.6\
+**Status:** Draft — prepared for final user review. This document is **not
+approved** and must not be treated as an authorization to implement.
+Revision 0.6 aligns §10.4 with the approved 2026-10-21 release assignment
+of the four capabilities, corrects verified As-Is evidence (shipping module
+facts, app count), and fixes internal cross-references. Release-scope
+approval of the baseline documents is not final approval of this
+architecture.\
 **Last updated:** 2026-10-21\
-**Basis:** `PROJECT_SCOPE.md` v0.9 and `REQUIREMENTS.md` v0.10 (both Draft),
-plus direct inspection of the current repository.
+**Basis:** `PROJECT_SCOPE.md` v0.9 and `REQUIREMENTS.md` v0.10 (approved by
+the user), plus direct inspection of the current repository.
 
 ## 1. Architecture Purpose and Status
 
@@ -71,10 +71,12 @@ and a 22-phase build plan); it is **not** an approved specification and
 - **Verified.** Django 5.2 modular monolith under `src/` with `config/`
   (`settings/base.py`, `development.py`, `production.py`, `test.py`,
   `urls.py`, `api_urls.py`, `wsgi.py`, `asgi.py`, `celery.py`), a `core/`
-  framework kernel, 17 business apps under `apps/` (identity, stores,
+  framework kernel, 18 business apps under `apps/` (identity, stores,
   vendors, catalog, inventory, pricing, cart, checkout, orders, payments,
-  shipping-API, notifications, reviews, cms, media, search, storefront,
-  admin_panel), plus `plugins/`, `themes/`, `frontend/` (As-Is).
+  shipping, notifications, reviews, cms, media, search, storefront,
+  admin_panel), plus `plugins/`, `themes/`, `frontend/` (As-Is). The
+  `shipping` app is an API-only module that is not registered in
+  `INSTALLED_APPS` (see §2.2).
 - **Verified.** `config/settings/base.py`: environment-driven via
   django-environ; installed apps split into `DJANGO_APPS`, `THIRD_PARTY_APPS`
   (`rest_framework.authtoken`), `BUSINESS_APPS`, `CORE_APPS`,
@@ -142,6 +144,11 @@ only what materially affects architecture):
   order/payment/shipment transitions; `services.py` and `events.py`.
 - **payments**: API layer only (`payments/api.py`); gateway logic lives in
   the plugin layer behind `core.payments.interface.PaymentGateway`.
+- **shipping**: API-only module (`shipping/api.py`: `ShippingMethodsView`,
+  `RatesView`, `TrackingView` with serializers); not registered in
+  `INSTALLED_APPS` — its views are imported directly by
+  `config/api_urls.py`. The `ShippingMethod` and `PaymentMethod` models
+  live in `apps/checkout/models.py`, not in the shipping app.
 - **notifications**: `NotificationTemplate`, `WebhookEndpoint`,
   `WebhookDeliveryLog`, `NotificationMessage`, `Notification`; provider
   registry integration.
@@ -261,8 +268,8 @@ only what materially affects architecture):
 
 ### 2.8 Current Architecture Diagram (As-Is, Verified Only)
 
-Everything in this diagram was verified in the working tree (§2.1–§2.7).
-Dashed links are partially verified or limited-usage paths (§2.8).
+Everything in this diagram was verified in the working tree (§2.1–§2.7);
+limited-usage and unverified paths are noted in §2.9.
 
 ```mermaid
 flowchart LR
@@ -301,7 +308,7 @@ flowchart LR
     FRAG --> TPL
 ```
 
-### 2.8 Unknowns Requiring Further Inspection
+### 2.9 Unknowns Requiring Further Inspection
 
 - Full content of `settings/production.py` and `development.py` variants.
 - Per-view permission coverage across all API modules (default `AllowAny`
@@ -661,7 +668,7 @@ their policy details are deferred with it (UD-022).
 
 ## 11. Architecture Decision Table
 
-Approved constraints (§2.1 of the baseline: Django/DRF, Vue/Vite, Bootstrap,
+Approved constraints (this document's §2.1: Django/DRF, Vue/Vite, Bootstrap,
 Django Admin for V1, SQL Server, Django ORM, portability, plugins/themes,
 i18n/RTL, variants, explicit currency prices, refund deferral,
 payment-currency rule, performance targets) are not re-decided. Statuses
@@ -707,7 +714,7 @@ Tracked against `REQUIREMENTS.md` §6 (authoritative identifiers):
 | — | Non-browser client authentication mechanism | Open consideration |
 | — | Redis/Celery operational validation (D7) | Before final approval |
 | — | Final serving/reverse-proxy arrangement (within D14) | Deployment design |
-| — | `apps.shipping` module split | Detailed design |
+| — | `apps.shipping` disposition: API-only unregistered module; `ShippingMethod`/`PaymentMethod` models live in `apps/checkout/models.py` (§2.2). Whether shipping becomes a registered bounded module or is consolidated under checkout | Detailed design |
 | — | Disposition of dormant refund/return models | Detailed design (UD-017 guardrail) |
 
 Risks: R1 in-process plugin privilege; R2 untrusted theme/hook fragments
@@ -721,8 +728,8 @@ SPA/API/Admin.
 
 ## 13. Requirements Traceability
 
-Component→requirement mapping (IDs from `REQUIREMENTS.md` v0.8; all exist
-there):
+Component→requirement mapping (IDs from `REQUIREMENTS.md` v0.10,
+approved; all exist there):
 
 | Architecture element | Requirements |
 | --- | --- |
@@ -751,7 +758,7 @@ time via the requirement groups above; no requirement IDs were invented.
 
 - [ ] Brownfield framing accepted: evolution of the existing system, no
       rewrite (M1–M3).
-- [ ] As-Is evidence summary (§2) reviewed; unknowns (§2.8) acceptable or
+- [ ] As-Is evidence summary (§2) reviewed; unknowns (§2.9) acceptable or
       assigned for inspection.
 - [ ] Gap analysis G1–G11 (§5) acknowledged as planned work.
 - [ ] Incremental strategy and stages S0–S5 (§6) accepted as direction
