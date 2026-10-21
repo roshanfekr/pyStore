@@ -68,7 +68,7 @@ def _translate_labels(form, language_code: str):
     """Translate form field labels through the language word collection."""
     from apps.stores.services import lookup_translation
 
-    for field_name, field in form.fields.items():
+    for _field_name, field in form.fields.items():
         field.label = lookup_translation(language_code, str(field.label))
 
 

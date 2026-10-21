@@ -1,8 +1,8 @@
 ﻿import logging
 
+from django import forms
 from django.conf import settings
 from django.contrib import admin, messages
-from django import forms
 from django.db import models
 from django.http import JsonResponse
 from django.template.response import TemplateResponse

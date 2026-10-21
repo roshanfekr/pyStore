@@ -8,4 +8,5 @@ else
     PY=.venv/bin/python
 fi
 
+"$PY" -m ruff check src tests
 "$PY" -m pytest "$@"

@@ -100,7 +100,6 @@ PERSIAN_STRINGS: dict[str, str] = {
     "Item": "قلم",
     "Stock": "موجودی",
     "Reserved": "رزرو شده",
-    "Status": "وضعیت",
     "All stock levels are healthy.": "موجودی همه اقلام سالم است.",
     "Orders by status": "سفارش‌ها بر اساس وضعیت",
     "Count": "تعداد",
@@ -162,7 +161,6 @@ PERSIAN_STRINGS: dict[str, str] = {
     "Flash sale {name} deleted.": "فروش ویژه {name} حذف شد.",
     "Restore selected (undo delete)": "بازیابی موارد انتخاب‌شده (لغو حذف)",
     # ----- Admin sidebar: apps and models -----
-    "Cart": "سبد خرید",
     "Carts": "سبدها",
     "Cart Items": "اقلام سبد خرید",
     "Wishlist Items": "اقلام علاقه‌مندی",
@@ -179,7 +177,6 @@ PERSIAN_STRINGS: dict[str, str] = {
     "Bundle Items": "اقلام پکیج",
     "Product Downloads": "فایل‌های دانلود محصول",
     "Product Relations": "روابط محصولات",
-    "Checkout": "تسویه حساب",
     "Payment Methods": "روش‌های پرداخت",
     "Payment Method": "روش پرداخت",
     "Shipping Methods": "روش‌های ارسال",
@@ -257,7 +254,6 @@ PERSIAN_STRINGS: dict[str, str] = {
     "Store Domains": "دامنه‌های فروشگاه",
     "Store Domain": "دامنه فروشگاه",
     "Languages": "زبان‌ها",
-    "Language": "زبان",
     "Translations": "ترجمه‌ها",
     "Translation": "ترجمه",
     "Vendors": "فروشندگان",
@@ -276,7 +272,6 @@ PERSIAN_STRINGS: dict[str, str] = {
     "Product variants": "گونه‌های محصول",
     "Add to compare": "افزودن به مقایسه",
     "Details": "جزئیات",
-    "Categories": "دسته‌بندی‌ها",
     # ----- Product detail page -----
     "Be the first to review this product": "اولین بررسی برای این محصول",
     "Availability": "دسترسی",
@@ -287,11 +282,9 @@ PERSIAN_STRINGS: dict[str, str] = {
     "Revenue today": "درآمد امروز",
     "Order status": "وضعیت سفارش",
     "Order number": "شماره سفارش",
-    "Customer": "مشتری",
     "Order date": "تاریخ سفارش",
     "Payment status": "وضعیت پرداخت",
     "Filter": "فیلتر",
-    "Search": "جستجو",
     # ----- Plugin admin -----
     "Products on sale get their price reduced automatically while the sale window is open and stock remains.":
         "قیمت محصولات حراج تا زمانی که بازه فروش باز و موجودی باقی است به‌صورت خودکار کاهش می‌یابد.",
