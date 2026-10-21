@@ -2,8 +2,12 @@
 
 **Document:** `specs/ARCHITECTURE.md`\
 **Version:** 0.9\
-**Status:** Draft — prepared for final user review. This document is **not
-approved** and must not be treated as an authorization to implement.
+**Status:** Approved (2026-10-22) — version 0.9 was approved by the user on
+2026-10-22 as the V1 architecture baseline, with no content changed after
+that approval. Approval of this document does **not** authorize
+implementation: detailed design and implementation work may begin only when
+the user authorizes the next phase (`specs/README.md` §7), and the phased plan
+is recorded in `IMPLEMENTATION_PLAN.md`.
 Revision 0.9 records the user decision of 2026-10-22 on D7: Redis and Celery
 are retained for V1, and operational validation is deferred to
 implementation/deployment validation and must be completed before production
@@ -971,6 +975,11 @@ Per-feature acceptance criteria (AC-*) verify behavior at implementation
 time via the requirement groups above; no requirement IDs were invented.
 
 ## 14. Architecture Review and Approval Checklist
+
+**Approval record:** version 0.9 was approved by the user on 2026-10-22. The
+items below are the review topics covered by that approval; items that name
+outstanding validation (for example the Redis/Celery operational validation)
+remain open and are tracked as phase gates in `IMPLEMENTATION_PLAN.md`.
 
 - [ ] Brownfield framing accepted: evolution of the existing system, no
       rewrite (M1–M3).

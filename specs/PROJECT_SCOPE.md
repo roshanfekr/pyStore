@@ -1,13 +1,15 @@
 # Project Scope --- Plugin-Based E-commerce Platform
 
 **Document:** `specs/PROJECT_SCOPE.md`\
-**Version:** 0.10 (draft recording the approved 2026-10-22 decisions on brand
+**Version:** 0.10 (recording the approved 2026-10-22 decisions on brand
 listing and brand detail pages, the customer-managed address book, the
 dedicated Contact Us page, and the Theme/Widget Zone implementation
 sequence, on top of the previously recorded decisions, including the
 2026-10-21 release assignment of the four capability directions and the
 proposed V1 performance baseline)\
-**Status:** Draft pending final review. The core scope remains approved; this
+**Status:** Approved (2026-10-22). Version 0.10 was approved by the user on
+2026-10-22 as the V1 scope baseline; no content was changed after that
+approval. The core scope remains approved; this
 revision records the user-approved decisions on the Vue/Vite theme system,
 SQL Server with Django ORM, Widget Zones, the initial Django Admin interface,
 multi-currency pricing, multilingual/RTL support, the deferral of refunds and
@@ -638,9 +640,9 @@ on 2026-10-21 (section 3) have received an approved release assignment:
 scheduled tasks, the event/consumer mechanism, and Google reCAPTCHA are
 included in V1, and SMS architectural compatibility is required in V1 while
 SMS delivery and phone-number verification are deferred to a later release.
-The revised scope and requirements remain in Draft pending final user
-review and approval.
-
-No architecture design, implementation task breakdown, or code
-generation should begin until the user explicitly approves the relevant
-scope and authorizes the next phase.
+The revised scope and requirements were approved by the user on 2026-10-22
+(`REQUIREMENTS.md` v0.12, `ARCHITECTURE.md` v0.9). Approval of the scope does
+not by itself authorize implementation: architecture design, implementation
+task breakdown, or code generation still begin only when the user
+authorizes the next phase. The phased plan derived from the approved scope,
+requirements, and architecture is recorded in `IMPLEMENTATION_PLAN.md`.

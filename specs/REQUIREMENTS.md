@@ -1,6 +1,6 @@
 # Requirements
 
-**Status:** Draft (revision reflecting the approved Vue theme, SQL Server,
+**Status:** Approved (2026-10-22; revision reflecting the approved Vue theme, SQL Server,
 Widget Zones, Django Admin, multi-currency, multilingual/RTL, refund-deferral,
 explicit-currency-pricing, and payment-currency decisions, adding the
 approved proposed V1 performance targets as NFR-PERF-001 – NFR-PERF-003 and
@@ -22,8 +22,8 @@ FR-THEME-LAYOUT-004, cross-references the Contact Us inquiry notification in
 FR-NOTIF-001, and records the residual Contact Us questions as an open
 decision (section 6.2, UD-023). Revision 0.12 additionally names the
 customer address book in the theme-supported route list
-(FR-THEME-LAYOUT-001);
-awaiting final review)
+(FR-THEME-LAYOUT-001). Version 0.12 was approved by the user on 2026-10-22
+as the V1 requirements baseline; no content was changed after that approval)
 
 **Version:** 0.12
 
@@ -1364,9 +1364,10 @@ verification (FR-EXT-001, AC-THEME-LAYOUT-009, AC-ZONE-003), and the Theme
 and Widget Zone implementation sequence (section 6.1 CF-010). The CAPTCHA
 form policy and the remaining Widget Zone and Theme design decisions stay
 open (UD-021, UD-003 – UD-007).
-The revised requirements remain
-in Draft pending final review and approval. This document does not approve
-architecture, detailed design, dependencies, database changes, migration
-work, test infrastructure, or implementation. No architecture/design or
-implementation work should begin until the user explicitly approves the
-revised scope and requirements and authorizes the next phase.
+Version 0.12 of these requirements was approved by the user on 2026-10-22
+together with `PROJECT_SCOPE.md` v0.10 and `ARCHITECTURE.md` v0.9. This
+document does not approve detailed design, dependencies, database changes,
+migration work, test infrastructure, or implementation. Detailed design and
+implementation work may begin only when the user authorizes the next phase;
+the phased plan derived from the approved documents is recorded in
+`IMPLEMENTATION_PLAN.md`.

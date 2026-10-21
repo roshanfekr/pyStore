@@ -259,9 +259,8 @@ Each specification document carries a `Version:` field and a `Last updated:` dat
 
 1. **Meaning-changing change → version increment.** Increment the version
    (minor increment) when a change alters what a document means: requirement or
-   acceptance-criteria text, a decision's status, scope, a traceability
-   mapping, or a document's status. Record the change in the document's
-   revision note.
+   acceptance-criteria text, a decision's status, scope, or a traceability
+   mapping. Record the change in the document's revision note.
 2. **Editorial or pointer-only correction → no version increment.** A change
    that only fixes formatting, wording, or a cross-document version pointer
    does not require a version increment, but it must still be applied so that
@@ -276,8 +275,16 @@ Each specification document carries a `Version:` field and a `Last updated:` dat
 5. **Never renumber.** Versions are never reused, renumbered, or reset, and
    requirement, acceptance-criteria, and decision identifiers are never
    renumbered or reassigned.
-6. **Status labels are unaffected.** A version increment does not change a
-   document's status label; only explicit user approval changes status.
+6. **Status labels are unaffected by versioning.** A version increment does not
+   change a document's status label; only explicit user approval changes
+   status.
+7. **Status or approval change → no version increment.** A status change and
+   its approval record are lifecycle updates, not content revisions: the
+   version continues to identify the approved content version, and the status
+   block records the approval date and approver. An approval must never
+   require edits to the approved content itself (for example, a document's own
+   cross-document version pointers), because that would invalidate the
+   approval it is meant to record.
 
 ## 7. Phase-Gate Workflow
 
@@ -412,22 +419,25 @@ Use explicit status labels where appropriate:
 
 Only mark a document `Approved` when the user has explicitly approved it.
 
-**Current status (2026-10-22):** The project is at the scope/requirements
-approval gate. `PROJECT_SCOPE.md` (v0.10) and `REQUIREMENTS.md` (v0.12) are
-in final review, pending explicit user approval; both remain `Draft` and
-record the user-approved decisions through 2026-10-22. `ARCHITECTURE.md`
-(v0.9) is also `Draft` — prepared for final user review and **not
-approved**; its D7 (cache/background-jobs) decision is resolved (Redis and
-Celery are retained for V1), with operational validation deferred to
+**Current status (2026-10-22):** The scope/requirements/architecture
+approval gate has been passed. `PROJECT_SCOPE.md` (v0.10), `REQUIREMENTS.md`
+(v0.12), and `ARCHITECTURE.md` (v0.9) were **Approved by the user on
+2026-10-22** and are the authoritative V1 baseline; no content was changed
+after that approval. Approval does not by itself authorize implementation:
+detailed design and implementation work begin only when the user authorizes
+the next phase, following the phased plan in `IMPLEMENTATION_PLAN.md`.
+`STORE_FRONT_ROUTE_COVERAGE.md` (v0.2) remains a **Draft** assessment record
+of the existing storefront route, theme, and Widget Zone coverage; it is not
+an approved specification and is not marked Approved. The architecture's D7
+(cache/background-jobs) decision is resolved (Redis and Celery are retained
+for V1), with operational validation deferred to
 implementation/deployment validation and required before production readiness
-is claimed, and the Transactional Outbox remains deferred.
-`STORE_FRONT_ROUTE_COVERAGE.md` (v0.2) is an assessment record of the
-existing storefront route, theme, and Widget Zone coverage; it is `Draft` and
-is not an approved specification. `IMPLEMENTATION_PLAN.md` has not been
-established yet, so the references to it in this document are prospective.
-Architecture approval must not be assumed from a draft's existence, and
-detailed design and implementation must not begin until the
-scope/requirements approval is given and the next phase is authorized.
+is claimed, and the Transactional Outbox remains deferred. Open decisions
+recorded in `REQUIREMENTS.md` §6.2 (UD-001 – UD-023) remain open and are
+gated in the implementation plan. Architecture approval must not be assumed
+from a draft's existence, and detailed design and implementation must not
+begin until the scope/requirements approval is given and the next phase is
+authorized.
 
 ---
 
