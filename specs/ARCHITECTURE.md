@@ -1,12 +1,16 @@
 # Architecture Specification
 
 **Document:** `specs/ARCHITECTURE.md`\
-**Version:** 0.6\
+**Version:** 0.7\
 **Status:** Draft — prepared for final user review. This document is **not
 approved** and must not be treated as an authorization to implement.
-Revision 0.6 aligns §10.4 with the approved 2026-10-21 release assignment
-of the four capabilities, corrects verified As-Is evidence (shipping module
-facts, app count), and fixes internal cross-references. Release-scope
+Revision 0.7 adds §10.5, the user-decided V1 Redis/Celery failure-handling
+and degradation policies (Option B), records the Transactional Outbox
+deferral to a future release, and updates §10.3, §10.4, §11 (D7), §12, §13,
+and §14 accordingly. D7 remains open pending operational validation.
+Revision 0.6 aligned §10.4 with the approved 2026-10-21 release assignment
+of the four capabilities, corrected verified As-Is evidence (shipping module
+facts, app count), and fixed internal cross-references. Release-scope
 approval of the baseline documents is not final approval of this
 architecture.\
 **Last updated:** 2026-10-21\
@@ -593,6 +597,11 @@ flowchart LR
   background-task mechanism (D7) — **subject to validation** of actual
   need, operational complexity, deployment requirements, failure handling,
   and resource cost before final architecture approval.
+- **Failure/degradation policy (user-decided, 2026-10-21):** the V1
+  failure-handling and degradation policies for Redis and Celery have been
+  decided and are documented in §10.5. The policies are documentation of
+  decided direction, not implemented behavior; operational validation of
+  Redis/Celery (D7) remains open.
 - **Consistency rule:** the architecture does not require business
   operations to run asynchronously; order placement and other critical
   operations keep their synchronous transactional behavior (NFR-REL-001).
@@ -640,7 +649,9 @@ documented event catalog or publication-boundary contract; failed handlers
 are logged but not retried; duplicate-delivery and transaction-consistency
 policies undocumented. *To-Be concern:* the existing dispatcher is the
 proposed foundation; the event catalog, publication boundaries, and
-per-event delivery classification must be defined (UD-020).
+per-event delivery classification must be defined (UD-020). The V1
+failure-handling, alerting, and consistency policy for asynchronous events
+is user-decided and documented in §10.5.
 
 **CAPTCHA integration (FR-CAPTCHA-001 – FR-CAPTCHA-006, UD-021) — Google
 reCAPTCHA included in V1.**
@@ -666,6 +677,80 @@ SMS delivery boundary is proposed to build on the existing
 phone-number verification workflow are deferred to a later release;
 their policy details are deferred with it (UD-022).
 
+### 10.5 V1 Redis/Celery Resilience Policy (Option B — User-Decided, 2026-10-21)
+
+**Status of this section:** the policies below were confirmed by the user
+on 2026-10-21 and are architectural policy for V1. They are **not
+implemented behavior**; nothing here authorizes or performs implementation,
+and D7 remains open pending operational validation (§10.3, §12, §14).
+"As-Is" records verified current behavior (paths under `src/`, §2.1);
+"V1 policy" records the decided target direction. Detailed design owns
+intervals, retry tuning, alert routing, and mechanisms (§10.5.4).
+
+#### 10.5.1 Per-Use Failure Policy Matrix
+
+| Concern | As-Is behavior (verified) | V1 policy (user-decided) |
+| --- | --- | --- |
+| Login / brute-force protection (`core/security/brute_force.py`, `apps/identity/services/authentication.py`) | Failed-login counters live in the Redis cache; counting errors are swallowed silently, while the lock check propagates cache errors — a Redis outage can fail login requests with a server error | If Redis is unavailable during login, login attempts continue; an operational alert is raised. Reduced brute-force protection must not be silently ignored |
+| DRF rate limiting (`config/settings/base.py` throttle defaults; `apps/identity/api.py` `auth` scope) | Throttle counters are stored in the default Redis cache; a cache failure propagates into API requests | API availability is preserved; an operational alert is raised because protection is reduced |
+| General caching (`core/cache/service.py`) | Cache errors propagate to callers | Requests degrade to the underlying data source; cache unavailability is alerted |
+| Asynchronous domain events (`core/events/dispatcher.py`, `core/events/tasks.py`) | `dispatch_async` calls `.delay()` without error handling; handler failures are logged but not retried | Enqueue failure must not invalidate an otherwise successful committed business transaction: failures are logged with context, alerted, and recovered per event type (10.5.2); no guaranteed delivery or automatic replay is promised |
+| Order events and order consistency (`apps/checkout/services.py`, `apps/orders/services.py`) | Order-created dispatch runs inside the checkout transaction (a broker failure can roll back the order); status-transition events are dispatched after non-atomic saves (a broker failure loses the event) | A committed order is never lost because event enqueueing fails; enqueue failures are logged with context and alerted (10.5.2) |
+| Search indexing (`apps/search/signals.py`, `apps/search/tasks.py`) | The post-save enqueue is unguarded; index tasks have no retries; `reindex_search_task` provides a full reindex | If search-index enqueueing fails, product creation/update still succeeds; recovery uses the existing reindex capability |
+| Notification delivery and recovery (`apps/notifications/services.py`, `apps/notifications/tasks.py`) | Messages are persisted as DB rows and enqueued at commit with bounded retries; the two recovery sweep tasks exist but have no registered schedule | Notification delivery stays DB-backed with bounded retries; the recovery/sweep tasks are scheduled for V1 (10.5.4) |
+| Webhook delivery (`apps/notifications/webhooks.py`) | Per-attempt durable delivery logs, bounded retries, signed payloads, SSRF validation; a failed retry enqueue drops the remaining retries for that delivery | Retained as-is; the retry-enqueue limitation is documented, not presented as fixed |
+| Worker / Beat health (`core/health/checks.py`) | The health endpoint checks application, database, and Redis only; no worker or Beat visibility exists | Worker and Celery Beat health must be observable and alertable; the monitoring mechanism is detailed design (10.5.4) |
+| Plugin-defined scheduled tasks (FR-PLUG-002, UD-019) | No plugin-facing task registry exists yet | Follows the plugin architecture decisions already in this document (§10.4); no new registry or implementation detail is introduced here |
+
+#### 10.5.2 Event Consistency Without Transactional Outbox (V1 Limitations)
+
+- **No rollback for enqueue failure.** Failure to enqueue an asynchronous
+  event must not roll back or invalidate an otherwise successful, committed
+  business transaction (consistent with the §10.3 consistency rule and
+  NFR-REL-001).
+- **Investigation and alerting.** Enqueue and handler failures must be
+  logged with enough context (event name, payload or correlation
+  identifiers, error detail) for investigation and must raise an
+  operational alert.
+- **Recovery is event-specific and best-effort.** Recovery uses mechanisms
+  that already exist or are scheduled by 10.5.4 — notification recovery
+  sweeps, the search reindex task, and manual reconciliation from order
+  status and audit records. Recovery must not be represented as guaranteed.
+- **No delivery guarantees.** V1 does not guarantee event delivery,
+  exactly-once handling, or automatic replay — consistent with FR-EVT-004
+  and the approved release assignment in `PROJECT_SCOPE.md` §3.
+- **Transactional Outbox is deferred to a future release** by user
+  decision. It is not a V1 requirement, must not be implemented as part of
+  V1, and no alternative mechanism (for example a durable event table,
+  journal, or relay process) may be introduced in V1 in a way that
+  silently recreates the deferred Outbox capability. This deferral is
+  recorded here only; the approved scope and requirements documents are
+  not modified by this revision.
+
+#### 10.5.3 Security Degradation Principle
+
+- **Security controls must not silently degrade.** When Redis-dependent
+  brute-force protection or rate limiting is unavailable, the selected V1
+  behavior preserves login/API availability and emits an operational
+  alert; the reduced protection must be made visible to operators.
+- **No unverified fallback may be claimed.** No proxy, WAF, local limiter,
+  or other fallback mechanism may be asserted unless verified as existing —
+  none exists in the repository today (§2.9, G11).
+- Implementation and alerting details belong to detailed design.
+
+#### 10.5.4 Scheduling and Monitoring (Policy Level)
+
+- The existing notification recovery/sweep tasks
+  (`apps/notifications/tasks.py`) are **scheduled for V1** by user
+  decision. Exact schedule intervals, overlap handling, idempotency,
+  retry tuning, queue topology, and alert-routing implementation belong to
+  detailed design.
+- Worker and Celery Beat health must be observable and alertable; the
+  monitoring mechanism belongs to detailed design.
+- Plugin-defined scheduled tasks follow the project's existing plugin
+  architecture decisions (§10.4, UD-019); this document adds no new
+  registry or implementation detail.
+
 ## 11. Architecture Decision Table
 
 Approved constraints (this document's §2.1: Django/DRF, Vue/Vite, Bootstrap,
@@ -682,7 +767,7 @@ below are **proposed / pending final architecture approval** unless noted.
 | D4 | Theme mechanism | Vue theme packages; deterministic resolution + default fallback | FR-THEME-LAYOUT-005; partial overrides supported | Django-template themes for SPA (rejected by scope); remote runtime themes (rejected: security/complexity) | Proposed; details UD-003/004/005 |
 | D5 | Plugin engine | Keep existing engine (verified §2.5); add Vue Widget Zone contracts | Tested; satisfies FR-PLUG-001 | External process isolation (not for V1; revisit UD-011) | Proposed |
 | D6 | Providers | Payment/shipping/notification implementations as plugins behind core interfaces | Existing; extensibility approved | Hardcoded integrations (rejected) | Proposed |
-| D7 | Cache & background jobs | Retain Redis (cache) + Celery (tasks) | Existing wiring; offload supports perf targets | DB-only cache / fully synchronous (insufficient for targets); other brokers (no need shown) | **Proposed — operational validation required** (§10.3) |
+| D7 | Cache & background jobs | Retain Redis (cache) + Celery (tasks) | Existing wiring; offload supports perf targets | DB-only cache / fully synchronous (insufficient for targets); other brokers (no need shown) | **Proposed — failure/degradation policies user-decided (§10.5); operational validation required** (§10.3) |
 | D8 | Browser authentication | Same-origin **session cookie + CSRF**; server-side enforcement; token in `localStorage` retired for browser flows after design | User-approved direction; aligns with Admin session model; removes `localStorage` XSS surface (G5) | DRF token `localStorage` (current As-Is — rejected as target); JWT-only; separate non-browser mechanism (open consideration) | **Proposed — pending final approval**; detailed design later |
 | D9 | API versioning | URL-path `v1` | Existing | Header/media-type versioning (no need) | Proposed |
 | D10 | Error handling | Central DRF exception handler + error envelope | Existing | Per-view ad hoc (rejected) | Proposed |
@@ -707,12 +792,12 @@ Tracked against `REQUIREMENTS.md` §6 (authoritative identifiers):
 | UD-015 | Per-currency price storage/resolution | Architecture/design |
 | UD-018 | Performance test environment/tooling/workload | Architecture & implementation planning |
 | UD-019 | Scheduled-task administration/overlap policy (release assignment resolved: V1) | Detailed design |
-| UD-020 | Event catalog, publication boundaries, delivery guarantees per event type (release assignment resolved: V1) | Detailed design |
+| UD-020 | Event catalog, publication boundaries, delivery guarantees per event type (release assignment resolved: V1; V1 failure-handling/alerting policy decided — §10.5) | Detailed design |
 | UD-021 | CAPTCHA form policy, reCAPTCHA type/version, failure policy (release assignment resolved: V1) | Detailed design |
 | UD-022 | SMS: release assignment resolved (V1 compatibility; delivery/verification deferred); future policy details open | When the deferred release is planned |
 | — | Cookie security/HTTPS/expiration/CSRF integration detail (follows D8) | Detailed design |
 | — | Non-browser client authentication mechanism | Open consideration |
-| — | Redis/Celery operational validation (D7) | Before final approval |
+| — | Redis/Celery operational validation (D7): failure/degradation policies are user-decided (§10.5); runtime validation evidence still outstanding | Before final approval |
 | — | Final serving/reverse-proxy arrangement (within D14) | Deployment design |
 | — | `apps.shipping` disposition: API-only unregistered module; `ShippingMethod`/`PaymentMethod` models live in `apps/checkout/models.py` (§2.2). Whether shipping becomes a registered bounded module or is consolidated under checkout | Detailed design |
 | — | Disposition of dormant refund/return models | Detailed design (UD-017 guardrail) |
@@ -746,7 +831,7 @@ approved; all exist there):
 | Identity & access (§9) | FR-CUST-001, NFR-SEC-001, FR-ADMIN-002 |
 | Persistence strategy (§2.1) | TR-DB-001–006 |
 | Performance (§10.1) | NFR-PERF-001–003, AC-PERF-001–003 |
-| Scheduled tasks / events / CAPTCHA / SMS concerns (§10.4) | FR-PLUG-002, FR-EVT-001–004, FR-CAPTCHA-001–006, FR-SMS-001–005 |
+| Scheduled tasks / events / CAPTCHA / SMS concerns (§10.4; resilience §10.5) | FR-PLUG-002, FR-EVT-001–004, FR-CAPTCHA-001–006, FR-SMS-001–005 |
 | Core kernel / boundaries (§4) | NFR-MAINT-001, NFR-EXT-001, NFR-TEST-001 |
 | Deferred items (§8) | FR-CUR-003, FR-CUR-008 (AC-CUR-003, AC-CUR-008) |
 | Accessibility (UI-level, later specs) | NFR-ACC-001 |
@@ -769,6 +854,11 @@ time via the requirement groups above; no requirement IDs were invented.
       detailed security design deferred.
 - [ ] Redis/Celery retention (D7) accepted subject to operational
       validation (§10.3).
+- [ ] Redis/Celery V1 failure-handling, degradation, and alerting policies
+      (§10.5, user-decided 2026-10-21) reviewed and accepted as documented
+      direction, including the Transactional Outbox deferral to a future
+      release and the V1 event-consistency limitations (10.5.2). This item
+      does not close D7: operational validation remains outstanding.
 - [ ] Theme/plugin direction (§7) accepted as basis for UD-002–007.
 - [ ] Currency/order-currency boundaries (§8) confirmed as architecture
       guards for FR-PAY-002 / FR-CUR-*.
