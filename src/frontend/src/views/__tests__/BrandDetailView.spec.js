@@ -28,7 +28,7 @@ function mountDetail() {
   return mount(BrandDetailView, {
     global: {
       stubs: {
-        RouterLink: { template: '<a><slot /></a>' },
+        RouterLink: { props: ['to'], template: '<a :href="to"><slot /></a>' },
       },
     },
   })
@@ -60,6 +60,17 @@ describe('BrandDetailView', () => {
     expect(document.title).toBe('Acme | Official Store')
     expect(document.querySelector('meta[name="description"]').getAttribute('content')).toBe(
       'Buy Acme products.',
+    )
+  })
+
+  it('links products to the product page', async () => {
+    api.mockResolvedValueOnce(BRAND)
+    api.mockResolvedValueOnce({
+      results: [{ id: 7, name: 'Acme Product', slug: 'acme-product', price: '10.0000' }],
+    })
+    const wrapper = mountDetail()
+    await vi.waitFor(() =>
+      expect(wrapper.find('a[href="/product/acme-product/"]').exists()).toBe(true),
     )
   })
 

@@ -3,6 +3,7 @@ import { onBeforeUnmount, onMounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
 
 import BrandLogo from '@/components/BrandLogo.vue'
+import ProductMedia from '@/components/ProductMedia.vue'
 import { api } from '@/api/client'
 import { applySeo, resetSeo } from '@/composables/seo'
 import { useStorefrontStore } from '@/stores/storefront'
@@ -70,11 +71,12 @@ onBeforeUnmount(() => resetSeo(store.branding.site_name))
     <div v-if="!products.length" class="empty-state">No products in this brand yet.</div>
     <div v-else class="product-grid">
       <article v-for="product in products" :key="product.id" class="product-card">
-        <div class="product-card-media">{{ product.name.slice(0, 1).toUpperCase() }}</div>
+        <div class="product-card-media">
+          <ProductMedia :name="product.name" />
+        </div>
         <div class="product-card-body">
           <div class="product-card-title">
-            <!-- The product page is still server-rendered by Django. -->
-            <a :href="`/product/${product.slug}/`">{{ product.name }}</a>
+            <RouterLink :to="`/product/${product.slug}/`">{{ product.name }}</RouterLink>
           </div>
           <div class="price">{{ product.price }}</div>
         </div>

@@ -24,7 +24,7 @@ from apps.cart.wishlist import (
     wishlist_for,
 )
 from apps.catalog.models import Brand, Category
-from apps.catalog.services import resolve_price
+from apps.catalog.services import product_option_groups, resolve_price
 from apps.checkout.models import PaymentMethod, ShippingMethod
 from apps.checkout.services import execute_checkout
 from apps.cms.models import BlogPost, Page
@@ -105,7 +105,7 @@ def brand_detail_view(request, slug):
     )
 
 
-def _money(amount, currency) -> str:
+def format_money(amount, currency) -> str:
     """Format ``amount`` with the active currency's decimals and symbol."""
     if amount is None:
         return ""
@@ -120,56 +120,6 @@ def _money(amount, currency) -> str:
     formatted = f"{value:,.{decimals}f}"
     symbol = getattr(currency, "symbol", "") or ""
     return f"{formatted} {symbol}".strip()
-
-
-def _product_options(product) -> list[dict]:
-    """Variant-option groups (color/size/select) with per-value availability.
-
-    ``ProductAttributeAssignment.value`` is JSON: a scalar for ``color`` /
-    ``size`` / ``select`` and a list for ``multi_select``. A value is marked
-    unavailable when every active variant carrying it is out of stock.
-    """
-    from apps.catalog.models import ProductVariantAttribute
-
-    availability: dict[tuple[str, object], bool] = {}
-    for variant_attribute in ProductVariantAttribute.objects.filter(
-        variant__product=product, variant__is_active=True
-    ).select_related("attribute", "value", "variant"):
-        key = (variant_attribute.attribute.slug, variant_attribute.value.value)
-        availability[key] = availability.get(key, False) or variant_attribute.variant.stock_quantity > 0
-
-    options: list[dict] = []
-    assignments = (
-        product.attribute_assignments.select_related("attribute")
-        .filter(attribute__value_type__in=["color", "size", "select"])
-        .order_by("attribute__name")
-    )
-    for assignment in assignments:
-        attribute = assignment.attribute
-        raw = assignment.value
-        values = raw if isinstance(raw, list) else [raw]
-        rendered = []
-        for value in values:
-            if value is None or value == "":
-                continue
-            rendered.append(
-                {
-                    "value": value,
-                    "label": value,
-                    "swatch": value if attribute.value_type == "color" else None,
-                    "available": availability.get((attribute.slug, value), True),
-                }
-            )
-        if rendered:
-            options.append(
-                {
-                    "name": attribute.name,
-                    "slug": attribute.slug,
-                    "type": attribute.value_type,
-                    "values": rendered,
-                }
-            )
-    return options
 
 
 def product_detail_view(request, slug):
@@ -194,14 +144,14 @@ def product_detail_view(request, slug):
             "product": product,
             "variants": variants,
             "price": price,
-            "price_display": _money(price, currency),
-            "compare_price_display": _money(product.compare_at_price, currency)
+            "price_display": format_money(price, currency),
+            "compare_price_display": format_money(product.compare_at_price, currency)
             if product.compare_at_price
             else "",
             "seo": seo,
             "categories": categories,
             "rating": product_rating(product),
-            "options": _product_options(product),
+            "options": product_option_groups(product),
             "in_stock": in_stock,
         },
     )
@@ -270,8 +220,8 @@ def cart_view(request):
                     "item_id": line.item_id,
                     "name": line.product_name,
                     "quantity": line.quantity,
-                    "unit_price": _money(line.unit_price, currency),
-                    "line_total": _money(line.line_total, currency),
+                    "unit_price": format_money(line.unit_price, currency),
+                    "line_total": format_money(line.line_total, currency),
                     "url": reverse("storefront:product", args=[product.slug])
                     if product is not None
                     else "",
@@ -286,9 +236,9 @@ def cart_view(request):
             )
 
     totals = {
-        "subtotal": _money(calculation.subtotal, currency) if calculation else "",
-        "discount": _money(calculation.discount_amount, currency) if calculation else "",
-        "total": _money(calculation.total, currency) if calculation else "",
+        "subtotal": format_money(calculation.subtotal, currency) if calculation else "",
+        "discount": format_money(calculation.discount_amount, currency) if calculation else "",
+        "total": format_money(calculation.total, currency) if calculation else "",
     }
 
     return render(

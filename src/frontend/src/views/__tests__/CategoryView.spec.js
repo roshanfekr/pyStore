@@ -28,7 +28,7 @@ function mountCategory() {
   return mount(CategoryView, {
     global: {
       stubs: {
-        RouterLink: { template: '<a><slot /></a>' },
+        RouterLink: { props: ['to'], template: '<a :href="to"><slot /></a>' },
       },
     },
   })
@@ -64,7 +64,7 @@ describe('CategoryView', () => {
     )
   })
 
-  it('links products to the server-rendered product page', async () => {
+  it('links products to the product page', async () => {
     api.mockResolvedValueOnce(CATEGORY)
     api.mockResolvedValueOnce({
       results: [{ id: 9, name: 'Hammer', slug: 'hammer', price: '15.0000' }],

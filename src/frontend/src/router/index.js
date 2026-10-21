@@ -16,6 +16,7 @@ const routes = [
   { path: '/brands/', name: 'brands', component: () => import('@/views/BrandListView.vue') },
   { path: '/brands/:slug/', name: 'brand', component: () => import('@/views/BrandDetailView.vue') },
   { path: '/category/:slug/', name: 'category', component: () => import('@/views/CategoryView.vue') },
+  { path: '/product/:slug/', name: 'product', component: () => import('@/views/ProductDetailView.vue') },
   { path: '/:pathMatch(.*)*', name: 'not-found', component: () => import('@/views/NotFoundView.vue') },
 ]
 

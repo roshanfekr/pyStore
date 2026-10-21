@@ -59,12 +59,15 @@ export async function api(path, { method = 'GET', body, headers = {} } = {}) {
 
   const data = await response.json().catch(() => null)
   if (!response.ok) {
+    const error = data?.error
     const message =
-      (data && (data.detail || data.message || data.error)) || `Request failed (${response.status})`
-    const error = new Error(message)
-    error.status = response.status
-    error.data = data
-    throw error
+      (data && (data.detail || data.message)) ||
+      (error && typeof error === 'object' ? error.message : error) ||
+      `Request failed (${response.status})`
+    const failure = new Error(message)
+    failure.status = response.status
+    failure.data = data
+    throw failure
   }
   return data
 }

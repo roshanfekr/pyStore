@@ -105,7 +105,7 @@ remaining work. All route patterns are quoted from
 | Route / URL pattern | Page / user journey | Implementation | Template / component | Theme integration | Widget Zone integration | Tests | Status / gaps | Traceability |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | `category/<slug:slug>/` (name `category` — migrated to the Vue storefront 2026-10-22) | Browse a category and its descendants | **Vue SPA route** (`CategoryView.vue`) with a Django server-rendered fallback (`category_view` via `spa_page(...)` in `src/apps/storefront/urls.py`); the SPA calls `/api/v1/categories/<slug>` and the product list with `?category=<slug>` | `src/frontend/src/views/CategoryView.vue`; fallback `storefront/category.html` extends `storefront/base.html` | **Partial** — the page uses the shared SPA shell, theme branding and theme CSS via the bootstrap, but no theme-specific page component exists yet (`UD-003` – `UD-005` open) | **Absent** — no zone is rendered on this route; the zone registry is `UD-006`/`UD-007`, so the Vue zone rendering obligation (`FR-EXT-001`, `AC-ZONE-003`) is **not** satisfied for this route | `src/frontend/src/views/__tests__/CategoryView.spec.js` (Vitest: loading, populated, unknown, inactive, error, empty, product links); `tests/test_storefront/test_storefront.py` (`test_category_page_with_descendants`, `test_inactive_category_page_is_not_found`, `test_category_page_is_served_by_the_spa_when_it_is_enabled`, `test_category_page_falls_back_to_server_rendering_when_the_spa_is_disabled`) | **Implemented** (2026-10-22). An inactive or unknown category renders the "not available" state and is not exposed, matching the server-rendered fallback. **No filtering, sorting, or paging controls** are offered on the page; the API supports `ordering` and `search` (`src/apps/catalog/api.py:92-94`). Navigation stays CMS-driven: a `MenuItem` whose `url` is `/category/<slug>/` (Django Admin → CMS → Menus) makes the page reachable from both the Django and the SPA header | FR-CAT-005, AC-CAT-005, FR-THEME-LAYOUT-001, AC-THEME-LAYOUT-012 |
-| `product/<slug:slug>/` (name `product`) | Product detail with variants, price, images, availability | Django view `product_detail_view` (`views.py:160-192`) | `storefront/product_detail.html` (+ `storefront/_product_media.html` partial) extends `storefront/base.html` | Existing — Django template override (`theme_pacific` ships `product_detail.html`) | Absent (no hook call in the template) | `tests/test_storefront/test_storefront.py` (`test_product_detail_page`, `test_product_detail_shows_all_images`, `test_product_detail_rich_layout`); `tests/test_storefront/test_theme_pacific.py` (`test_pacific_product_detail_renders_gallery`) | Variant selection is server-rendered (`option` pills + `variant-select` element, product_detail.html:105-135) with a server-side revalidation on add-to-cart; no Vue route exists | FR-CAT-002/003/004, FR-THEME-LAYOUT-001, AC-CAT-002/003/004, AC-THEME-LAYOUT-012 |
+| `product/<slug:slug>/` (name `product` — migrated to the Vue storefront 2026-10-22) | Product detail with variants, price, images, availability | **Vue SPA route** (`ProductDetailView.vue`) with a Django server-rendered fallback (`product_detail_view` via `spa_page(...)` in `src/apps/storefront/urls.py`); the SPA calls the storefront product-detail endpoint `/api/v1/storefront/products/<slug>` and adds the selection to the cart through `/api/v1/cart/items` | `src/frontend/src/views/ProductDetailView.vue`, `src/frontend/src/components/ProductMedia.vue`; fallback `storefront/product_detail.html` (+ `storefront/_product_media.html` partial) extends `storefront/base.html` | **Partial** — the page uses the shared SPA shell, theme branding and theme CSS via the bootstrap, but no theme-specific page component exists yet (`UD-003` – `UD-005` open) | **Absent** — no zone is rendered on this route; the zone registry is `UD-006`/`UD-007`, so the Vue zone rendering obligation (`FR-EXT-001`, `AC-ZONE-003`) is **not** satisfied for this route | `src/frontend/src/views/__tests__/ProductDetailView.spec.js` (Vitest: loading, information, images, image fallback, variant combinations, variant/option selection, price-SKU-availability update, refused combination, out of stock, add to cart, cart error, unavailable, API error); `tests/test_api/test_product_detail_api.py` (payload, images, variants, options, SEO, 404s, cart validation of an inactive variant); `tests/test_storefront/test_storefront.py` (`test_product_detail_page`, `test_product_detail_shows_all_images`, `test_product_detail_rich_layout`, `test_product_detail_page_is_served_by_the_spa_when_it_is_enabled`, `test_product_detail_page_falls_back_to_server_rendering_when_the_spa_is_disabled`) | **Implemented** (2026-10-22). The name, description, images (with an initial fallback), price, compare-at price, SKU, availability, brand/category links and the attribute options are rendered from the API payload; selecting a variant or an option combination updates the displayed price, SKU and availability, and a combination that no variant carries is refused in the page. The add-to-cart action uses the existing cart API, which revalidates the variant on the server; the cart API now also rejects an inactive variant. The catalog product endpoint (`/api/v1/products/<slug>`) exposes the product record only, so the page reads a dedicated storefront endpoint assembled from the same models and services the server-rendered page uses. **Limitation:** `ProductVariant` has no image field and products have a single price, so the gallery is not variant-specific and no explicit per-currency price can be shown (gap G-12) | FR-CAT-002/003/004, FR-THEME-LAYOUT-001, AC-CAT-002/003/004, AC-THEME-LAYOUT-012 |
 | `search/` (name `search`) | Full-text product search | Django view `search_view` (`views.py:195-205`); results via `apps.search.service.search_service` | `storefront/search.html` extends `storefront/base.html` | Existing — Django template override | Absent | `tests/test_storefront/test_storefront.py` (`test_search_view`); `tests/test_search/test_search.py` (service level) | No filters/sort in the search page; SPA-side search is a separate endpoint (`/api/v1/storefront/search`) not used by any Vue view | FR-CAT-005, AC-CAT-005, FR-THEME-LAYOUT-010 |
 | `brands/` (name `brands` — implemented 2026-10-22; the path is the one proposed in revision 0.1, final naming remains `UD-001`) | Brand listing: browse the active brands of the store | **Vue SPA route** (`BrandListView.vue`) with a Django server-rendered fallback (`brand_list_view`, `spa_page(...)` in `src/apps/storefront/urls.py`); the SPA calls `/api/v1/brands`, which returns active brands only | `src/frontend/src/views/BrandListView.vue`, `src/frontend/src/components/BrandLogo.vue`, `src/frontend/src/composables/seo.js`; fallback `storefront/brand_list.html` | **Partial** — the page uses the shared SPA shell, theme branding and theme CSS via the bootstrap, but no theme-specific page component exists yet (`UD-003` – `UD-005` open) | **Absent** — no zone is rendered on this route; the zone registry is `UD-006`/`UD-007`, so the Vue zone rendering obligation (`FR-EXT-001`, `AC-ZONE-003`) is **not** satisfied for this route | `tests/test_storefront/test_brand_pages.py` (fallback listing, empty state, SPA serving); `tests/test_api/test_brand_api.py` (public visibility); **no Vue component test** — the frontend has no test runner yet | **Implemented** (2026-10-22). The public listing exposes active brands only and an inactive brand is not reachable. Remaining: Widget Zone support, Vitest component tests, and a store-menu entry point for the page | FR-CAT-006, AC-CAT-006, FR-CAT-007, AC-CAT-007, FR-THEME-LAYOUT-001, AC-THEME-LAYOUT-012 |
 | `brands/<slug:slug>/` (name `brand` — implemented 2026-10-22) | Brand detail: the brand's published products with browsing, filtering, and sorting | **Vue SPA route** (`BrandDetailView.vue`) with a Django server-rendered fallback (`brand_detail_view`); the SPA calls `/api/v1/brands/<slug>` and the product list with `?brand=<slug>` | `src/frontend/src/views/BrandDetailView.vue`, `src/frontend/src/components/BrandLogo.vue`; fallback `storefront/brand_detail.html` | **Partial** — as above: shared shell and theme CSS, no theme-specific page component | **Absent** — no zone rendered; `FR-EXT-001`/`AC-ZONE-003` not satisfied for this route | `tests/test_storefront/test_brand_pages.py` (fallback detail, published products only, logo fallback, inactive/unknown 404, SPA serving); `tests/test_api/test_brand_api.py`; **no Vue component test** | **Implemented** (2026-10-22). The brand's name, optional logo (with a graceful initial fallback), description and SEO metadata are rendered, with the SEO title/description falling back to the brand name and description (`effective_meta_title` / `effective_meta_description`). An inactive or unknown brand renders the "not available" state and is never exposed. Remaining: Widget Zone support and Vitest component tests | FR-CAT-006, AC-CAT-006, FR-CAT-007, AC-CAT-007, FR-THEME-LAYOUT-010, AC-THEME-LAYOUT-012 |
@@ -169,15 +169,15 @@ remaining work. All route patterns are quoted from
 
 ### 4.9 Vue route inventory (current SPA)
 
-The SPA router (`src/frontend/src/router/index.js`) registers exactly twelve
+The SPA router (`src/frontend/src/router/index.js`) registers exactly thirteen
 routes: `cart`, `checkout`, `login`, `register`, `account`, `wishlist`,
 `compare`, `order` (`/orders/:number/`), `brands` (`/brands/`), `brand`
-(`/brands/:slug/`), `category` (`/category/:slug/`), and a `not-found`
-catch-all. The router file states that
+(`/brands/:slug/`), `category` (`/category/:slug/`), `product`
+(`/product/:slug/`), and a `not-found` catch-all. The router file states that
 content pages are migrated to the SPA one route at a time and that routes
 which have not been migrated yet "stay server-rendered by Django and are
-reached via normal full-page links." The brand routes and the category route
-are the **migrated content routes** (2026-10-22).
+reached via normal full-page links." The brand routes, the category route and
+the product route are the **migrated content routes** (2026-10-22).
 
 | Vue route | Component | Paired Django route / template | Theme integration | Widget Zone integration |
 | --- | --- | --- | --- | --- |
@@ -192,10 +192,11 @@ are the **migrated content routes** (2026-10-22).
 | `/brands/` | `BrandListView.vue` | `brands/` → `storefront/brand_list.html` | Partial (shared shell, theme branding/CSS; no theme page component) | Absent |
 | `/brands/:slug/` | `BrandDetailView.vue` | `brands/<slug:slug>/` → `storefront/brand_detail.html` | Partial | Absent |
 | `/category/:slug/` | `CategoryView.vue` | `category/<slug:slug>/` → `storefront/category.html` | Partial | Absent |
+| `/product/:slug/` | `ProductDetailView.vue` | `product/<slug:slug>/` → `storefront/product_detail.html` | Partial | Absent |
 | `/:pathMatch(.*)*` | `NotFoundView.vue` | No Django counterpart | Absent (SPA-only not-found view) | Absent |
 
-No Vue route exists for home, product, search, blog, or CMS pages. The
-category route is migrated (§4.2). The routes required in V1 but not yet
+No Vue route exists for home, search, blog, or CMS pages. The category route
+and the product route are migrated (§4.2). The routes required in V1 but not yet
 implemented — the customer address book and the dedicated Contact Us page
 (§4.5, §4.6) — are likewise absent from the Vue router; each becomes a Vue
 route when it is migrated. The brand listing and brand detail routes are now
@@ -310,6 +311,7 @@ Findings:
 | G-9 | The SPA build output is git-ignored and not reproducible from a clone | `.gitignore`; `vite.config.js` |
 | G-10 | The SPA hardcodes English UI strings; the DB word collection is not used in the Vue layer | `SiteHeader.vue:55-71`; `App.vue:21-23` |
 | G-11 | The hook API docstring claims SPA consumption that does not exist | `hooks.py:5-7` vs `src/frontend/src/**` |
+| G-12 | The product detail page cannot show a variant-specific image or an explicit per-currency price: `ProductVariant` has no image field and `Product` carries a single `price`, so `FR-CAT-002`'s per-combination image and `FR-CUR-002`/`FR-CUR-004`'s explicit per-currency prices are not implementable without a model change | `src/apps/catalog/models.py:150-166`; `src/apps/catalog/models.py:121-128` |
 
 **Not verified (could not be established from the repository)**
 
@@ -356,10 +358,22 @@ Findings:
    `NFR-TEST-001`, `AC-ZONE-003`) and the harness now exists: `src/frontend`
    has `vitest`, `@vue/test-utils` and `jsdom` as dev dependencies, a
    `test` script (`vitest run`) and a `test` block in `vite.config.js`
-   (`environment: 'jsdom'`). Component specs exist for the brand and
-   category views (`src/frontend/src/views/__tests__/`). The zone assertions
+   (`environment: 'jsdom'`). Component specs exist for the brand, category and
+   product views (`src/frontend/src/views/__tests__/`). The zone assertions
    required by `AC-ZONE-003` are still outstanding, because no zone
    infrastructure exists yet.
+5. **Product detail increment (2026-10-22):** `src/frontend/src/views/__tests__/ProductDetailView.spec.js`
+   (13 Vitest tests) covers the product loading state, the product information
+   and its SEO metadata, the images, the image fallback, the variant
+   combinations, the variant and option selection, the price/SKU/availability
+   update, a refused combination, an out-of-stock product, the add-to-cart
+   call, the error the cart API returns, the unavailable state and the API
+   error state. `tests/test_api/test_product_detail_api.py` (10 tests) covers
+   the product-detail payload, the images, the variants and their attributes,
+   the option groups, the SEO metadata, the 404 responses and the cart
+   validation of an inactive variant. `tests/test_storefront/test_storefront.py`
+   additionally covers the SPA serving of the product route and the
+   server-rendered fallback.
 
 ## 9. Traceability
 
@@ -402,10 +416,17 @@ explicitly scope it out) is a scope decision for the user.
 - The Vue route inventory was read from `src/frontend/src/router/index.js`;
   the absence of hook/widget rendering in the SPA was verified by searching
   all `.vue` and `.js` files under `src/frontend/src`.
-- **No test suite was executed for this document**, because it changes no
-  application code; the test references above are file and test-name
-  citations taken from the repository, not execution results. No migration
-  was run and no database was modified.
+- The original survey behind this document ran **no test suite**, because it
+  changed no application code; the test references above are file and
+  test-name citations taken from the repository, not execution results. The
+  later migration increments (2026-10-22) changed application code and are
+  validated with the commands recorded below.
+- **Product detail increment (2026-10-22):** `npm test` (Vitest — 34 tests),
+  `npm run build`, `pytest` (848 tests), `ruff check src tests`,
+  `manage.py check` and `manage.py makemigrations --check --dry-run` were
+  executed successfully in the repository checkout; no migration was created
+  and no database was modified. SQL Server, Redis and Celery were not
+  exercised.
 
 ## 11. Resolved Decisions and Remaining Questions
 
@@ -430,6 +451,19 @@ explicitly scope it out) is a scope decision for the user.
 5. **Vue test framework** — Vitest is the approved framework for Vue
    component and Widget Zone tests (`NFR-TEST-001`, `AC-ZONE-003`); the
    frontend project currently has no test runner (§8).
+
+**Implementation decisions of the product detail increment (2026-10-22):**
+
+1. **Product detail payload** — the catalog product endpoint
+   (`/api/v1/products/<slug>`) exposes the product record only, so the product
+   page reads the new storefront endpoint `/api/v1/storefront/products/<slug>`.
+   It assembles the images, the variant combinations, the option groups, the
+   price (resolved through the pricing registry) and the availability (the
+   quantity the cart enforces) from the existing models and services, so no
+   pricing or inventory rule is duplicated.
+2. **Variant validation on add-to-cart** — the cart API now rejects an
+   inactive variant (`cart.variant_inactive`), which the server-rendered path
+   already did by only accepting active variants.
 
 **Remaining questions:**
 

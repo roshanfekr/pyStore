@@ -48,7 +48,7 @@ urlpatterns = [
     # Content pages: server-rendered (SEO, themes, plugins).
     path("", views.home_view, name="home"),
     path("category/<slug:slug>/", spa_page(views.category_view), name="category"),
-    path("product/<slug:slug>/", views.product_detail_view, name="product"),
+    path("product/<slug:slug>/", spa_page(views.product_detail_view), name="product"),
     path("search/", views.search_view, name="search"),
     path("search/autocomplete/", views.autocomplete_view, name="autocomplete"),
     path("search/suggest/", views.suggest_view, name="suggest"),

@@ -159,6 +159,29 @@ def test_product_detail_page(client, store, published_product):
     assert client.get("/product/does-not-exist/", {}).status_code == 404
 
 
+def test_product_detail_page_is_served_by_the_spa_when_it_is_enabled(tmp_path):
+    from django.test import Client, override_settings
+
+    (tmp_path / "index.html").write_text("<div id='app'>SPA SHELL</div>", encoding="utf-8")
+    with override_settings(STOREFRONT_SPA_ENABLED=True, STOREFRONT_SPA_DIR=str(tmp_path)):
+        response = Client().get("/product/storefront-product/")
+    assert response.status_code == 200
+    assert "SPA SHELL" in response.content.decode()
+
+
+def test_product_detail_page_falls_back_to_server_rendering_when_the_spa_is_disabled(
+    client, store, published_product
+):
+    from django.test import override_settings
+
+    with override_settings(STOREFRONT_SPA_ENABLED=False):
+        response = client.get(f"/product/{published_product.slug}/")
+    assert response.status_code == 200
+    content = response.content.decode()
+    assert "Storefront Product" in content
+    assert "Add to cart" in content
+
+
 def test_product_detail_shows_all_images(client, store, published_product):
     from apps.catalog.models import ProductImage
 

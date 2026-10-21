@@ -397,6 +397,34 @@ rendering and its Vitest verification (`FR-EXT-001`, `AC-ZONE-003`), a
 theme-specific page component (`UD-003` – `UD-005`), and product, search,
 blog and CMS migration.
 
+**Progress (2026-10-22, third increment).** The **product detail route is
+migrated** to the Vue storefront (`ProductDetailView.vue`, router entry
+`/product/:slug/`), served through the existing `spa_page(...)` mechanism with
+the server-rendered `storefront/product_detail.html` retained as the
+fallback. The page renders the product name, description, images (with an
+initial fallback when a product has none), price, compare-at price, SKU,
+availability, brand/category links and the attribute options, and it adds the
+selected product or variant to the cart through the existing cart API
+(`FR-CAT-002`, `FR-CAT-003`, `FR-CAT-004`). Selecting a variant or an option
+combination updates the displayed price, SKU and availability, and a
+combination that no variant carries is refused in the page; the cart API
+revalidates the selection and now also rejects an inactive variant. The
+catalog product endpoint exposes the product record only, so the page reads
+the new storefront endpoint `/api/v1/storefront/products/<slug>`, which
+assembles the images, variants, option groups, price and availability from the
+existing models and services. The reusable `ProductMedia.vue` component backs
+the product gallery and the product cards of the brand and category pages,
+whose product links now stay inside the SPA. Covered by a new Vitest spec
+(`ProductDetailView.spec.js`, 13 tests) and by
+`tests/test_api/test_product_detail_api.py` (10 tests). Not implementable
+without a model change, and reported as such: a variant-specific image
+(`ProductVariant` has no image field) and an explicit per-currency price
+(`Product` has a single `price`; see `STORE_FRONT_ROUTE_COVERAGE.md` gap
+G-12). Remaining for this route: Widget Zone rendering and its Vitest
+verification (`FR-EXT-001`, `AC-ZONE-003`) and a theme-specific page component
+(`UD-003` – `UD-005`); home, search, blog and CMS migration is still
+outstanding.
+
 ### P5 — New V1 capabilities: brand pages, address book, Contact Us
 
 **Goal.** Deliver the three capabilities approved on 2026-10-22, built as
@@ -680,7 +708,7 @@ requirement remain visible until then.
 | P1 Binding decisions | Not started | — |
 | P2 Per-currency prices | Not started | — |
 | P3 Browser auth transition | Not started | — |
-| P4 Vue content-route migration | Migrated content routes: brand listing, brand detail and category (2026-10-22, see P4 progress); home, product, search, blog and CMS not started | — |
+| P4 Vue content-route migration | Migrated content routes: brand listing, brand detail, category and product detail (2026-10-22, see P4 progress); home, search, blog and CMS not started | — |
 | P5 New V1 capabilities | Address book implemented and tested through the API-first backend (2026-10-22, see P5 progress); brand data and public visibility implemented and tested (2026-10-22, see P5 progress); brand pages and Contact Us page not started | — |
 | P6 Theme and Widget Zone completion | Not started | — |
 | P7 Capability directions | Not started | — |

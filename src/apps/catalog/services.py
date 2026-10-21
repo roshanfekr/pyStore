@@ -301,3 +301,69 @@ def get_product_attributes(product: Product) -> dict:
         a.attribute.slug: a.value
         for a in product.attribute_assignments.select_related("attribute")
     }
+
+
+def product_option_groups(product: Product) -> list[dict]:
+    """Variant-option groups (color/size/select) with per-value availability.
+
+    ``ProductAttributeAssignment.value`` is JSON: a scalar for ``color`` /
+    ``size`` / ``select`` and a list for ``multi_select``. A value is marked
+    unavailable when every active variant carrying it is out of stock. The
+    values carried by the active variants are part of the group as well, so
+    every existing combination can be picked.
+    """
+    from apps.catalog.models import ProductVariantAttribute
+
+    availability: dict[tuple[str, object], bool] = {}
+    variant_values: dict[str, list] = {}
+    active_variants: set[int] = set()
+    for variant_attribute in ProductVariantAttribute.objects.filter(
+        variant__product=product, variant__is_active=True
+    ).select_related("attribute", "value", "variant"):
+        key = (variant_attribute.attribute.slug, variant_attribute.value.value)
+        availability[key] = (
+            availability.get(key, False) or variant_attribute.variant.stock_quantity > 0
+        )
+        active_variants.add(variant_attribute.variant_id)
+        values = variant_values.setdefault(variant_attribute.attribute.slug, [])
+        if variant_attribute.value.value not in values:
+            values.append(variant_attribute.value.value)
+
+    # A product with variants can only be bought in the combinations its
+    # variants carry, so a value without a variant is not selectable.
+    default_available = not active_variants
+
+    options: list[dict] = []
+    assignments = (
+        product.attribute_assignments.select_related("attribute")
+        .filter(attribute__value_type__in=["color", "size", "select"])
+        .order_by("attribute__name")
+    )
+    for assignment in assignments:
+        attribute = assignment.attribute
+        raw = assignment.value
+        values = raw if isinstance(raw, list) else [raw]
+        rendered = []
+        for value in [*values, *variant_values.get(attribute.slug, [])]:
+            if value is None or value == "":
+                continue
+            if any(item["value"] == value for item in rendered):
+                continue
+            rendered.append(
+                {
+                    "value": value,
+                    "label": value,
+                    "swatch": value if attribute.value_type == "color" else None,
+                    "available": availability.get((attribute.slug, value), default_available),
+                }
+            )
+        if rendered:
+            options.append(
+                {
+                    "name": attribute.name,
+                    "slug": attribute.slug,
+                    "type": attribute.value_type,
+                    "values": rendered,
+                }
+            )
+    return options

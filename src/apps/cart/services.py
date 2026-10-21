@@ -64,6 +64,8 @@ def _validate_add(cart: Cart, product: Product, variant, quantity: int) -> None:
         raise ValidationError("This product has no variants", code="cart.variant_not_allowed")
     if variant is not None and variant.product_id != product.id:
         raise ValidationError("Variant does not belong to this product", code="cart.variant_mismatch")
+    if variant is not None and not variant.is_active:
+        raise ValidationError("This variant is not available", code="cart.variant_inactive")
 
     try:
         resolve_product_price(product, variant, store=cart.store, quantity=quantity)

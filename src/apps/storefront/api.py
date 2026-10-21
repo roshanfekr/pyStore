@@ -15,12 +15,14 @@ from rest_framework.views import APIView
 
 from apps.cart.compare import add_to_compare, compare_list, remove_from_compare
 from apps.cart.models import CompareItem, WishlistItem
+from apps.cart.services import available_quantity_for
 from apps.cart.wishlist import add_to_wishlist, move_to_cart, remove_from_wishlist, wishlist_for
-from apps.catalog.models import Product
+from apps.catalog.models import Product, ProductImage, ProductVariant
+from apps.catalog.services import product_option_groups, resolve_price
 from apps.cms.models import BlogPost, Menu, Page, Widget
 from apps.storefront.hooks import render_plugin_hook
 from apps.storefront.themes import get_active_theme_name, get_theme_config, get_theme_static_dir
-from apps.storefront.views import _current_store
+from apps.storefront.views import _current_store, format_money
 from apps.stores.services import (
     get_active_currencies,
     get_active_currency_code,
@@ -151,6 +153,248 @@ class StorefrontProductSerializer(serializers.ModelSerializer):
             "id", "name", "slug", "description", "product_type",
             "category", "brand", "price", "compare_at_price", "stock_quantity",
         ]
+
+
+def _resolved_price(product: Product, variant: ProductVariant | None = None):
+    """Price resolved through the pricing registry (plugin modifiers included).
+
+    ``None`` is returned when no price is configured, so the storefront can
+    state that the price is unavailable instead of inventing one.
+    """
+    try:
+        return resolve_price(product, variant)
+    except ValueError:
+        return None
+
+
+def _available_quantity(product: Product, variant: ProductVariant | None = None):
+    """Available quantity for a product or variant.
+
+    ``None`` means the item is not stock-controlled (digital products).
+    """
+    return available_quantity_for(product, variant)
+
+
+def _is_in_stock(available) -> bool:
+    return True if available is None else available > 0
+
+
+class StorefrontProductImageSerializer(serializers.ModelSerializer):
+    url = serializers.SerializerMethodField()
+    alt = serializers.SerializerMethodField()
+
+    class Meta:
+        model = ProductImage
+        fields = ["id", "url", "alt", "position", "is_main"]
+
+    def get_url(self, obj):
+        try:
+            return obj.image.url
+        except ValueError:
+            return ""
+
+    def get_alt(self, obj):
+        return obj.alt_text or ""
+
+
+class StorefrontProductVariantSerializer(serializers.ModelSerializer):
+    price = serializers.SerializerMethodField()
+    price_value = serializers.SerializerMethodField()
+    compare_at_price = serializers.SerializerMethodField()
+    in_stock = serializers.SerializerMethodField()
+    available_quantity = serializers.SerializerMethodField()
+    attributes = serializers.SerializerMethodField()
+
+    class Meta:
+        model = ProductVariant
+        fields = [
+            "id", "sku", "price", "price_value", "compare_at_price",
+            "in_stock", "available_quantity", "attributes", "is_default",
+        ]
+
+    def _product(self):
+        return self.context["product"]
+
+    def _currency(self):
+        return self.context.get("currency")
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._price_cache = {}
+        self._available_cache = {}
+
+    def _price(self, obj):
+        if obj.pk not in self._price_cache:
+            self._price_cache[obj.pk] = _resolved_price(self._product(), obj)
+        return self._price_cache[obj.pk]
+
+    def _available(self, obj):
+        if obj.pk not in self._available_cache:
+            self._available_cache[obj.pk] = _available_quantity(self._product(), obj)
+        return self._available_cache[obj.pk]
+
+    def get_price(self, obj):
+        return format_money(self._price(obj), self._currency())
+
+    def get_price_value(self, obj):
+        price = self._price(obj)
+        return str(price) if price is not None else ""
+
+    def get_compare_at_price(self, obj):
+        return format_money(obj.compare_at_price, self._currency())
+
+    def get_in_stock(self, obj):
+        return _is_in_stock(self._available(obj))
+
+    def get_available_quantity(self, obj):
+        return self._available(obj)
+
+    def get_attributes(self, obj):
+        return {
+            link.attribute.slug: link.value.value
+            for link in obj.attributes.all()
+        }
+
+
+class StorefrontProductDetailSerializer(serializers.ModelSerializer):
+    """Product detail payload for the storefront product page.
+
+    The catalog product endpoint exposes the product record only. The product
+    page also needs the images, the variant combinations and the availability
+    the cart enforces, so they are assembled here from the same models and
+    services the server-rendered product page uses.
+    """
+
+    category = serializers.SerializerMethodField()
+    brand = serializers.SerializerMethodField()
+    images = serializers.SerializerMethodField()
+    options = serializers.SerializerMethodField()
+    variants = serializers.SerializerMethodField()
+    selected_variant = serializers.SerializerMethodField()
+    price = serializers.SerializerMethodField()
+    price_value = serializers.SerializerMethodField()
+    compare_at_price = serializers.SerializerMethodField()
+    in_stock = serializers.SerializerMethodField()
+    available_quantity = serializers.SerializerMethodField()
+    currency = serializers.SerializerMethodField()
+    meta_title = serializers.SerializerMethodField()
+    meta_description = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Product
+        fields = [
+            "id", "name", "slug", "description", "product_type", "sku",
+            "category", "brand", "images", "options", "variants",
+            "selected_variant", "price", "price_value", "compare_at_price",
+            "in_stock", "available_quantity", "currency", "meta_title",
+            "meta_description",
+        ]
+
+    def _currency(self):
+        return self.context.get("currency")
+
+    def _active_variants(self):
+        return [variant for variant in self.instance.variants.all() if variant.is_active]
+
+    def _selected_variant(self):
+        variants = self._active_variants()
+        return variants[0] if variants else None
+
+    def get_category(self, obj):
+        if obj.category_id is None:
+            return None
+        return {"slug": obj.category.slug, "name": obj.category.name}
+
+    def get_brand(self, obj):
+        if obj.brand_id is None:
+            return None
+        return {"slug": obj.brand.slug, "name": obj.brand.name}
+
+    def get_images(self, obj):
+        return StorefrontProductImageSerializer(obj.images.all(), many=True).data
+
+    def get_options(self, obj):
+        return product_option_groups(obj)
+
+    def get_variants(self, obj):
+        variants = self._active_variants()
+        return StorefrontProductVariantSerializer(
+            variants, many=True, context=self.context
+        ).data
+
+    def get_selected_variant(self, obj):
+        variant = self._selected_variant()
+        return variant.sku if variant is not None else ""
+
+    def get_price(self, obj):
+        variant = self._selected_variant()
+        return format_money(_resolved_price(obj, variant), self._currency())
+
+    def get_price_value(self, obj):
+        variant = self._selected_variant()
+        price = _resolved_price(obj, variant)
+        return str(price) if price is not None else ""
+
+    def get_compare_at_price(self, obj):
+        variant = self._selected_variant()
+        compare_at = obj.compare_at_price
+        if variant is not None and variant.compare_at_price:
+            compare_at = variant.compare_at_price
+        return format_money(compare_at, self._currency()) if compare_at else ""
+
+    def get_in_stock(self, obj):
+        available = _available_quantity(obj)
+        if _is_in_stock(available):
+            return True
+        return any(
+            _is_in_stock(_available_quantity(obj, variant))
+            for variant in self._active_variants()
+        )
+
+    def get_available_quantity(self, obj):
+        return _available_quantity(obj)
+
+    def get_currency(self, obj):
+        currency = self._currency()
+        return {
+            "code": currency.code if currency is not None else "",
+            "symbol": currency.symbol if currency is not None else "",
+            "decimal_places": currency.decimal_places if currency is not None else 0,
+        }
+
+    def get_meta_title(self, obj):
+        seo = getattr(obj, "seo", None)
+        return (seo.meta_title if seo is not None else "") or obj.name
+
+    def get_meta_description(self, obj):
+        seo = getattr(obj, "seo", None)
+        description = (seo.meta_description if seo is not None else "") or obj.description or ""
+        if len(description) > 300:
+            return description[:297] + "..."
+        return description
+
+
+class ProductDetailView(APIView):
+    """Product detail for the storefront product page."""
+
+    permission_classes = [AllowAny]
+
+    def get(self, request, slug, *args, **kwargs):
+        product = (
+            Product.objects.filter(slug=slug, is_published=True)
+            .select_related("brand", "category", "seo")
+            .prefetch_related("images", "variants__attributes__value", "variants__attributes__attribute")
+            .first()
+        )
+        if product is None:
+            raise NotFoundError("Product not found", code="catalog.product_not_found")
+        currency = get_currency(
+            get_active_currency_code(request.COOKIES.get(settings.CURRENCY_COOKIE_NAME))
+        )
+        serializer = StorefrontProductDetailSerializer(
+            product, context={"currency": currency, "product": product}
+        )
+        return Response(serializer.data)
 
 
 class PageSerializer(serializers.ModelSerializer):
