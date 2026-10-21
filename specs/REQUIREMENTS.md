@@ -20,10 +20,12 @@ Widget Zone implementation sequence recorded in section 6.1 (CF-010). The
 same revision clarifies the theme page-component coverage in
 FR-THEME-LAYOUT-004, cross-references the Contact Us inquiry notification in
 FR-NOTIF-001, and records the residual Contact Us questions as an open
-decision (section 6.2, UD-023);
+decision (section 6.2, UD-023). Revision 0.12 additionally names the
+customer address book in the theme-supported route list
+(FR-THEME-LAYOUT-001);
 awaiting final review)
 
-**Version:** 0.11
+**Version:** 0.12
 
 **Last updated:** 2026-10-22
 
@@ -300,12 +302,13 @@ introduced by these requirements.
   theme's root layout, page components, shared components, and static assets.
   Supported routes include, at minimum: home; product listing, category, and
   brand pages; product details; search results; cart; checkout and order
-  confirmation; registration, login, and customer account pages; wishlist;
-  compare; order history and order details; contact and informational/CMS
-  pages; blog or news pages where provided; and other storefront routes
-  supplied by core modules or installed plugins. Individual routes must not
-  require separate theme selection. A supported route must not silently
-  bypass the active theme; any route outside theme coverage must be explicitly
+  confirmation; registration, login, customer account, and customer address
+  book pages; wishlist; compare; order history and order details; contact and
+  informational/CMS pages; blog or news pages where provided; and other
+  storefront routes supplied by core modules or installed plugins. Individual
+  routes must not require separate theme selection. A supported route must not
+  silently bypass the active theme; any route outside theme coverage must be
+  explicitly
   documented.
 
 - **FR-THEME-LAYOUT-002: Root Layout Component.** The system must support a

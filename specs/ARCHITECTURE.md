@@ -1,10 +1,17 @@
 # Architecture Specification
 
 **Document:** `specs/ARCHITECTURE.md`\
-**Version:** 0.8\
+**Version:** 0.9\
 **Status:** Draft — prepared for final user review. This document is **not
 approved** and must not be treated as an authorization to implement.
-Revision 0.8 records the approved 2026-10-22 decisions: the customer-owned
+Revision 0.9 records the user decision of 2026-10-22 on D7: Redis and Celery
+are retained for V1, and operational validation is deferred to
+implementation/deployment validation and must be completed before production
+readiness is claimed. It also completes the section 13 traceability mapping
+for FR-REP-001, FR-REV-001, TR-STACK-001, and TR-STACK-005 and registers
+UD-023 in the section 12 open-decision table. No validation has been
+performed, and no implementation is authorized. Revision 0.8 records the
+approved 2026-10-22 decisions: the customer-owned
 reusable address entity as distinct from the order address snapshot, public
 brand API filtering of inactive brands, contact-inquiry storage and
 notification using the existing notification capabilities, the Vue Widget
@@ -15,14 +22,15 @@ Revision 0.7 adds §10.5, the V1 Redis/Celery resilience policy (Option B:
 explicit user-decided failure handling plus accompanying architectural
 recommendations), records the Transactional Outbox
 deferral to a future release, and updates §10.3, §10.4, §11 (D7), §12, §13,
-and §14 accordingly. D7 remains open pending operational validation.
+and §14 accordingly. D7 remained open pending operational validation at that
+revision; its later disposition is recorded in revision 0.9.
 Revision 0.6 aligned §10.4 with the approved 2026-10-21 release assignment
 of the four capabilities, corrected verified As-Is evidence (shipping module
 facts, app count), and fixed internal cross-references. Release-scope
 approval of the baseline documents is not final approval of this
 architecture.\
 **Last updated:** 2026-10-22\
-**Basis:** `PROJECT_SCOPE.md` v0.10 and `REQUIREMENTS.md` v0.11 (approved by
+**Basis:** `PROJECT_SCOPE.md` v0.10 and `REQUIREMENTS.md` v0.12 (approved by
 the user), plus direct inspection of the current repository.
 
 ## 1. Architecture Purpose and Status
@@ -501,7 +509,9 @@ flowchart LR
 - **S4:** move browser flows to session cookie + CSRF after detailed design;
   retire the `localStorage` token for browser use.
 - **S5:** validate SQL Server support/portability (UD-013/014), Redis/Celery
-  necessity (D7), and the performance baseline (UD-018).
+  operational behavior (D7 — retention decided; validation deferred to
+  implementation/deployment validation and required before production
+  readiness is claimed), and the performance baseline (UD-018).
 
 ## 7. Theme and Plugin Architecture (Conceptual, To-Be)
 
@@ -671,23 +681,27 @@ flowchart LR
   the D8 transition completes (R3), permissive DRF default permissions
   (R3b).
 
-### 10.3 Operational (Redis / Celery — Proposed, Validation Required)
+### 10.3 Operational (Redis / Celery — V1 Retention Decided 2026-10-22; Operational Validation Deferred)
 
 - **Distinguishing evidence from role:** Redis/Celery are *installed and
   configured* (§2.1) — installation is **not proof of architectural
   necessity** for every workflow. Verified main-tree usage is narrow
   (brute-force protection via `core.cache`; Celery used for event/notification
   tasks with an eager/test mode).
-- **Proposed role:** Redis as the caching component; Celery as the
-  background-task mechanism (D7) — **subject to validation** of actual
-  need, operational complexity, deployment requirements, failure handling,
-  and resource cost before final architecture approval.
+- **Decided role (user-approved 2026-10-22, D7):** Redis as the caching
+  component; Celery as the background-task mechanism are retained for V1.
+  Operational validation of actual need, operational complexity, deployment
+  requirements, failure handling, and resource cost is **deferred to
+  implementation/deployment validation** and must be completed before
+  production readiness is claimed. No such validation has been performed
+  yet.
 - **Failure/degradation policy (user-decided, 2026-10-21):** the core V1
   failure-handling and degradation policies for Redis and Celery have been
   decided by the user and are documented in §10.5, which also records
   accompanying architectural recommendations and outstanding work. The
   policies are documentation of decided direction, not implemented
-  behavior; operational validation of Redis/Celery (D7) remains open.
+  behavior; operational validation of Redis/Celery remains outstanding and
+  is deferred to implementation/deployment validation (D7, §10.3, §12, §14).
 - **Consistency rule:** the architecture does not require business
   operations to run asynchronously; order placement and other critical
   operations keep their synchronous transactional behavior (NFR-REL-001).
@@ -701,7 +715,7 @@ flowchart LR
 ### 10.4 Newly Identified Capability Concerns (2026-10-21)
 
 Architectural concerns for the four capabilities recorded in
-`REQUIREMENTS.md` v0.11 (FR-PLUG-002, FR-EVT-001 – FR-EVT-004,
+`REQUIREMENTS.md` v0.12 (FR-PLUG-002, FR-EVT-001 – FR-EVT-004,
 FR-CAPTCHA-001 – FR-CAPTCHA-006, FR-SMS-001 – FR-SMS-005). **Approved
 release assignment (2026-10-21, CF-009):** scheduled tasks, the
 event/consumer mechanism, and Google reCAPTCHA are included in V1; SMS
@@ -766,12 +780,17 @@ their policy details are deferred with it (UD-022).
 ### 10.5 V1 Redis/Celery Resilience Policy (Option B — Decisions and Recommendations, 2026-10-21)
 
 **Status of this section:** everything below is **unimplemented
-policy** — nothing here authorizes or performs implementation, and D7
-remains open pending operational validation (§10.3, §12, §14). Three
+policy** — nothing here authorizes or performs implementation. The V1
+retention decision is resolved (D7, revision 0.9: Redis and Celery are
+retained for V1); operational validation remains outstanding and is deferred
+to implementation/deployment validation, to be completed before production
+readiness is claimed (§10.3, §12, §14). Three
 classifications are used:
 
 1. **Explicit user decisions (confirmed 2026-10-21):** retain Redis and
-   Celery for V1 subject to operational validation; continue login during
+   Celery for V1, with operational validation deferred to
+   implementation/deployment validation and required before production
+   readiness is claimed; continue login during
    Redis outages with an operational alert and visible reduction of
    brute-force protection; keep the API available during Redis
    rate-limiting outages with an operational alert and visible reduction
@@ -875,7 +894,7 @@ below are **proposed / pending final architecture approval** unless noted.
 | D4 | Theme mechanism | Vue theme packages; deterministic resolution + default fallback | FR-THEME-LAYOUT-005; partial overrides supported | Django-template themes for SPA (rejected by scope); remote runtime themes (rejected: security/complexity) | Proposed; details UD-003/004/005 |
 | D5 | Plugin engine | Keep existing engine (verified §2.5); add Vue Widget Zone contracts | Tested; satisfies FR-PLUG-001 | External process isolation (not for V1; revisit UD-011) | Proposed |
 | D6 | Providers | Payment/shipping/notification implementations as plugins behind core interfaces | Existing; extensibility approved | Hardcoded integrations (rejected) | Proposed |
-| D7 | Cache & background jobs | Retain Redis (cache) + Celery (tasks) | Existing wiring; offload supports perf targets | DB-only cache / fully synchronous (insufficient for targets); other brokers (no need shown) | **Proposed — failure/degradation policies documented (§10.5: user decisions plus recommendations); operational validation required** (§10.3) |
+| D7 | Cache & background jobs | Retain Redis (cache) + Celery (tasks) | Existing wiring; offload supports perf targets | DB-only cache / fully synchronous (insufficient for targets); other brokers (no need shown) | **Resolved — user-approved 2026-10-22: retain for V1.** Operational validation is deferred to implementation/deployment validation and must be completed before production readiness is claimed (§10.3, §10.5); no validation has been performed |
 | D8 | Browser authentication | Same-origin **session cookie + CSRF**; server-side enforcement; token in `localStorage` retired for browser flows after design | User-approved direction; aligns with Admin session model; removes `localStorage` XSS surface (G5) | DRF token `localStorage` (current As-Is — rejected as target); JWT-only; separate non-browser mechanism (open consideration) | **Proposed — pending final approval**; detailed design later |
 | D9 | API versioning | URL-path `v1` | Existing | Header/media-type versioning (no need) | Proposed |
 | D10 | Error handling | Central DRF exception handler + error envelope | Existing | Per-view ad hoc (rejected) | Proposed |
@@ -905,7 +924,8 @@ Tracked against `REQUIREMENTS.md` §6 (authoritative identifiers):
 | UD-022 | SMS: release assignment resolved (V1 compatibility; delivery/verification deferred); future policy details open | When the deferred release is planned |
 | — | Cookie security/HTTPS/expiration/CSRF integration detail (follows D8) | Detailed design |
 | — | Non-browser client authentication mechanism | Open consideration |
-| — | Redis/Celery operational validation (D7): failure/degradation policies documented (§10.5 — user decisions plus recommendations); runtime validation evidence still outstanding | Before final approval |
+| — | Redis/Celery operational validation (D7 — retention resolved 2026-10-22): failure/degradation policies documented (§10.5 — user decisions plus recommendations); runtime validation evidence still outstanding and not yet performed | Implementation/deployment validation, before production readiness is claimed |
+| UD-023 | Contact inquiry administration, retention, and notification recipient/channel configuration (FR-CONTACT-001, FR-NOTIF-001) | Detailed design |
 | — | Final serving/reverse-proxy arrangement (within D14) | Deployment design |
 | — | `apps.shipping` disposition: API-only unregistered module; `ShippingMethod`/`PaymentMethod` models live in `apps/checkout/models.py` (§2.2). Whether shipping becomes a registered bounded module or is consolidated under checkout | Detailed design |
 | — | Disposition of dormant refund/return models | Detailed design (UD-017 guardrail) |
@@ -921,12 +941,12 @@ SPA/API/Admin.
 
 ## 13. Requirements Traceability
 
-Component→requirement mapping (IDs from `REQUIREMENTS.md` v0.11,
+Component→requirement mapping (IDs from `REQUIREMENTS.md` v0.12,
 approved; all exist there):
 
 | Architecture element | Requirements |
 | --- | --- |
-| DRF API, versioning, error envelope (§2.3, D9, D10) | TR-STACK-002, NFR-API-001 |
+| Backend stack (Python/Django) and DRF API, versioning, error envelope (§2.1, §2.3, D9, D10) | TR-STACK-001–002, NFR-API-001 |
 | Vue/Vite SPA, target route ownership (§3, D3) | TR-STACK-003, TR-STACK-006, FR-THEME-LAYOUT-001, FR-THEME-LAYOUT-009 |
 | Bootstrap (G7) | TR-STACK-004 |
 | Django Admin (§2.1, §4) | TR-STACK-007, FR-ADMIN-001–003, AC-ADMIN-003, AC-THEME-LAYOUT-013 |
@@ -939,7 +959,8 @@ approved; all exist there):
 | Cart / checkout / orders / payments (§8) | FR-CART-001, FR-CHK-001, AC-CHK-001 – AC-CHK-002, FR-ORD-001, FR-PAY-001–002, FR-SHIP-001, NFR-REL-001 |
 | Identity & access (§9) | FR-CUST-001–002, AC-CUST-002, NFR-SEC-001, FR-ADMIN-002 |
 | Contact inquiries and notification (§8, G14) | FR-CONTACT-001, AC-CONTACT-001, FR-NOTIF-001, NFR-REL-001 |
-| Persistence strategy (§2.1) | TR-DB-001–006 |
+| Reviews, reports, and audit (existing modules; §2.1, §2.2, §4 core kernel) | FR-REV-001, FR-REP-001 |
+| Persistence strategy (§2.1) | TR-DB-001–006, TR-STACK-005 |
 | Performance (§10.1) | NFR-PERF-001–003, AC-PERF-001–003 |
 | Scheduled tasks / events / CAPTCHA / SMS concerns (§10.4; resilience §10.5) | FR-PLUG-002, FR-EVT-001–004, FR-CAPTCHA-001–006, FR-SMS-001–005 |
 | Core kernel / boundaries (§4) | NFR-MAINT-001, NFR-EXT-001, NFR-TEST-001 |
@@ -962,14 +983,16 @@ time via the requirement groups above; no requirement IDs were invented.
 - [ ] Same-origin deployment direction (D14, §10.3) accepted.
 - [ ] Session-cookie + CSRF browser-auth direction (D8, §9) accepted;
       detailed security design deferred.
-- [ ] Redis/Celery retention (D7) accepted subject to operational
-      validation (§10.3).
+- [ ] Redis/Celery retention (D7) accepted (resolved 2026-10-22: retain for
+      V1); operational validation deferred to implementation/deployment
+      validation and required before production readiness is claimed (§10.3).
 - [ ] Redis/Celery V1 resilience policy (§10.5: explicit user decisions
       plus accompanying architectural recommendations) reviewed and
       accepted as documented direction, including the Transactional
       Outbox deferral to a future release and the V1 event-consistency
       limitations (10.5.2). This item
-      does not close D7: operational validation remains outstanding.
+      does not complete the outstanding operational validation, which
+      remains a prerequisite for claiming production readiness.
 - [ ] Theme/plugin direction (§7) accepted as basis for UD-002–007.
 - [ ] Currency/order-currency boundaries (§8) confirmed as architecture
       guards for FR-PAY-002 / FR-CUR-*.

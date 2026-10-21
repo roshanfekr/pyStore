@@ -253,6 +253,32 @@ When updating a specification:
 
 If a proposed documentation update requires approval, present the proposed change before applying it.
 
+#### 6.5.1. Versioning Policy
+
+Each specification document carries a `Version:` field and a `Last updated:` date.
+
+1. **Meaning-changing change → version increment.** Increment the version
+   (minor increment) when a change alters what a document means: requirement or
+   acceptance-criteria text, a decision's status, scope, a traceability
+   mapping, or a document's status. Record the change in the document's
+   revision note.
+2. **Editorial or pointer-only correction → no version increment.** A change
+   that only fixes formatting, wording, or a cross-document version pointer
+   does not require a version increment, but it must still be applied so that
+   the documents stay consistent.
+3. **Pointers must name the current version.** A cross-document version
+   reference must name the referenced document's current version. A reference
+   to a superseded revision must say so explicitly (for example, "as of
+   v0.10").
+4. **Update dependent pointers in the same change.** When a document's version
+   changes, every other document that references that version must be updated
+   in the same change set.
+5. **Never renumber.** Versions are never reused, renumbered, or reset, and
+   requirement, acceptance-criteria, and decision identifiers are never
+   renumbered or reassigned.
+6. **Status labels are unaffected.** A version increment does not change a
+   document's status label; only explicit user approval changes status.
+
 ## 7. Phase-Gate Workflow
 
 Development follows explicit approval gates.
@@ -305,9 +331,13 @@ Use stable identifiers for requirements and important acceptance criteria.
 
 Examples:
 
-- `FR-CART-001`: A customer can view cart items.
-- `FR-CART-002`: A customer can update item quantities.
-- `FR-CART-003`: The system validates the selected product combination and availability.
+- `FR-CART-001`: Customers can manage a shopping cart: add items, change
+  quantities, remove items, and view item lines and totals.
+- `FR-CHK-001`: Checkout completes an order with the selected payment and
+  shipping methods, validates required customer and order data, and produces
+  an order confirmation.
+- `FR-ORD-001`: Orders track status and customer history, and a customer can
+  view only their own order history and order details.
 - `NFR-SEC-001`: The system validates security-sensitive operations on the server.
 
 These are illustrative identifier examples, not approved requirements.
@@ -383,12 +413,14 @@ Use explicit status labels where appropriate:
 Only mark a document `Approved` when the user has explicitly approved it.
 
 **Current status (2026-10-22):** The project is at the scope/requirements
-approval gate. `PROJECT_SCOPE.md` (v0.10) and `REQUIREMENTS.md` (v0.11) are
+approval gate. `PROJECT_SCOPE.md` (v0.10) and `REQUIREMENTS.md` (v0.12) are
 in final review, pending explicit user approval; both remain `Draft` and
 record the user-approved decisions through 2026-10-22. `ARCHITECTURE.md`
-(v0.8) is also `Draft` — prepared for final user review and **not
-approved**; its D7 (cache/background-jobs) decision remains open pending
-operational validation, and the Transactional Outbox remains deferred.
+(v0.9) is also `Draft` — prepared for final user review and **not
+approved**; its D7 (cache/background-jobs) decision is resolved (Redis and
+Celery are retained for V1), with operational validation deferred to
+implementation/deployment validation and required before production readiness
+is claimed, and the Transactional Outbox remains deferred.
 `STORE_FRONT_ROUTE_COVERAGE.md` (v0.2) is an assessment record of the
 existing storefront route, theme, and Widget Zone coverage; it is `Draft` and
 is not an approved specification. `IMPLEMENTATION_PLAN.md` has not been
