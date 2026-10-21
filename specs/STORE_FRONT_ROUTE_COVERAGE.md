@@ -26,7 +26,7 @@ support `UD-001` and to establish the baseline for `FR-THEME-LAYOUT-010` /
   `ARCHITECTURE.md`, or `specs/README.md`, and it does not change the status
   or approval state of any requirement or acceptance criterion.
 - Requirement identifiers are cited only where they exist in
-  `REQUIREMENTS.md` v0.10. Where a route, file, or behavior could not be
+  `REQUIREMENTS.md` v0.11. Where a route, file, or behavior could not be
   verified from the repository, the cell reads `Not verified` or
   `Not found` instead of an assumption.
 - The source code is evidence of current behavior, not proof of intended

@@ -701,7 +701,7 @@ flowchart LR
 ### 10.4 Newly Identified Capability Concerns (2026-10-21)
 
 Architectural concerns for the four capabilities recorded in
-`REQUIREMENTS.md` v0.10 (FR-PLUG-002, FR-EVT-001 – FR-EVT-004,
+`REQUIREMENTS.md` v0.11 (FR-PLUG-002, FR-EVT-001 – FR-EVT-004,
 FR-CAPTCHA-001 – FR-CAPTCHA-006, FR-SMS-001 – FR-SMS-005). **Approved
 release assignment (2026-10-21, CF-009):** scheduled tasks, the
 event/consumer mechanism, and Google reCAPTCHA are included in V1; SMS
