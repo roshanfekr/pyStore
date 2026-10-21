@@ -1,7 +1,7 @@
 # Implementation Plan — pyStore V1
 
 **Document:** `specs/IMPLEMENTATION_PLAN.md`\
-**Version:** 0.3\
+**Version:** 0.7\
 **Status:** Draft — prepared for user review. This document does **not**
 authorize implementation: each phase starts only when the user authorizes it
 (`specs/README.md` §7, Phase 4/5 gates). Revision 0.2 (2026-10-22) restructures
@@ -9,7 +9,17 @@ P0 into staged, non-blocking activities with explicit exit criteria and records
 the P0 baseline measurement results (§4.1). Revision 0.3 (2026-10-22) closes
 the P0 documentation activities P0.2, P0.3, and P0.4 against that recorded
 evidence, records P0.3 as partially complete with its remaining blocker, and
-leaves SQL Server and Redis/Celery runtime validation scheduled in P8.\
+leaves SQL Server and Redis/Celery runtime validation scheduled in P8.
+Revision 0.4 (2026-10-22) records the first implementation increment: the
+customer address book (FR-CUST-002, FR-CHK-001, AC-CUST-002, AC-CHK-002)
+delivered through the API-first backend, with the storefront surface still
+outstanding. Revision 0.5 (2026-10-22) records the brand data and public
+visibility increment (FR-CAT-007 and the FR-CAT-006 exposure clause); the
+brand listing and detail pages remain outstanding. Revision 0.6 (2026-10-22)
+records the first migrated content route: the brand listing and brand detail
+pages in the Vue storefront (P4), with their remaining gaps. Revision 0.7
+(2026-10-22) records the category route migration and the Vitest component
+test harness.\
 **Last updated:** 2026-10-22\
 **Basis:** `PROJECT_SCOPE.md` v0.10, `REQUIREMENTS.md` v0.12, and
 `ARCHITECTURE.md` v0.9 — all **Approved by the user on 2026-10-22** — plus
@@ -358,6 +368,35 @@ with its acceptance criteria met and its coverage row updated; no content
 route remains served only by a Django template; the interim fallbacks are
 retired route by route.
 
+**Progress (2026-10-22).** The **first migrated content route** is delivered:
+the brand listing and brand detail pages (`FR-CAT-006`, `FR-CAT-007`,
+`AC-CAT-006`, `AC-CAT-007`) are Vue SPA routes (`BrandListView.vue`,
+`BrandDetailView.vue`, shared `BrandLogo.vue` and `seo.js` composable) served
+through the existing `spa_page(...)` mechanism with a server-rendered Django
+fallback, and their rows in `STORE_FRONT_ROUTE_COVERAGE.md` record the
+implemented state. Remaining for these routes: Widget Zone rendering and its
+Vitest verification (`FR-EXT-001`, `AC-ZONE-003`), a theme-specific page
+component (`UD-003` – `UD-005`), and Vue component tests — the frontend still
+has no test runner, so the smallest follow-up is adding Vitest with focused
+component tests. The other content routes (home, category, product, search,
+blog, CMS) are not migrated and remain server-rendered.
+
+**Progress (2026-10-22, second increment).** The **category route is migrated**
+to the Vue storefront (`CategoryView.vue`, router entry `/category/:slug/`),
+served through the existing `spa_page(...)` mechanism with the
+server-rendered `storefront/category.html` retained as the fallback; an
+inactive or unknown category renders the "not available" state, matching the
+fallback's 404 behavior. The **Vitest component-test harness** now exists in
+`src/frontend` (`vitest`, `@vue/test-utils`, `jsdom`; `npm test` → `vitest
+run`; `environment: 'jsdom'` in `vite.config.js`), with focused specs for
+the brand list, brand detail and category views covering loading, error,
+empty, not-found/unavailable and missing-logo behavior. Navigation stays
+CMS-driven — a `MenuItem` with `url = /category/<slug>/` makes the page
+reachable from the shared header. Remaining for these routes: Widget Zone
+rendering and its Vitest verification (`FR-EXT-001`, `AC-ZONE-003`), a
+theme-specific page component (`UD-003` – `UD-005`), and product, search,
+blog and CMS migration.
+
 ### P5 — New V1 capabilities: brand pages, address book, Contact Us
 
 **Goal.** Deliver the three capabilities approved on 2026-10-22, built as
@@ -405,6 +444,31 @@ delivery is tested against stub or in-memory providers, never a live channel.
 pass; inactive brands are not exposed publicly; address ownership and order
 snapshot immutability are proven by tests; the coverage record lists all four
 new routes as required-and-implemented with their zone state recorded.
+
+**Progress (2026-10-22).** The **address-book** part of P5 is implemented and
+tested, delivered through the API-first backend (TR-STACK-002): the
+customer-owned `Address` entity (`apps/identity/models.py`, migration
+`identity.0003_address`) distinct from the order address snapshot; the
+address-book rules in `apps/identity/services/addresses.py` (ownership and the
+single-default invariant); the customer-scoped API
+`/api/v1/customers/me/addresses`; checkout selection of an **owned** saved
+address copied into the order snapshot (`FR-CHK-001`); and the read-only staff
+registration in Django Admin. Covered by `FR-CUST-002`, `FR-CHK-001`,
+`AC-CUST-002`, `AC-CHK-002`; the storefront UI for the address book, the brand
+pages, and the Contact Us page remain outstanding — the storefront surface
+follows the Vue migration and the Vitest harness (P4/P6), and the Contact Us
+page still depends on UD-021/UD-023.
+
+**Progress (2026-10-22, second increment).** The **brand data and public
+visibility** part of P5 is implemented and tested: brand logo and SEO metadata
+(`FR-CAT-007`, migration `catalog.0003_brand_canonical_url_brand_logo_and_more`),
+the shared `SEOMixin` moved to the core kernel and reused by both CMS content
+and catalog brands, the SEO fallback to the brand name and description, and
+public brand list/retrieve responses restricted to active brands (the
+`FR-CAT-006` exposure clause) while staff holding `catalog.brand.manage`
+retain full visibility. The brand **listing and detail pages** are not
+implemented in this increment and remain part of the Vue content-route
+migration.
 
 ### P6 — Theme system and Widget Zone completion (ARCHITECTURE S2)
 
@@ -616,8 +680,8 @@ requirement remain visible until then.
 | P1 Binding decisions | Not started | — |
 | P2 Per-currency prices | Not started | — |
 | P3 Browser auth transition | Not started | — |
-| P4 Vue content-route migration | Not started | — |
-| P5 New V1 capabilities | Not started | — |
+| P4 Vue content-route migration | Migrated content routes: brand listing, brand detail and category (2026-10-22, see P4 progress); home, product, search, blog and CMS not started | — |
+| P5 New V1 capabilities | Address book implemented and tested through the API-first backend (2026-10-22, see P5 progress); brand data and public visibility implemented and tested (2026-10-22, see P5 progress); brand pages and Contact Us page not started | — |
 | P6 Theme and Widget Zone completion | Not started | — |
 | P7 Capability directions | Not started | — |
 | P8 Operational validation and production readiness | Not started | — |

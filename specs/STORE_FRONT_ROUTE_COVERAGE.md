@@ -1,16 +1,22 @@
 # Storefront Route Coverage Record
 
 **Document:** `specs/STORE_FRONT_ROUTE_COVERAGE.md`\
-**Version:** 0.2\
+**Version:** 0.4\
 **Status:** Draft — assessment record (not an approved specification)\
 **Last updated:** 2026-10-22\
 **Basis:** Direct inspection of the working tree at commit `88669ba` (branch `main`,
-clean working tree). The assessment is read-only; no application code, test,
-configuration, dependency, or database state was changed. Revision 0.2 adds
+clean working tree), updated by later implementation work. The assessment
+itself was read-only; no application code, test, configuration, dependency, or
+database state was changed by it. Revision 0.2 adds
 the routes and requirements approved on 2026-10-22 (brand listing and brand
 detail, customer address book, dedicated Contact Us page) and the approved
 Theme/Widget Zone implementation sequence; it changes no application code and
-makes no implementation claim.\
+makes no implementation claim. Revision 0.3 (2026-10-22) records the
+implementation of the brand listing and brand detail routes (§4.2, §4.9) and
+their remaining gaps; it makes no claim of Widget Zone support. Revision 0.4
+(2026-10-22) records the category route migration (§4.2, §4.9) and the
+Vitest component-test harness (§8); it makes no claim of Widget Zone
+support.\
 **Purpose:** Evidence-based record of existing storefront route coverage, theme
 integration, and plugin hook (Widget Zone precursor) integration, produced to
 support `UD-001` and to establish the baseline for `FR-THEME-LAYOUT-010` /
@@ -98,11 +104,11 @@ remaining work. All route patterns are quoted from
 
 | Route / URL pattern | Page / user journey | Implementation | Template / component | Theme integration | Widget Zone integration | Tests | Status / gaps | Traceability |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| `category/<slug:slug>/` (name `category`) | Browse a category and its descendants | Django view `category_view` (`views.py:81-90`) | `storefront/category.html` extends `storefront/base.html` | Existing — Django template override; no theme ships a `category.html` override | Absent (no hook call in the template) | `tests/test_storefront/test_storefront.py` (`test_category_page_with_descendants`) | **No filtering, sorting, or paging controls** in the view or template; the view returns all category products unordered. Filtering/sorting exist only in the API viewset (`src/apps/catalog/api.py:92-94`: `ordering_fields`, `search_fields`) | FR-CAT-005, FR-THEME-LAYOUT-001, AC-CAT-005, AC-THEME-LAYOUT-012 |
+| `category/<slug:slug>/` (name `category` — migrated to the Vue storefront 2026-10-22) | Browse a category and its descendants | **Vue SPA route** (`CategoryView.vue`) with a Django server-rendered fallback (`category_view` via `spa_page(...)` in `src/apps/storefront/urls.py`); the SPA calls `/api/v1/categories/<slug>` and the product list with `?category=<slug>` | `src/frontend/src/views/CategoryView.vue`; fallback `storefront/category.html` extends `storefront/base.html` | **Partial** — the page uses the shared SPA shell, theme branding and theme CSS via the bootstrap, but no theme-specific page component exists yet (`UD-003` – `UD-005` open) | **Absent** — no zone is rendered on this route; the zone registry is `UD-006`/`UD-007`, so the Vue zone rendering obligation (`FR-EXT-001`, `AC-ZONE-003`) is **not** satisfied for this route | `src/frontend/src/views/__tests__/CategoryView.spec.js` (Vitest: loading, populated, unknown, inactive, error, empty, product links); `tests/test_storefront/test_storefront.py` (`test_category_page_with_descendants`, `test_inactive_category_page_is_not_found`, `test_category_page_is_served_by_the_spa_when_it_is_enabled`, `test_category_page_falls_back_to_server_rendering_when_the_spa_is_disabled`) | **Implemented** (2026-10-22). An inactive or unknown category renders the "not available" state and is not exposed, matching the server-rendered fallback. **No filtering, sorting, or paging controls** are offered on the page; the API supports `ordering` and `search` (`src/apps/catalog/api.py:92-94`). Navigation stays CMS-driven: a `MenuItem` whose `url` is `/category/<slug>/` (Django Admin → CMS → Menus) makes the page reachable from both the Django and the SPA header | FR-CAT-005, AC-CAT-005, FR-THEME-LAYOUT-001, AC-THEME-LAYOUT-012 |
 | `product/<slug:slug>/` (name `product`) | Product detail with variants, price, images, availability | Django view `product_detail_view` (`views.py:160-192`) | `storefront/product_detail.html` (+ `storefront/_product_media.html` partial) extends `storefront/base.html` | Existing — Django template override (`theme_pacific` ships `product_detail.html`) | Absent (no hook call in the template) | `tests/test_storefront/test_storefront.py` (`test_product_detail_page`, `test_product_detail_shows_all_images`, `test_product_detail_rich_layout`); `tests/test_storefront/test_theme_pacific.py` (`test_pacific_product_detail_renders_gallery`) | Variant selection is server-rendered (`option` pills + `variant-select` element, product_detail.html:105-135) with a server-side revalidation on add-to-cart; no Vue route exists | FR-CAT-002/003/004, FR-THEME-LAYOUT-001, AC-CAT-002/003/004, AC-THEME-LAYOUT-012 |
 | `search/` (name `search`) | Full-text product search | Django view `search_view` (`views.py:195-205`); results via `apps.search.service.search_service` | `storefront/search.html` extends `storefront/base.html` | Existing — Django template override | Absent | `tests/test_storefront/test_storefront.py` (`test_search_view`); `tests/test_search/test_search.py` (service level) | No filters/sort in the search page; SPA-side search is a separate endpoint (`/api/v1/storefront/search`) not used by any Vue view | FR-CAT-005, AC-CAT-005, FR-THEME-LAYOUT-010 |
-| **Proposed route** `brands/` (path and URL name are placeholders; final route naming is an architecture decision, `UD-001`) — **required route, not yet implemented** | Brand listing: browse the active brands of the store | **Not found** — no brand route exists in `src/apps/storefront/urls.py`. A `Brand` model (`src/apps/catalog/models.py:67-79`) and `BrandViewSet` (`src/apps/catalog/api.py:187-201`, anonymous list/retrieve, slug lookup, `search`/`ordering`) exist, but no storefront page or Vue route exists | — | Absent — no storefront rendering path | Absent (no zone declared) | `No identified coverage` for a brand page (API viewset covered by `tests/test_api/test_catalog_api.py`) | **Required in V1** (approved 2026-10-22; `FR-CAT-006`). Not implemented: no route, no view, no template, no Vue route. `BrandViewSet.get_queryset()` currently returns all brands, so inactive brands are publicly listable and the public exposure rule is not yet met | FR-CAT-006, AC-CAT-006, FR-THEME-LAYOUT-001, AC-THEME-LAYOUT-012 |
-| **Proposed route** `brands/<slug:slug>/` (path and URL name are placeholders; final route naming is an architecture decision, `UD-001`) — **required route, not yet implemented** | Brand detail: the brand's published products with browsing, filtering, and sorting | **Not found** — no brand detail route, view, or template exists. The API already supports `?brand=<slug>` product filtering (`src/apps/catalog/api.py:86`) and `/api/v1/brands/<slug>` | — | Absent — no storefront rendering path | Absent (no zone declared) | `No identified coverage` for a brand detail page | **Required in V1** (approved 2026-10-22; `FR-CAT-006`). Not implemented. Brand information must additionally support a logo and SEO metadata (`FR-CAT-007`); the `Brand` model currently has neither, and the existing `SEOMixin` pattern (`src/apps/cms/models.py`) is the available precedent | FR-CAT-006, FR-CAT-007, AC-CAT-006, AC-CAT-007, FR-THEME-LAYOUT-010, AC-THEME-LAYOUT-012 |
+| `brands/` (name `brands` — implemented 2026-10-22; the path is the one proposed in revision 0.1, final naming remains `UD-001`) | Brand listing: browse the active brands of the store | **Vue SPA route** (`BrandListView.vue`) with a Django server-rendered fallback (`brand_list_view`, `spa_page(...)` in `src/apps/storefront/urls.py`); the SPA calls `/api/v1/brands`, which returns active brands only | `src/frontend/src/views/BrandListView.vue`, `src/frontend/src/components/BrandLogo.vue`, `src/frontend/src/composables/seo.js`; fallback `storefront/brand_list.html` | **Partial** — the page uses the shared SPA shell, theme branding and theme CSS via the bootstrap, but no theme-specific page component exists yet (`UD-003` – `UD-005` open) | **Absent** — no zone is rendered on this route; the zone registry is `UD-006`/`UD-007`, so the Vue zone rendering obligation (`FR-EXT-001`, `AC-ZONE-003`) is **not** satisfied for this route | `tests/test_storefront/test_brand_pages.py` (fallback listing, empty state, SPA serving); `tests/test_api/test_brand_api.py` (public visibility); **no Vue component test** — the frontend has no test runner yet | **Implemented** (2026-10-22). The public listing exposes active brands only and an inactive brand is not reachable. Remaining: Widget Zone support, Vitest component tests, and a store-menu entry point for the page | FR-CAT-006, AC-CAT-006, FR-CAT-007, AC-CAT-007, FR-THEME-LAYOUT-001, AC-THEME-LAYOUT-012 |
+| `brands/<slug:slug>/` (name `brand` — implemented 2026-10-22) | Brand detail: the brand's published products with browsing, filtering, and sorting | **Vue SPA route** (`BrandDetailView.vue`) with a Django server-rendered fallback (`brand_detail_view`); the SPA calls `/api/v1/brands/<slug>` and the product list with `?brand=<slug>` | `src/frontend/src/views/BrandDetailView.vue`, `src/frontend/src/components/BrandLogo.vue`; fallback `storefront/brand_detail.html` | **Partial** — as above: shared shell and theme CSS, no theme-specific page component | **Absent** — no zone rendered; `FR-EXT-001`/`AC-ZONE-003` not satisfied for this route | `tests/test_storefront/test_brand_pages.py` (fallback detail, published products only, logo fallback, inactive/unknown 404, SPA serving); `tests/test_api/test_brand_api.py`; **no Vue component test** | **Implemented** (2026-10-22). The brand's name, optional logo (with a graceful initial fallback), description and SEO metadata are rendered, with the SEO title/description falling back to the brand name and description (`effective_meta_title` / `effective_meta_description`). An inactive or unknown brand renders the "not available" state and is never exposed. Remaining: Widget Zone support and Vitest component tests | FR-CAT-006, AC-CAT-006, FR-CAT-007, AC-CAT-007, FR-THEME-LAYOUT-010, AC-THEME-LAYOUT-012 |
 | `search/autocomplete/` (name `autocomplete`) | Type-ahead suggestions | Django view `autocomplete_view` (`views.py:208-219`) — JSON | Non-page (JSON) | Not applicable | Not applicable | `No identified coverage` for the JSON endpoint | Non-page response; must still be classified in the coverage record | FR-THEME-LAYOUT-010 |
 | `search/suggest/` (name `suggest`) | Search suggestion list | Django view `suggest_view` (`views.py:221-232`) — JSON | Non-page (JSON) | Not applicable | Not applicable | `No identified coverage` for the JSON endpoint | Non-page response | FR-THEME-LAYOUT-010 |
 
@@ -163,12 +169,15 @@ remaining work. All route patterns are quoted from
 
 ### 4.9 Vue route inventory (current SPA)
 
-The SPA router (`src/frontend/src/router/index.js`) registers exactly nine
+The SPA router (`src/frontend/src/router/index.js`) registers exactly twelve
 routes: `cart`, `checkout`, `login`, `register`, `account`, `wishlist`,
-`compare`, `order` (`/orders/:number/`), and a `not-found` catch-all. The
-router file itself states that content pages "are server-rendered by Django
-and are reached via normal full-page links. The SPA only owns the interactive
-routes below."
+`compare`, `order` (`/orders/:number/`), `brands` (`/brands/`), `brand`
+(`/brands/:slug/`), `category` (`/category/:slug/`), and a `not-found`
+catch-all. The router file states that
+content pages are migrated to the SPA one route at a time and that routes
+which have not been migrated yet "stay server-rendered by Django and are
+reached via normal full-page links." The brand routes and the category route
+are the **migrated content routes** (2026-10-22).
 
 | Vue route | Component | Paired Django route / template | Theme integration | Widget Zone integration |
 | --- | --- | --- | --- | --- |
@@ -180,13 +189,17 @@ routes below."
 | `/wishlist/` | `WishlistView.vue` | `wishlist/` → `storefront/wishlist.html` | Partial | Absent |
 | `/compare/` | `CompareView.vue` | `compare/` → `storefront/compare.html` | Partial | Absent |
 | `/orders/:number/` | `OrderView.vue` | `orders/<str:number>/` → `storefront/order_detail.html` | Partial | Absent |
+| `/brands/` | `BrandListView.vue` | `brands/` → `storefront/brand_list.html` | Partial (shared shell, theme branding/CSS; no theme page component) | Absent |
+| `/brands/:slug/` | `BrandDetailView.vue` | `brands/<slug:slug>/` → `storefront/brand_detail.html` | Partial | Absent |
+| `/category/:slug/` | `CategoryView.vue` | `category/<slug:slug>/` → `storefront/category.html` | Partial | Absent |
 | `/:pathMatch(.*)*` | `NotFoundView.vue` | No Django counterpart | Absent (SPA-only not-found view) | Absent |
 
-No Vue route exists for home, category, product, search, blog, or CMS pages.
-The routes required in V1 but not yet implemented — brand listing, brand
-detail, the customer address book, and the dedicated Contact Us page (§4.2,
-§4.5, §4.6) — are likewise absent from the Vue router; each becomes a Vue
-route when it is migrated.
+No Vue route exists for home, product, search, blog, or CMS pages. The
+category route is migrated (§4.2). The routes required in V1 but not yet
+implemented — the customer address book and the dedicated Contact Us page
+(§4.5, §4.6) — are likewise absent from the Vue router; each becomes a Vue
+route when it is migrated. The brand listing and brand detail routes are now
+migrated (§4.2).
 
 ## 5. Theme Coverage as Implemented
 
@@ -338,11 +351,15 @@ Findings:
      route class.
   3. A test asserting that every zone declared in the coverage record is
      either rendered or explicitly marked as not applicable.
-  4. A test for the SPA rendering path. **Vitest is the approved framework
-     for Vue component and Widget Zone tests** (approved decision 2026-10-22;
-     `NFR-TEST-001`, `AC-ZONE-003`), but the frontend project currently has
-     no test script and no test runner — `src/frontend/package.json` has no
-     `test` script — so the harness itself is part of the outstanding work.
+4. A test for the SPA rendering path. **Vitest is the approved framework
+   for Vue component and Widget Zone tests** (approved decision 2026-10-22;
+   `NFR-TEST-001`, `AC-ZONE-003`) and the harness now exists: `src/frontend`
+   has `vitest`, `@vue/test-utils` and `jsdom` as dev dependencies, a
+   `test` script (`vitest run`) and a `test` block in `vite.config.js`
+   (`environment: 'jsdom'`). Component specs exist for the brand and
+   category views (`src/frontend/src/views/__tests__/`). The zone assertions
+   required by `AC-ZONE-003` are still outstanding, because no zone
+   infrastructure exists yet.
 
 ## 9. Traceability
 

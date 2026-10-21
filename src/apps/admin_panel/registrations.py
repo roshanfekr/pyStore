@@ -34,7 +34,7 @@ from apps.catalog.models import (
 )
 from apps.checkout.models import PaymentMethod, ShippingMethod
 from apps.cms.models import BlogCategory, BlogPost, ContentBlock, Menu, MenuItem, Page, Widget
-from apps.identity.models import Customer, Permission, Role, User
+from apps.identity.models import Address, Customer, Permission, Role, User
 from apps.inventory.models import InventoryItem, InventoryTransaction, Warehouse, WarehouseLocation
 from apps.media.services import validate_upload
 from apps.notifications.models import (
@@ -580,6 +580,14 @@ class CustomerAdmin(PyStoreModelAdmin):
     search_fields = ("user__email", "phone")
 
 
+class AddressAdmin(ReadOnlyAdmin):
+    """Customer addresses are read-only for store staff (FR-CUST-002)."""
+
+    list_display = ("id", "customer", "first_name", "last_name", "city", "country", "is_default")
+    search_fields = ("first_name", "last_name", "city", "customer__user__email")
+    list_filter = ("is_default", "country")
+
+
 class RoleAdmin(GranularPermissionAdmin):
     perm_map = {"add": "identity.roles.manage", "change": "identity.roles.manage", "delete": "identity.roles.manage"}
     list_display = ("name", "is_system", "display_permissions")
@@ -986,6 +994,7 @@ def register_all(admin_site):
         InventoryTransaction: InventoryTransactionAdmin,
         User: UserAdmin,
         Customer: CustomerAdmin,
+    Address: AddressAdmin,
         Role: RoleAdmin,
         Permission: PermissionAdmin,
         Order: OrderAdmin,

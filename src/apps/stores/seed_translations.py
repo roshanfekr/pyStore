@@ -28,6 +28,8 @@ PERSIAN_STRINGS: dict[str, str] = {
     "items": "قلم",
     "No products yet.": "هنوز محصولی نیست.",
     "Empty category.": "این دسته خالی است.",
+    "No brands available.": "هیچ برندی در دسترس نیست.",
+    "No products in this brand yet.": "هنوز محصولی برای این برند وجود ندارد.",
     "results": "نتیجه",
     "No results.": "نتیجه‌ای یافت نشد.",
     "Email": "ایمیل",

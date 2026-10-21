@@ -26,4 +26,11 @@ export default defineConfig({
       '/admin': 'http://127.0.0.1:8000',
     },
   },
+  // Component tests (Vitest). The suite is isolated from live APIs: the
+  // `@/api/client` module is mocked in the specs.
+  test: {
+    environment: 'jsdom',
+    include: ['src/**/*.spec.js'],
+    restoreMocks: true,
+  },
 })

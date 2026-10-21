@@ -1,7 +1,7 @@
 
 from django.db import models
 
-from core.models import BaseModel
+from core.models import BaseModel, SEOMixin
 
 PRODUCT_TYPE_CHOICES = [
     ("simple", "Simple"),
@@ -64,10 +64,11 @@ class Category(BaseModel):
         return ids
 
 
-class Brand(BaseModel):
+class Brand(SEOMixin, BaseModel):
     name = models.CharField(max_length=200)
     slug = models.SlugField(max_length=200, unique=True)
     description = models.TextField(blank=True)
+    logo = models.ImageField(upload_to="catalog/brands/%Y/%m/", blank=True)
     is_active = models.BooleanField(default=True)
 
     class Meta:
@@ -77,6 +78,16 @@ class Brand(BaseModel):
 
     def __str__(self):
         return self.name
+
+    @property
+    def effective_meta_title(self) -> str:
+        """SEO title, falling back to the brand name (FR-CAT-007)."""
+        return self.meta_title or self.name
+
+    @property
+    def effective_meta_description(self) -> str:
+        """SEO description, falling back to the brand description (FR-CAT-007)."""
+        return self.meta_description or self.description[:300]
 
 
 class Tag(BaseModel):

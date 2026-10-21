@@ -6,7 +6,14 @@ from rest_framework.response import Response
 from rest_framework.throttling import ScopedRateThrottle
 from rest_framework.views import APIView
 
-from apps.identity.models import Customer
+from apps.identity.models import Address, Customer
+from apps.identity.services.addresses import (
+    create_address,
+    delete_address,
+    get_address,
+    list_addresses,
+    update_address,
+)
 from apps.identity.services.authentication import (
     authenticate_credentials,
     issue_api_token,
@@ -73,6 +80,35 @@ class CustomerSerializer(serializers.ModelSerializer):
             setattr(instance.user, field, value)
         instance.user.save(update_fields=["first_name", "last_name"])
         return instance
+
+
+class AddressSerializer(serializers.ModelSerializer):
+    email = serializers.EmailField(required=False, allow_blank=True, default="")
+    is_default = serializers.BooleanField(required=False)
+
+    class Meta:
+        model = Address
+        fields = [
+            "id",
+            "first_name",
+            "last_name",
+            "email",
+            "phone",
+            "country",
+            "state",
+            "city",
+            "postal_code",
+            "address_line",
+            "is_default",
+        ]
+        read_only_fields = ["id"]
+
+
+def _current_customer(request) -> Customer:
+    customer = Customer.objects.filter(user=request.user).first()
+    if customer is None:
+        raise NotFoundError("Customer profile not found", code="identity.no_customer_profile")
+    return customer
 
 
 class LogoutView(APIView):
@@ -183,3 +219,49 @@ class MeUpdateView(APIView):
         serializer.is_valid(raise_exception=True)
         serializer.save()
         return Response(serializer.data)
+
+
+class AddressListCreateView(APIView):
+    """The signed-in customer's own saved addresses (FR-CUST-002)."""
+
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, *args, **kwargs):
+        customer = _current_customer(request)
+        return Response(AddressSerializer(list_addresses(customer), many=True).data)
+
+    def post(self, request, *args, **kwargs):
+        customer = _current_customer(request)
+        serializer = AddressSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        data = dict(serializer.validated_data)
+        is_default = bool(data.pop("is_default", False))
+        address = create_address(customer, is_default=is_default, **data)
+        return Response(AddressSerializer(address).data, status=status.HTTP_201_CREATED)
+
+
+class AddressDetailView(APIView):
+    """One of the signed-in customer's own saved addresses (FR-CUST-002)."""
+
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, address_id, *args, **kwargs):
+        customer = _current_customer(request)
+        address = get_address(customer, address_id)
+        return Response(AddressSerializer(address).data)
+
+    def patch(self, request, address_id, *args, **kwargs):
+        customer = _current_customer(request)
+        address = get_address(customer, address_id)
+        serializer = AddressSerializer(address, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        data = dict(serializer.validated_data)
+        is_default = data.pop("is_default", None)
+        address = update_address(address, is_default=is_default, **data)
+        return Response(AddressSerializer(address).data)
+
+    def delete(self, request, address_id, *args, **kwargs):
+        customer = _current_customer(request)
+        address = get_address(customer, address_id)
+        delete_address(address)
+        return Response(status=status.HTTP_204_NO_CONTENT)

@@ -115,6 +115,40 @@ def test_category_page_with_descendants(client, store, published_product):
     assert "Storefront Product" in response.content.decode()
 
 
+def test_inactive_category_page_is_not_found(client, store, db):
+    from apps.catalog.models import Category
+
+    Category.objects.create(name="Retired", slug="retired", is_active=False)
+    assert client.get("/category/retired/").status_code == 404
+
+
+def test_category_page_is_served_by_the_spa_when_it_is_enabled(tmp_path):
+    from django.test import Client, override_settings
+
+    (tmp_path / "index.html").write_text("<div id='app'>SPA SHELL</div>", encoding="utf-8")
+    with override_settings(STOREFRONT_SPA_ENABLED=True, STOREFRONT_SPA_DIR=str(tmp_path)):
+        response = Client().get("/category/electronics/")
+    assert response.status_code == 200
+    assert "SPA SHELL" in response.content.decode()
+
+
+def test_category_page_falls_back_to_server_rendering_when_the_spa_is_disabled(
+    client, store, published_product
+):
+    from django.test import override_settings
+
+    from apps.catalog.models import Category
+
+    category = Category.objects.create(name="Electronics", slug="electronics")
+    published_product.category = category
+    published_product.save()
+
+    with override_settings(STOREFRONT_SPA_ENABLED=False):
+        response = client.get("/category/electronics/")
+    assert response.status_code == 200
+    assert "Storefront Product" in response.content.decode()
+
+
 def test_product_detail_page(client, store, published_product):
     response = client.get(f"/product/{published_product.slug}/")
     assert response.status_code == 200

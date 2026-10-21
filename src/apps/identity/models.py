@@ -67,6 +67,53 @@ class Customer(BaseModel):
         return f"Customer {self.user_id}"
 
 
+class Address(BaseModel):
+    """A reusable, customer-owned saved address.
+
+    This is the customer's address book entry. It is deliberately distinct
+    from ``apps.orders.models.OrderAddress``, which is the immutable snapshot
+    recorded on an order: changing or deleting a saved address must never
+    change the address snapshot of an existing order.
+    """
+
+    customer = models.ForeignKey(
+        Customer, related_name="addresses", on_delete=models.CASCADE
+    )
+    first_name = models.CharField(max_length=150, blank=True)
+    last_name = models.CharField(max_length=150, blank=True)
+    email = models.CharField(max_length=254, blank=True)
+    phone = models.CharField(max_length=30, blank=True)
+    country = models.CharField(max_length=2)
+    state = models.CharField(max_length=100, blank=True)
+    city = models.CharField(max_length=100)
+    postal_code = models.CharField(max_length=30, blank=True)
+    address_line = models.CharField(max_length=300)
+    is_default = models.BooleanField(default=False)
+
+    class Meta:
+        verbose_name = "Customer address"
+        verbose_name_plural = "Customer addresses"
+        ordering = ["-is_default", "id"]
+
+    def __str__(self) -> str:
+        label = f"{self.first_name} {self.last_name}".strip()
+        return label or f"Address {self.pk}"
+
+    def as_snapshot(self) -> dict:
+        """Return the address fields copied into an order address snapshot."""
+        return {
+            "first_name": self.first_name,
+            "last_name": self.last_name,
+            "email": self.email,
+            "phone": self.phone,
+            "country": self.country,
+            "state": self.state,
+            "city": self.city,
+            "postal_code": self.postal_code,
+            "address_line": self.address_line,
+        }
+
+
 class Permission(TimeStampedModel):
     codename = models.CharField(max_length=100, unique=True)
     display_name = models.CharField(max_length=200, blank=True)

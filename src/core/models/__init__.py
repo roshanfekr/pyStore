@@ -1,4 +1,5 @@
 from core.models.base import IntegerPKModel, TimeStampedModel
+from core.models.seo import SEOMixin
 from core.models.soft_delete import (
     AllObjectsManager,
     SoftDeleteManager,
@@ -19,6 +20,7 @@ __all__ = [
     "BaseModel",
     "IntegerPKModel",
     "PluginState",
+    "SEOMixin",
     "Setting",
     "SoftDeleteManager",
     "SoftDeleteModel",

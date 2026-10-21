@@ -23,7 +23,7 @@ from apps.cart.wishlist import (
     move_to_cart,
     wishlist_for,
 )
-from apps.catalog.models import Category
+from apps.catalog.models import Brand, Category
 from apps.catalog.services import resolve_price
 from apps.checkout.models import PaymentMethod, ShippingMethod
 from apps.checkout.services import execute_checkout
@@ -88,6 +88,21 @@ def category_view(request, slug):
         is_published=True, category_id__in=category_ids
     ).prefetch_related("images")
     return render(request, "storefront/category.html", {"category": category, "products": products})
+
+
+def brand_list_view(request):
+    """Interim server-rendered brand listing (fallback while the route is served by the SPA)."""
+    brands = Brand.objects.filter(is_active=True).order_by("name")
+    return render(request, "storefront/brand_list.html", {"brands": brands})
+
+
+def brand_detail_view(request, slug):
+    """Interim server-rendered brand detail (fallback while the route is served by the SPA)."""
+    brand = get_object_or_404(Brand, slug=slug, is_active=True)
+    products = brand.products.filter(is_published=True).prefetch_related("images")
+    return render(
+        request, "storefront/brand_detail.html", {"brand": brand, "products": products}
+    )
 
 
 def _money(amount, currency) -> str:

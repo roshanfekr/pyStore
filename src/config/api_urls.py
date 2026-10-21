@@ -10,6 +10,8 @@ from apps.cart.api import (
 from apps.catalog.api import BrandViewSet, CategoryViewSet, ProductViewSet
 from apps.checkout.api import CheckoutMethodsView, CheckoutView
 from apps.identity.api import (
+    AddressDetailView,
+    AddressListCreateView,
     LoginView,
     LogoutView,
     MeUpdateView,
@@ -71,6 +73,16 @@ urlpatterns = [
     # Customers
     path("customers/me", MeView.as_view(), name="api-me"),
     path("customers/me/update", MeUpdateView.as_view(), name="api-me-update"),
+    path(
+        "customers/me/addresses",
+        AddressListCreateView.as_view(),
+        name="api-me-addresses",
+    ),
+    path(
+        "customers/me/addresses/<int:address_id>",
+        AddressDetailView.as_view(),
+        name="api-me-address",
+    ),
     # Cart
     path("cart", CartView.as_view(), name="api-cart"),
     path("cart/items", CartItemsView.as_view(), name="api-cart-items"),

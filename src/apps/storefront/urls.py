@@ -47,7 +47,7 @@ def spa_page(view, hook=None):
 urlpatterns = [
     # Content pages: server-rendered (SEO, themes, plugins).
     path("", views.home_view, name="home"),
-    path("category/<slug:slug>/", views.category_view, name="category"),
+    path("category/<slug:slug>/", spa_page(views.category_view), name="category"),
     path("product/<slug:slug>/", views.product_detail_view, name="product"),
     path("search/", views.search_view, name="search"),
     path("search/autocomplete/", views.autocomplete_view, name="autocomplete"),
@@ -63,6 +63,10 @@ urlpatterns = [
     path("wishlist/", spa_page(views.wishlist_view), name="wishlist"),
     path("compare/", spa_page(views.compare_view), name="compare"),
     path("orders/<str:number>/", spa_page(views.order_detail_view), name="order_detail"),
+    # Migrated content routes: Vue SPA, with a server-rendered fallback while
+    # the route is being cut over.
+    path("brands/", spa_page(views.brand_list_view), name="brands"),
+    path("brands/<slug:slug>/", spa_page(views.brand_detail_view), name="brand"),
     # Form actions used by server-rendered pages.
     path("cart/add/<int:product_id>/", views.add_to_cart_view, name="add_to_cart"),
     path("cart/update/<int:item_id>/", views.update_cart_item_view, name="update_cart_item"),

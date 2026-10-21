@@ -1,0 +1,29 @@
+{% extends "storefront/base.html" %}
+{% load strings %}
+{% block content %}
+<div class="page-title">
+    <h2>{% tr 'Brands' %}</h2>
+    <span class="count">{{ brands|length }} {% tr 'items' %}</span>
+</div>
+<div class="brand-grid">
+    {% for brand in brands %}
+        <article class="brand-card">
+            <a class="brand-card-logo" href="{% url 'storefront:brand' brand.slug %}">
+                {% if brand.logo %}
+                    <img class="brand-logo-image" src="{{ brand.logo.url }}" alt="{{ brand.name }} logo" loading="lazy">
+                {% else %}
+                    <span class="brand-logo-fallback" aria-hidden="true">{{ brand.name|slice:":1"|upper }}</span>
+                {% endif %}
+            </a>
+            <div class="brand-card-body">
+                <div class="brand-card-title">
+                    <a href="{% url 'storefront:brand' brand.slug %}">{{ brand.name }}</a>
+                </div>
+                {% if brand.description %}<p class="brand-card-description">{{ brand.description }}</p>{% endif %}
+            </div>
+        </article>
+    {% empty %}
+        <div class="empty-state"><span class="icon">&#127970;</span>{% tr 'No brands available.' %}</div>
+    {% endfor %}
+</div>
+{% endblock %}

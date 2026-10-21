@@ -48,10 +48,31 @@ class CategorySerializer(serializers.ModelSerializer):
 
 
 class BrandSerializer(serializers.ModelSerializer):
+    effective_meta_title = serializers.CharField(read_only=True)
+    effective_meta_description = serializers.CharField(read_only=True)
+
     class Meta:
         model = Brand
-        fields = ["id", "name", "slug", "description", "is_active"]
-        read_only_fields = ["slug"]
+        fields = [
+            "id",
+            "name",
+            "slug",
+            "description",
+            "logo",
+            "is_active",
+            "meta_title",
+            "meta_description",
+            "canonical_url",
+            "robots_meta",
+            "og_title",
+            "og_description",
+            "structured_data",
+            "effective_meta_title",
+            "effective_meta_description",
+        ]
+        # The logo is uploaded through the Django Admin, where the shared
+        # media upload policy (name, extension, size) is applied.
+        read_only_fields = ["slug", "logo"]
 
     def create(self, validated_data):
         return super().create(_ensure_slug(self, validated_data))
@@ -193,7 +214,18 @@ class BrandViewSet(QueryParamFilterMixin, ModelViewSet):
     default_ordering = "name"
 
     def get_queryset(self):
+        # Inactive brands are not exposed through the public brand listing or
+        # the public brand detail surface (FR-CAT-006). Staff holding the
+        # brand-management permission keep full visibility, as before.
+        if self._is_public_request():
+            return Brand.objects.filter(is_active=True)
         return Brand.objects.all()
+
+    def _is_public_request(self) -> bool:
+        user = getattr(self.request, "user", None)
+        if user is not None and user.is_authenticated and user.has_perm("catalog.brand.manage"):
+            return False
+        return True
 
     def get_permissions(self):
         if self.action in ("list", "retrieve"):

@@ -257,3 +257,91 @@ td {
 .plugin-hook-slot:empty {
   display: none;
 }
+
+/* Brand listing and brand detail pages. */
+.brand-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 1rem;
+}
+
+.brand-card {
+  background: var(--surface);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+
+.brand-card-logo {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 120px;
+  background: linear-gradient(135deg, var(--primary-color), var(--accent-color));
+}
+
+.brand-card-body {
+  padding: 0.75rem;
+}
+
+.brand-card-title {
+  font-weight: 600;
+}
+
+.brand-card-description {
+  color: var(--muted-color);
+  font-size: 0.9rem;
+  margin: 0.35rem 0 0;
+}
+
+.brand-logo {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+}
+
+.brand-logo-image {
+  max-width: 80%;
+  max-height: 80%;
+  object-fit: contain;
+}
+
+.brand-logo-fallback {
+  font-size: 2.5rem;
+  font-weight: 700;
+  color: #fff;
+}
+
+.brand-header {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+  background: var(--surface);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius);
+  padding: 1rem;
+  margin-bottom: 1rem;
+}
+
+.brand-header-logo {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 96px;
+  height: 96px;
+  flex: none;
+  border-radius: var(--radius);
+  background: linear-gradient(135deg, var(--primary-color), var(--accent-color));
+}
+
+.brand-header-name {
+  margin: 0;
+}
+
+.brand-description {
+  color: var(--muted-color);
+  margin: 0.35rem 0 0;
+}
