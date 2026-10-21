@@ -1,10 +1,11 @@
 # Project Scope --- Plugin-Based E-commerce Platform
 
 **Document:** `specs/PROJECT_SCOPE.md`\
-**Version:** 0.9 (draft recording the approved V1 release assignment of the
-four capability directions — plugin-defined scheduled tasks, the
-application event/consumer mechanism, Google reCAPTCHA, and SMS-compatible
-registration — on top of the previously recorded decisions, including the
+**Version:** 0.10 (draft recording the approved 2026-10-22 decisions on brand
+listing and brand detail pages, the customer-managed address book, the
+dedicated Contact Us page, and the Theme/Widget Zone implementation
+sequence, on top of the previously recorded decisions, including the
+2026-10-21 release assignment of the four capability directions and the
 proposed V1 performance baseline)\
 **Status:** Draft pending final review. The core scope remains approved; this
 revision records the user-approved decisions on the Vue/Vite theme system,
@@ -17,8 +18,16 @@ approved direction to adopt proposed, provisional V1 performance targets
 capability directions (section 3): scheduled tasks, the event/consumer
 mechanism, and Google reCAPTCHA are included in V1; SMS architectural
 compatibility is required in V1 while actual SMS delivery and
-phone-number verification are deferred to a later release.\
-**Last updated:** 2026-10-21
+phone-number verification are deferred to a later release. Revision 0.10
+records the approved 2026-10-22 decisions (section 3 and section 6.5): brand
+listing and brand detail pages with brand logo and SEO metadata, a
+customer-managed address book with a default address and staff read-only
+administrative access, a dedicated Contact Us page that stores the inquiry
+and sends a notification, and the rule that preliminary Theme and Widget
+Zone work may precede the content-page migration while completion of the
+Theme and Widget Zone system follows the migration of the relevant content
+pages to Vue.\
+**Last updated:** 2026-10-22
 
 ## 1. Project Vision
 
@@ -63,9 +72,22 @@ architecture/design.
 The platform is intended to cover the following capabilities:
 
 -   Admin dashboard and access/permission management.
--   Customer accounts and authentication.
+-   Customer accounts and authentication, including a customer-managed address
+    book: customers can create, view, update, and delete their own saved
+    addresses, designate a default address, and select one of their own saved
+    addresses at checkout. Staff can view customer addresses in the Django
+    Admin but cannot edit them there. A selected address is copied into the
+    order as an address snapshot, so later changes to or deletion of a saved
+    address never alters an existing order. The reusable customer address
+    entity is distinct from the order address snapshot.
 -   Product catalog: categories, brands, attributes, images, prices, and
     inventory.
+-   Brand listing and brand detail pages: the storefront lists active brands
+    and provides a dedicated page for each active brand, showing the brand's
+    published products with the relevant product browsing, filtering, and
+    sorting capabilities. Brand information supports a name, a description, a
+    logo, and SEO metadata. Inactive or unknown brands are not exposed
+    through public brand listing or brand detail surfaces.
 -   Product variants and combinations of attributes.
 -   Product search, filtering, sorting, and catalog browsing.
 -   Shopping cart and checkout.
@@ -90,6 +112,14 @@ The platform is intended to cover the following capabilities:
     accommodate a payment provider.
 -   Product reviews and ratings.
 -   Notifications.
+-   A dedicated Contact Us page with its own storefront route and page: the
+    page presents the store's contact information and a contact form whose
+    input is validated with clear feedback. A valid inquiry is stored and a
+    notification is sent using the platform's existing notification
+    capabilities. The contact page is a distinct route and page, not merely
+    an informational page category, and is not satisfied by a generic CMS
+    page. CAPTCHA behavior for the contact form remains subject to the open
+    decision in `REQUIREMENTS.md` section 6.2 (UD-021).
 -   Reports and audit logs.
 -   Plugin installation and management.
 -   Theme installation, configuration, and activation.
@@ -146,6 +176,38 @@ task administration, future SMS policies) remain open in `REQUIREMENTS.md`
 section 6.2 (UD-019 – UD-022). Nothing in these statements authorizes
 implementation.
 
+**Approved decisions (2026-10-22).** The user has approved the following
+additions and sequencing constraint, limited to the requirements documented in
+`REQUIREMENTS.md` — no broader or unspecified functionality is approved:
+
+-   **Brand listing and brand detail pages — included in V1**: active brands
+    are listed publicly, each active brand has a dedicated storefront page
+    showing its published products with the relevant browsing, filtering, and
+    sorting capabilities, brand information supports a name, a description, a
+    logo, and SEO metadata, and inactive or unknown brands are not exposed
+    through the public brand surfaces (FR-CAT-006, FR-CAT-007).
+-   **Customer address book — included in V1**: customers manage their own
+    saved addresses and may designate a default address; staff can view but
+    not edit customer addresses in the Django Admin; checkout allows a
+    customer to select one of their own addresses, and the selected address
+    is copied into the order as an address snapshot that later changes to the
+    saved address cannot alter (FR-CUST-002, FR-CHK-001).
+-   **Dedicated Contact Us page — included in V1**: the contact form validates
+    its input with clear feedback, a valid inquiry is stored, and a
+    notification is sent using the existing notification capabilities; the
+    page has its own route and is not satisfied by a generic CMS page
+    (FR-CONTACT-001). CAPTCHA applicability stays open (UD-021).
+-   **Theme and Widget Zone implementation sequence — approved constraint**:
+    preliminary Theme and Widget Zone groundwork may be prepared before the
+    content-page migration is complete, but completion of the full Theme and
+    Widget Zone system follows the migration of the relevant content pages to
+    Vue (section 6.5).
+
+These decisions do not alter the previously approved V1 scope, including the
+currency, refund, authentication, database, Django Admin, and Redis/Celery
+decisions, and they do not close any open decision recorded in
+`REQUIREMENTS.md` section 6.2.
+
 ## 4. Product Variants and Attribute Combinations
 
 Products may have attributes such as size, color, material, or other
@@ -187,10 +249,13 @@ configure and activate a theme, and the active theme applies
 consistently across supported storefront routes, including:
 
 -   Homepage and product listing/detail pages.
+-   Brand listing and brand detail pages.
 -   Search and catalog pages.
 -   Cart and checkout.
 -   Authentication pages.
--   Customer profile, order history, order details, and wishlist.
+-   Customer profile, order history, order details, wishlist, and the
+    customer address book.
+-   Contact page.
 -   Other storefront pages added by the platform or supported plugins.
 
 The storefront remains a separate Vue/Vite application consuming the
@@ -260,6 +325,30 @@ integration, asset pipeline, and resolution algorithm are architectural
 decisions for a later phase. Presentation components must consume
 application data and services; they must not implement pricing, order,
 inventory, permission, or other business rules.
+
+### 6.5 Theme and Widget Zone Implementation Sequence (Approved 2026-10-22)
+
+The order in which the Theme system and the Widget Zone system are completed
+is an approved implementation constraint, not a prohibition on early
+groundwork.
+
+-   Preliminary Theme and Widget Zone work — such as defining the zone
+    registry contract, the component-resolution rules, the theme package
+    format, and the migration of individual routes — may be prepared before
+    the content-page migration is complete.
+-   Completion of the full Theme and Widget Zone system follows the migration
+    of the relevant content pages to the Vue storefront. A theme or Widget
+    Zone capability is complete only when the corresponding storefront
+    content is served by the Vue storefront and the zone is actually rendered
+    there.
+-   Until a route or zone has been migrated, the existing server-rendered
+    mechanism remains in place as a documented interim state and is retired
+    when that route or zone is migrated. The route-by-route migration state
+    and the actual Widget Zone rendering state are tracked in
+    `STORE_FRONT_ROUTE_COVERAGE.md`.
+-   The sequence does not change any business behavior, API behavior, or
+    data, and it does not change the requirement that the Vue storefront
+    ultimately owns the supported routes.
 
 ## 7. UI Extension Points and Widget Zones
 
@@ -353,11 +442,15 @@ Extension points should be considered for:
 -   Customer profile.
 -   Order history and order details.
 -   Wishlist.
+-   Customer address book.
 
 #### G. Search, Manufacturers, and Other Catalog Pages
 
 Extension points should be considered for search results, manufacturer
 pages, and other catalog views.
+
+Brand listing and brand detail pages are part of the category and catalog
+coverage group and receive the corresponding listing-page extension points.
 
 #### H. Admin UI
 
@@ -366,6 +459,13 @@ without compromising security or access control. In the initial release, the
 administration interface and its extension points are Django Admin based;
 storefront Vue theme components and Widget Zones do not control the admin
 interface.
+
+#### I. Contact and Other Customer-Facing Pages
+
+Extension points should be considered for the contact page, including the
+form area and the surrounding informational regions. The final zone
+identifier, capability, and placement remain architecture/design decisions
+(`REQUIREMENTS.md` section 6.2, UD-007).
 
 ### 7.2 Detailed Definition Later
 

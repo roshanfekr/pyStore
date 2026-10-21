@@ -8,14 +8,22 @@ AC-PERF-001 – AC-PERF-003, and recording the approved 2026-10-21 release
 assignment of the 2026-10-21 capability requirements: FR-PLUG-002,
 FR-EVT-001 – FR-EVT-004, and FR-CAPTCHA-001 – FR-CAPTCHA-006 are included
 in V1; FR-SMS-001 – FR-SMS-005 require V1 architectural compatibility with
-SMS delivery and phone-number verification deferred to a later release;
+SMS delivery and phone-number verification deferred to a later release. This
+revision records the approved 2026-10-22 decisions: FR-CAT-006 – FR-CAT-007
+and AC-CAT-006 – AC-CAT-007 (brand listing and brand detail pages),
+FR-CUST-002 and AC-CUST-002 (customer address book), FR-CHK-001 and
+AC-CHK-002 (checkout address selection and order address snapshot),
+FR-CONTACT-001 and AC-CONTACT-001 (dedicated Contact Us page), the amended
+FR-EXT-001 and AC-THEME-LAYOUT-009 with AC-ZONE-003 (actual Vue Widget Zone
+rendering and its Vitest-based verification), and the approved Theme and
+Widget Zone implementation sequence recorded in section 6.1 (CF-010);
 awaiting final review)
 
-**Version:** 0.10
+**Version:** 0.11
 
-**Last updated:** 2026-10-21
+**Last updated:** 2026-10-22
 
-**Authority:** Derived from `PROJECT_SCOPE.md` version 0.9. Where this
+**Authority:** Derived from `PROJECT_SCOPE.md` version 0.10. Where this
 document and the revised scope differ, the conflict must be reported and
 resolved rather than silently changing either document. See section 6.
 
@@ -44,6 +52,15 @@ acceptance-criteria identifiers are stable and must not be reused.
 - FR-CUST-001: Customers can register, authenticate, and manage their account.
   Authenticated customers can access their own account data only; another
   customer's data must not be exposed through account pages or APIs.
+- FR-CUST-002: Customers maintain a saved address book. A customer can
+  create, view, update, and delete their own saved addresses, and can
+  designate one of their addresses as their default address. A customer can
+  access only their own addresses; another customer's address data must not
+  be exposed through any page or API. Store staff can view customer addresses
+  in the Django Admin but must not edit them there. A saved address is a
+  reusable, customer-owned entity and is distinct from the address snapshot
+  recorded on an order. Changing or deleting a saved address must not alter
+  the address snapshot of an existing order.
 
 ### 1.3 Catalog
 - FR-CAT-001: Products support categories, brands, attributes, images, prices,
@@ -61,13 +78,28 @@ acceptance-criteria identifiers are stable and must not be reused.
   be rejected with a clear error; the server must revalidate rather than trust
   client-side selection.
 - FR-CAT-005: Catalog supports search, filtering, sorting, and browsing.
+- FR-CAT-006: The storefront provides a brand listing page and a dedicated
+  brand detail page for each active brand. A brand detail page displays the
+  brand's published products and supports the relevant product browsing,
+  filtering, and sorting capabilities (FR-CAT-005). Inactive or unknown brands
+  must not be exposed through the public brand listing or the public brand
+  detail surface, including the corresponding API responses.
+- FR-CAT-007: Brand information supports a name, a description, a logo, and
+  SEO metadata. The logo is optional, and the storefront renders a defined
+  fallback presentation for a brand without a logo. SEO metadata is optional
+  per brand and falls back to the brand name and description when it is not
+  configured.
 
 ### 1.4 Cart & Checkout
 - FR-CART-001: Customers can manage a shopping cart: add items, change
   quantities, remove items, and view item lines and totals.
 - FR-CHK-001: Checkout process completes an order with the selected payment
   and shipping methods, validates required customer and order data, and
-  produces an order confirmation.
+  produces an order confirmation. A customer may select one of their own
+  saved addresses (FR-CUST-002) as the shipping address; a saved address
+  belonging to another customer must not be accepted. The selected address
+  details are copied into the order as an address snapshot, so that a later
+  change to or deletion of the saved address does not alter the order.
 
 ### 1.5 Orders
 - FR-ORD-001: Orders track status and customer history. Authenticated customers
@@ -223,7 +255,12 @@ Currency terms used below:
   listing pages, cart and checkout, customer account pages, and footer
   regions. These examples are not an exhaustive final list. Contributions
   must support theme-compatible rendering, predictable ordering, visibility
-  and permission rules where relevant, and defined fallback behavior.
+  and permission rules where relevant, and defined fallback behavior. A
+  Widget Zone that is declared for a storefront route in the coverage record
+  must be rendered by the Vue storefront on that route, including
+  contributions from enabled plugins. A zone that exists only in
+  documentation, or a plugin contribution that is retrieved but never
+  rendered, does not satisfy this requirement.
 - FR-EXT-002: Each Widget Zone must define a stable identifier, the Vue
   component or region where it appears, allowed contribution types, ordering,
   conflict-resolution rules, and fallback behavior. A plugin that provides no
@@ -380,6 +417,11 @@ introduced by these requirements.
 - Theme activation is an administrative action and must be subject to
   authorization. The mechanism for storing and applying the active theme is
   an architecture/design decision.
+- Completion of the full Theme and Widget Zone system follows the migration
+  of the relevant content routes to the Vue storefront. Preliminary Theme and
+  Widget Zone work may be prepared before that migration is complete
+  (approved decision 2026-10-22; `PROJECT_SCOPE.md` section 6.5, section 6.1
+  CF-010).
 - Theme components and theme-supplied assets must be treated as untrusted
   presentation code from an installation and security perspective until the
   theme trust model is specified.
@@ -493,6 +535,18 @@ UD-022).
   approved requirement changes it. SMS compatibility must not alter current
   registration, login, email verification, or password flows.
 
+### 1.17 Contact and Inquiries
+
+- FR-CONTACT-001: The storefront provides a dedicated Contact Us page with
+  its own route and page component. The page presents the store's contact
+  information and a contact form. Form input is validated on the server, and
+  invalid input is rejected with clear feedback and creates no inquiry. A
+  valid inquiry is stored, and a notification is sent using the platform's
+  existing notification capabilities. The Contact Us page is a distinct route
+  and is not satisfied by a generic informational/CMS page. CAPTCHA behavior
+  for the contact form is governed by the open CAPTCHA form-policy decision
+  (section 6.2, UD-021).
+
 ## 2. Technical Requirements
 
 These requirements record the approved technology direction from
@@ -556,8 +610,11 @@ architecture decisions.
 - NFR-MAINT-001: Clear module boundaries and documented contracts exist for
   core, plugins, themes, and feature modules.
 - NFR-TEST-001: Automated tests cover critical business rules, workflows,
-  authorization boundaries, theme component fallback, Widget Zone behavior, and
-  storefront theme coverage.
+  authorization boundaries, theme component fallback, Widget Zone behavior,
+  and storefront theme coverage. Vue component and Widget Zone behavior is
+  verified with Vitest as the approved frontend test framework, including
+  tests that assert actual zone rendering, plugin contributions, and the
+  fallback behavior of a zone that has no contribution.
 - NFR-API-001: APIs are documented and versionable, with stable request and
   response contracts.
 - NFR-REL-001: Order, inventory, payment, and other state transitions are
@@ -648,7 +705,8 @@ traceability tables in section 5).
   processing behavior unchanged.
 - **AC-THEME-LAYOUT-009** (`FR-THEME-LAYOUT-007`, `FR-EXT-001`): A plugin's Vue
   UI contribution renders through its defined Widget Zone on theme-covered
-  routes.
+  routes, specifically on the routes listed for that zone in the coverage
+  record, and the rendered contribution is observable in the page output.
 - **AC-THEME-LAYOUT-010** (`FR-THEME-LAYOUT-007`, `FR-EXT-002`): A plugin with
   no theme-specific component continues to render through its default
   component, and an unavailable contribution does not break the page.
@@ -684,6 +742,11 @@ traceability tables in section 5).
   unchanged by activating or switching a storefront theme.
 - **AC-CUST-001** (`FR-CUST-001`): A customer can register, authenticate,
   update their account, and cannot access another customer's account data.
+- **AC-CUST-002** (`FR-CUST-002`): A customer can create, list, update, and
+  delete their own saved addresses and can designate a default address; a
+  request for another customer's address is rejected and no other customer's
+  address data is exposed; store staff can view a customer address in the
+  Django Admin but cannot edit it there.
 - **AC-CAT-001** (`FR-CAT-001`): Products display categories, brands,
   attributes, images, prices, and inventory where configured.
 - **AC-CAT-002** (`FR-CAT-002`): A product with multiple attribute combinations
@@ -696,11 +759,29 @@ traceability tables in section 5).
   server.
 - **AC-CAT-005** (`FR-CAT-005`): Search, filtering, sorting, and catalog
   browsing return results consistent with their criteria.
+- **AC-CAT-006** (`FR-CAT-006`): The brand listing shows the active brands
+  and opens a brand detail page that displays that brand's published products
+  with working browsing, filtering, and sorting; an inactive or unknown brand
+  is not exposed through the public brand listing or the public brand detail
+  surface.
+- **AC-CAT-007** (`FR-CAT-007`): A brand with a configured logo, description,
+  and SEO metadata displays them on its brand page; a brand without a logo
+  renders the defined fallback presentation, and a brand without explicit SEO
+  metadata falls back to its name and description.
 - **AC-CART-001** (`FR-CART-001`): A customer can add, update, and remove cart
   items and sees correspondingly updated lines and totals.
 - **AC-CHK-001** (`FR-CHK-001`): A valid checkout completes with selected
   payment and shipping methods and produces an order confirmation; invalid
   checkout data is rejected without creating an order.
+- **AC-CHK-002** (`FR-CHK-001`, `FR-CUST-002`): Checkout accepts a saved
+  address that belongs to the signed-in customer and records that address on
+  the order; selecting an address belonging to another customer is rejected
+  and no order is created; changing or deleting the saved address afterwards
+  does not change the address recorded on the existing order.
+- **AC-CONTACT-001** (`FR-CONTACT-001`): The dedicated Contact Us route
+  renders the contact page and its form; invalid input is rejected with clear
+  feedback and creates no inquiry; a valid submission stores the inquiry and
+  sends a notification.
 - **AC-ORD-001** (`FR-ORD-001`): Order status and history are recorded, and a
   customer can view only their own order history and details.
 - **AC-PAY-001** (`FR-PAY-001`): Only enabled payment methods are offered, and
@@ -780,6 +861,13 @@ traceability tables in section 5).
   default component, and a missing contribution does not break the route.
 - **AC-ZONE-002** (`FR-EXT-003`): A new Widget Zone can be registered and used
   by a theme/page component without rewriting unrelated core Vue components.
+- **AC-ZONE-003** (`FR-EXT-001`, `FR-EXT-002`, `NFR-TEST-001`): For a route
+  listed with one or more Widget Zones in the coverage record, the Vue
+  storefront renders the zone region; an enabled plugin's contribution
+  appears in the rendered output; a route with no plugin contribution renders
+  the zone's documented empty or fallback state without an error; and an
+  automated Vitest test asserts the zone rendering, the plugin contribution,
+  and the no-contribution fallback for that route.
 - **AC-EXT-003** (`FR-EXT-004`): A plugin can contribute a navigation item or
   link with documented ordering, visibility, and permission behavior without
   editing core or theme components.
@@ -893,9 +981,10 @@ traceability tables in section 5).
 | Requirement group | Source | Acceptance criteria |
 | --- | --- | --- |
 | FR-ADMIN-001 – FR-ADMIN-003 | PROJECT_SCOPE §2, §3, §5 | AC-ADMIN-001 – AC-ADMIN-003 |
-| FR-CUST-001 | PROJECT_SCOPE §3 | AC-CUST-001 |
-| FR-CAT-001 – FR-CAT-005 | PROJECT_SCOPE §3 – §4 | AC-CAT-001 – AC-CAT-005 |
-| FR-CART-001, FR-CHK-001 | PROJECT_SCOPE §3 | AC-CART-001, AC-CHK-001 |
+| FR-CUST-001 – FR-CUST-002 | PROJECT_SCOPE §3 | AC-CUST-001 – AC-CUST-002 |
+| FR-CAT-001 – FR-CAT-007 | PROJECT_SCOPE §3 – §4 | AC-CAT-001 – AC-CAT-007 |
+| FR-CART-001, FR-CHK-001 | PROJECT_SCOPE §3 | AC-CART-001, AC-CHK-001 – AC-CHK-002 |
+| FR-CONTACT-001 | PROJECT_SCOPE §3 | AC-CONTACT-001 |
 | FR-ORD-001 | PROJECT_SCOPE §3 | AC-ORD-001 |
 | FR-PAY-001 – FR-PAY-002, FR-SHIP-001 | PROJECT_SCOPE §3 | AC-PAY-001 – AC-PAY-003, AC-SHIP-001 |
 | FR-DISC-001 | PROJECT_SCOPE §3 | AC-DISC-001 |
@@ -910,7 +999,7 @@ traceability tables in section 5).
 | FR-EVT-001 – FR-EVT-004 | PROJECT_SCOPE §3 | AC-EVT-001 – AC-EVT-003 |
 | FR-CAPTCHA-001 – FR-CAPTCHA-006 | PROJECT_SCOPE §3 | AC-CAPTCHA-001 – AC-CAPTCHA-004 |
 | FR-SMS-001 – FR-SMS-005 | PROJECT_SCOPE §3 | AC-SMS-001 – AC-SMS-003 |
-| FR-EXT-001 – FR-EXT-004 | PROJECT_SCOPE §6.2 – §7 | AC-EXT-001, AC-ZONE-001 – AC-ZONE-002, AC-EXT-003, AC-THEME-LAYOUT-009 – AC-THEME-LAYOUT-010 |
+| FR-EXT-001 – FR-EXT-004 | PROJECT_SCOPE §6.2 – §7 | AC-EXT-001, AC-ZONE-001 – AC-ZONE-003, AC-EXT-003, AC-THEME-LAYOUT-009 – AC-THEME-LAYOUT-010 |
 | FR-THEME-LAYOUT-001 – FR-THEME-LAYOUT-012 | PROJECT_SCOPE §6 | AC-THEME-LAYOUT-001 – AC-THEME-LAYOUT-015 |
 | TR-STACK-001 – TR-STACK-007 | PROJECT_SCOPE §2 | AC-STACK-001, AC-ADMIN-003 |
 | TR-DB-001 – TR-DB-006 | PROJECT_SCOPE §2, §8 | AC-DB-001 – AC-DB-006 |
@@ -937,6 +1026,7 @@ architecture/design and section 6.2.
 | --- | --- | --- | --- |
 | Home | Vue route with theme home page component, root layout, shared components | Django `storefront/home.html`; not yet a Vue route | Theme page override and header/home/footer Widget Zones required. |
 | Category / listing | Vue route with theme category page component | Django `storefront/category.html`; not yet a Vue route | Category/listing Widget Zones required. |
+| Brand listing / brand detail | Vue routes with theme brand listing and brand detail page components | Not implemented — no storefront brand route; `Brand` model, `BrandViewSet`, and `?brand=<slug>` product filtering exist | Brand pages are required in V1 (approved 2026-10-22; FR-CAT-006 – FR-CAT-007). Listing Widget Zones required; public brand surfaces must not expose inactive or unknown brands. |
 | Product details | Vue route with theme product page component | Django `storefront/product_detail.html`; not yet a Vue route | Product-details Widget Zones required. |
 | Search results | Vue route with theme search page component | Django `storefront/search.html`; not yet a Vue route | Theme page override required. |
 | Cart | Vue route with theme cart page component | Vue `CartView.vue` | Theme page override; cart Widget Zones required. |
@@ -944,9 +1034,11 @@ architecture/design and section 6.2.
 | Order history / details | Vue routes with theme account/order page components | Vue `AccountView.vue`, `OrderView.vue` | Theme page overrides; account/order Widget Zones required. |
 | Registration / login | Vue routes with theme authentication page components | Vue `RegisterView.vue`, `LoginView.vue` | Theme page overrides required. |
 | Account pages | Vue route with theme account page component | Vue `AccountView.vue` | Account navigation shared component required. |
+| Address book | Vue route with theme address book page component | Not implemented — no customer address entity, route, or API | Address book is required in V1 (approved 2026-10-22; FR-CUST-002, FR-CHK-001). Customer-owned addresses; staff view-only in Django Admin; address-book Widget Zones required. |
 | Wishlist | Vue route with theme wishlist page component | Vue `WishlistView.vue` | Theme page override required. |
 | Compare | Vue route with theme compare page component | Vue `CompareView.vue` | Existing storefront page; theme page override required. |
-| Contact / informational | Vue route with theme informational page component | Django `storefront/cms_page.html`; route not yet in Vue router | Theme page override and content Widget Zones required. |
+| Contact | Vue route with theme contact page component | Not implemented — no dedicated contact route; the CMS catch-all route is not the contact page | A dedicated Contact Us page is required in V1 (approved 2026-10-22; FR-CONTACT-001). Inquiry storage and notification required; CAPTCHA applicability remains open (UD-021). Contact-page Widget Zones required. |
+| Informational / CMS page | Vue route with theme informational page component | Django `storefront/cms_page.html`; route not yet in Vue router | Theme page override and content Widget Zones required. |
 | Blog / news | Vue routes with theme list/detail page components | Django blog templates; routes not yet in Vue router | Theme page overrides required where enabled. |
 | Plugin-contributed storefront UI | Plugin Vue components rendered in approved Widget Zones | Current plugins provide Django hook templates such as `ajax_cart/*`, `flash_sale/*`, and `slider/*` | Migration to Vue plugin components and the approved Zone registry is required. |
 | Administration | Django Admin for the initial release; separate layout/theme policy | Django Admin / `admin_panel` templates | Storefront theme activation must not change the admin interface; Vue admin migration is not initial scope. |
@@ -1039,6 +1131,22 @@ CF-002 and UD-001 and must be classified in the coverage record.
   deferred to a later release (FR-SMS-003, FR-SMS-004). Remaining technical
   questions stay open in section 6.2 (UD-019 – UD-022); this revision does
   not implement anything.
+- **CF-010 — Theme and Widget Zone implementation sequence (approved
+  2026-10-22).** The full Theme and Widget Zone system is completed after
+  the relevant content routes have migrated to the Vue storefront, and
+  preliminary Theme and Widget Zone work is allowed before that migration is
+  complete. Verified implementation evidence: the Vue storefront currently
+  owns only the interactive routes (`src/frontend/src/router/index.js`) while
+  the content routes remain server-rendered by Django
+  (`src/apps/storefront/urls.py`), and plugin UI is currently delivered as
+  server-rendered hook fragments with no Vue zone rendering
+  (`src/apps/storefront/hooks.py`, `src/apps/storefront/templatetags/plugin_hooks.py`).
+  Missing: Vue content routes, the theme component-resolution contract, the
+  Widget Zone registry, and actual Vue zone rendering. The sequence is
+  recorded as a scope constraint (`PROJECT_SCOPE.md` section 6.5) and as a
+  theme constraint in section 1.13. The zone registry, component-resolution
+  contract, and plugin component contract remain open design decisions
+  (section 6.2, UD-003 – UD-007); this revision does not implement anything.
 
 ### 6.2 Unresolved Decisions for Architecture/Design
 
@@ -1220,6 +1328,17 @@ assignment on 2026-10-21 (section 6.1 CF-009): the first three groups are
 included in V1, and SMS compatibility is required in V1 with SMS delivery
 and phone-number verification deferred to a later release; residual
 technical questions remain open (UD-019 – UD-022).
+This revision additionally records the approved 2026-10-22 decisions: brand
+listing and brand detail pages with brand logo and SEO metadata
+(FR-CAT-006 – FR-CAT-007), the customer-managed address book with a default
+address and staff read-only administrative access (FR-CUST-002), checkout
+address selection with an order address snapshot (FR-CHK-001, AC-CHK-002),
+the dedicated Contact Us page with a stored inquiry and notification
+(FR-CONTACT-001), actual Vue Widget Zone rendering with Vitest-based
+verification (FR-EXT-001, AC-THEME-LAYOUT-009, AC-ZONE-003), and the Theme
+and Widget Zone implementation sequence (section 6.1 CF-010). The CAPTCHA
+form policy and the remaining Widget Zone and Theme design decisions stay
+open (UD-021, UD-003 – UD-007).
 The revised requirements remain
 in Draft pending final review and approval. This document does not approve
 architecture, detailed design, dependencies, database changes, migration

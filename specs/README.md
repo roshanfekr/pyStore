@@ -33,6 +33,7 @@ specs/
 ├── PROJECT_SCOPE.md
 ├── REQUIREMENTS.md
 ├── ARCHITECTURE.md
+├── STORE_FRONT_ROUTE_COVERAGE.md
 ├── DATA_MODEL.md
 ├── API_SPEC.md
 ├── UI_UX_SPEC.md
@@ -60,6 +61,8 @@ specs/
 ```
 
 This is the target structure, not a declaration that every file already exists.
+`STORE_FRONT_ROUTE_COVERAGE.md` is the one additional document that currently
+exists beyond the four baseline documents.
 
 Create a document only when it is needed for the current approved phase. Do not generate all documents with speculative or placeholder requirements.
 
@@ -151,6 +154,17 @@ Do not use an ADR to silently override an approved project requirement.
 Contains detailed specifications for individual features.
 
 Create feature documents as needed. A feature specification should define its behavior, constraints, relevant data, interfaces, user interactions, and acceptance criteria as appropriate.
+
+### 4.14. STORE_FRONT_ROUTE_COVERAGE.md
+
+Records the evidence-based storefront route coverage baseline: the actual
+storefront routes, their current implementation, their theme and Widget Zone
+integration state, the existing test coverage, and the gaps.
+
+It supports `UD-001` and the coverage traceability of `FR-THEME-LAYOUT-010` /
+`AC-THEME-LAYOUT-012`. It records existing behavior and approved route
+requirements; it does not define the theme architecture, the Widget Zone
+registry, or an implementation plan.
 
 ## 5. Authority and Conflict Resolution
 
@@ -368,14 +382,20 @@ Use explicit status labels where appropriate:
 
 Only mark a document `Approved` when the user has explicitly approved it.
 
-**Current status (2026-10-20):** The project is at the scope/requirements
-approval gate. `PROJECT_SCOPE.md` and `REQUIREMENTS.md` are in final review,
-pending explicit user approval. A first draft of `ARCHITECTURE.md` (v0.1,
-Draft — proposed for review, not approved) has been created for the
-architecture phase; no other specification documents exist yet. Architecture
-approval must not be assumed from the draft's existence, and detailed design
-and implementation must not begin until the scope/requirements approval is
-given and the next phase is authorized.
+**Current status (2026-10-22):** The project is at the scope/requirements
+approval gate. `PROJECT_SCOPE.md` (v0.10) and `REQUIREMENTS.md` (v0.11) are
+in final review, pending explicit user approval; both remain `Draft` and
+record the user-approved decisions through 2026-10-22. `ARCHITECTURE.md`
+(v0.8) is also `Draft` — prepared for final user review and **not
+approved**; its D7 (cache/background-jobs) decision remains open pending
+operational validation, and the Transactional Outbox remains deferred.
+`STORE_FRONT_ROUTE_COVERAGE.md` (v0.2) is an assessment record of the
+existing storefront route, theme, and Widget Zone coverage; it is `Draft` and
+is not an approved specification. `IMPLEMENTATION_PLAN.md` has not been
+established yet, so the references to it in this document are prospective.
+Architecture approval must not be assumed from a draft's existence, and
+detailed design and implementation must not begin until the
+scope/requirements approval is given and the next phase is authorized.
 
 ---
 

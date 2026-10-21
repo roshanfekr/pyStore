@@ -1,12 +1,16 @@
 # Storefront Route Coverage Record
 
 **Document:** `specs/STORE_FRONT_ROUTE_COVERAGE.md`\
-**Version:** 0.1\
+**Version:** 0.2\
 **Status:** Draft — assessment record (not an approved specification)\
 **Last updated:** 2026-10-22\
 **Basis:** Direct inspection of the working tree at commit `88669ba` (branch `main`,
 clean working tree). The assessment is read-only; no application code, test,
-configuration, dependency, or database state was changed.\
+configuration, dependency, or database state was changed. Revision 0.2 adds
+the routes and requirements approved on 2026-10-22 (brand listing and brand
+detail, customer address book, dedicated Contact Us page) and the approved
+Theme/Widget Zone implementation sequence; it changes no application code and
+makes no implementation claim.\
 **Purpose:** Evidence-based record of existing storefront route coverage, theme
 integration, and plugin hook (Widget Zone precursor) integration, produced to
 support `UD-001` and to establish the baseline for `FR-THEME-LAYOUT-010` /
@@ -97,7 +101,8 @@ remaining work. All route patterns are quoted from
 | `category/<slug:slug>/` (name `category`) | Browse a category and its descendants | Django view `category_view` (`views.py:81-90`) | `storefront/category.html` extends `storefront/base.html` | Existing — Django template override; no theme ships a `category.html` override | Absent (no hook call in the template) | `tests/test_storefront/test_storefront.py` (`test_category_page_with_descendants`) | **No filtering, sorting, or paging controls** in the view or template; the view returns all category products unordered. Filtering/sorting exist only in the API viewset (`src/apps/catalog/api.py:92-94`: `ordering_fields`, `search_fields`) | FR-CAT-005, FR-THEME-LAYOUT-001, AC-CAT-005, AC-THEME-LAYOUT-012 |
 | `product/<slug:slug>/` (name `product`) | Product detail with variants, price, images, availability | Django view `product_detail_view` (`views.py:160-192`) | `storefront/product_detail.html` (+ `storefront/_product_media.html` partial) extends `storefront/base.html` | Existing — Django template override (`theme_pacific` ships `product_detail.html`) | Absent (no hook call in the template) | `tests/test_storefront/test_storefront.py` (`test_product_detail_page`, `test_product_detail_shows_all_images`, `test_product_detail_rich_layout`); `tests/test_storefront/test_theme_pacific.py` (`test_pacific_product_detail_renders_gallery`) | Variant selection is server-rendered (`option` pills + `variant-select` element, product_detail.html:105-135) with a server-side revalidation on add-to-cart; no Vue route exists | FR-CAT-002/003/004, FR-THEME-LAYOUT-001, AC-CAT-002/003/004, AC-THEME-LAYOUT-012 |
 | `search/` (name `search`) | Full-text product search | Django view `search_view` (`views.py:195-205`); results via `apps.search.service.search_service` | `storefront/search.html` extends `storefront/base.html` | Existing — Django template override | Absent | `tests/test_storefront/test_storefront.py` (`test_search_view`); `tests/test_search/test_search.py` (service level) | No filters/sort in the search page; SPA-side search is a separate endpoint (`/api/v1/storefront/search`) not used by any Vue view | FR-CAT-005, AC-CAT-005, FR-THEME-LAYOUT-010 |
-| **Brand pages** | Brand listing / brand detail | **Not found** — no brand route exists in `src/apps/storefront/urls.py`; brands are exposed only as the API endpoint `/api/v1/brands` (`config/api_urls.py:51`) | — | Absent | Absent | `No identified coverage` for a brand page (API viewset covered by `tests/test_api/test_catalog_api.py`) | Brand pages are named in `FR-THEME-LAYOUT-001` as a supported route but are not implemented as a storefront page; a gap to resolve during route classification, not a requirement change | FR-THEME-LAYOUT-001, FR-CAT-001, AC-THEME-LAYOUT-012 |
+| **Proposed route** `brands/` (path and URL name are placeholders; final route naming is an architecture decision, `UD-001`) — **required route, not yet implemented** | Brand listing: browse the active brands of the store | **Not found** — no brand route exists in `src/apps/storefront/urls.py`. A `Brand` model (`src/apps/catalog/models.py:67-79`) and `BrandViewSet` (`src/apps/catalog/api.py:187-201`, anonymous list/retrieve, slug lookup, `search`/`ordering`) exist, but no storefront page or Vue route exists | — | Absent — no storefront rendering path | Absent (no zone declared) | `No identified coverage` for a brand page (API viewset covered by `tests/test_api/test_catalog_api.py`) | **Required in V1** (approved 2026-10-22; `FR-CAT-006`). Not implemented: no route, no view, no template, no Vue route. `BrandViewSet.get_queryset()` currently returns all brands, so inactive brands are publicly listable and the public exposure rule is not yet met | FR-CAT-006, AC-CAT-006, FR-THEME-LAYOUT-001, AC-THEME-LAYOUT-012 |
+| **Proposed route** `brands/<slug:slug>/` (path and URL name are placeholders; final route naming is an architecture decision, `UD-001`) — **required route, not yet implemented** | Brand detail: the brand's published products with browsing, filtering, and sorting | **Not found** — no brand detail route, view, or template exists. The API already supports `?brand=<slug>` product filtering (`src/apps/catalog/api.py:86`) and `/api/v1/brands/<slug>` | — | Absent — no storefront rendering path | Absent (no zone declared) | `No identified coverage` for a brand detail page | **Required in V1** (approved 2026-10-22; `FR-CAT-006`). Not implemented. Brand information must additionally support a logo and SEO metadata (`FR-CAT-007`); the `Brand` model currently has neither, and the existing `SEOMixin` pattern (`src/apps/cms/models.py`) is the available precedent | FR-CAT-006, FR-CAT-007, AC-CAT-006, AC-CAT-007, FR-THEME-LAYOUT-010, AC-THEME-LAYOUT-012 |
 | `search/autocomplete/` (name `autocomplete`) | Type-ahead suggestions | Django view `autocomplete_view` (`views.py:208-219`) — JSON | Non-page (JSON) | Not applicable | Not applicable | `No identified coverage` for the JSON endpoint | Non-page response; must still be classified in the coverage record | FR-THEME-LAYOUT-010 |
 | `search/suggest/` (name `suggest`) | Search suggestion list | Django view `suggest_view` (`views.py:221-232`) — JSON | Non-page (JSON) | Not applicable | Not applicable | `No identified coverage` for the JSON endpoint | Non-page response | FR-THEME-LAYOUT-010 |
 
@@ -124,14 +129,15 @@ remaining work. All route patterns are quoted from
 | `register/` (name `register`) | Customer registration | `spa_page(register_view)` → Vue `RegisterView.vue` / Django `register_view` (`views.py:389-402`) | `storefront/register.html`; Vue `src/frontend/src/views/RegisterView.vue` | **Partial** | Absent | `tests/test_storefront/test_storefront.py` (`test_register_login_account_flow`); `tests/test_api/test_auth_api.py` | — | FR-CUST-001, FR-THEME-LAYOUT-001, AC-CUST-001, AC-THEME-LAYOUT-012 |
 | `login/` (name `login`) | Customer login | `spa_page(login_view)` → Vue `LoginView.vue` / Django `login_view` (`views.py:405-419`) | `storefront/login.html`; Vue `src/frontend/src/views/LoginView.vue` | **Partial** | Absent | `tests/test_storefront/test_storefront.py` (`test_register_login_account_flow`); `tests/test_api/test_auth_api.py` | — | FR-CUST-001, FR-THEME-LAYOUT-001, AC-CUST-001, AC-THEME-LAYOUT-012 |
 | `logout/` (name `logout`) | Sign out | Django view `logout_view` (`views.py:422-424`) | Non-page (redirect) | Not applicable | Not applicable | `tests/test_storefront/test_storefront.py` (used inside the register/login flow) | Action endpoint | FR-CUST-001, FR-THEME-LAYOUT-010 |
-| `account/` (name `account`) | Customer account: profile summary and recent orders | `spa_page(account_view)` → Vue `AccountView.vue` / Django `account_view` (`views.py:427-430`, `@login_required`) | `storefront/account.html`; Vue `src/frontend/src/views/AccountView.vue` | **Partial** | Absent | `tests/test_storefront/test_storefront.py` (`test_register_login_account_flow`, `test_account_requires_login`, `test_account_empty_orders_keeps_its_own_wording`) | The account page shows the order history only; **no address book / address management page exists** (no address route in `urls.py`), although `FR-THEME-LAYOUT-001` names "customer account pages" | FR-CUST-001, FR-THEME-LAYOUT-001, AC-CUST-001, AC-THEME-LAYOUT-012 |
-| **Address management** | Customer address book (add/edit/delete addresses) | **Not found** — no route, view, or template for address management in the storefront | — | Absent | Absent | `No identified coverage` | Addresses are collected only as checkout form fields (`views.py:348-357`); no standalone page exists | FR-CUST-001, FR-THEME-LAYOUT-001, AC-THEME-LAYOUT-012 |
+| `account/` (name `account`) | Customer account: profile summary and recent orders | `spa_page(account_view)` → Vue `AccountView.vue` / Django `account_view` (`views.py:427-430`, `@login_required`) | `storefront/account.html`; Vue `src/frontend/src/views/AccountView.vue` | **Partial** | Absent | `tests/test_storefront/test_storefront.py` (`test_register_login_account_flow`, `test_account_requires_login`, `test_account_empty_orders_keeps_its_own_wording`) | The account page shows the order history only; the address book is a separate required route (see the next row) | FR-CUST-001, FR-THEME-LAYOUT-001, AC-CUST-001, AC-THEME-LAYOUT-012 |
+| **Proposed route** `account/addresses/` (path and URL name are placeholders; final route naming is an architecture decision, `UD-001`) — **required route, not yet implemented** | Customer address book: list, create, update, and delete the customer's own saved addresses and designate a default | **Not found** — no address route, view, template, or Vue route exists, and no customer-owned address entity exists in the code. Only the order-scoped `OrderAddress` snapshot (`src/apps/orders/models.py:116-138`) and raw checkout form fields (`views.py:348-357`) exist | — | Absent — no storefront rendering path | Absent (no zone declared) | `No identified coverage` | **Required in V1** (approved 2026-10-22; `FR-CUST-002`). Not implemented: data entity, API, and page are all missing. Staff view-only administrative access and checkout selection of an owned address are required (`FR-CHK-001`, `AC-CHK-002`) | FR-CUST-002, FR-CHK-001, AC-CUST-002, AC-CHK-002, FR-THEME-LAYOUT-001, AC-THEME-LAYOUT-012 |
 
 ### 4.6 Content pages, blog, and informational pages
 
 | Route / URL pattern | Page / user journey | Implementation | Template / component | Theme integration | Widget Zone integration | Tests | Status / gaps | Traceability |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| `<slug:slug>/` (name `cms_page`, catch-all, last pattern) | CMS informational page | Django view `cms_page_view` (`views.py:502-505`) | `storefront/cms_page.html` extends `storefront/base.html` | Existing — Django template override | Absent | `tests/test_cms/test_cms_media_seo.py` (CMS model level); `No identified coverage` for the storefront page rendering | Catch-all pattern — any unmatched single-segment path is resolved as a CMS page; a dedicated "contact" page is **Not found** (no route and no seeded page; a CMS `Page` with slug `contact` would be served by this pattern) | FR-THEME-LAYOUT-001, FR-THEME-LAYOUT-010, AC-THEME-LAYOUT-012 |
+| `<slug:slug>/` (name `cms_page`, catch-all, last pattern) | CMS informational page | Django view `cms_page_view` (`views.py:502-505`) | `storefront/cms_page.html` extends `storefront/base.html` | Existing — Django template override | Absent | `tests/test_cms/test_cms_media_seo.py` (CMS model level); `No identified coverage` for the storefront page rendering | Catch-all pattern — any unmatched single-segment path is resolved as a CMS page. It is **not** the Contact Us page: a dedicated contact route is required (see the next row) | FR-THEME-LAYOUT-001, FR-THEME-LAYOUT-010, AC-THEME-LAYOUT-012 |
+| **Proposed route** `contact/` (path and URL name are placeholders; final route naming is an architecture decision, `UD-001`) — **required route, not yet implemented** | Contact Us: store contact information and a validated inquiry form | **Not found** — no contact route, view, template, inquiry model, or Vue route exists. The CMS catch-all pattern is explicitly not accepted as a substitute (approved 2026-10-22) | — | Absent — no storefront rendering path | Absent (no zone declared) | `No identified coverage` | **Required in V1** (approved 2026-10-22; `FR-CONTACT-001`). Not implemented: a valid inquiry must be stored and a notification sent through the existing notification capabilities (`apps/notifications`, `core/notifications`). CAPTCHA applicability for the form remains open (`UD-021`) | FR-CONTACT-001, AC-CONTACT-001, FR-THEME-LAYOUT-001, AC-THEME-LAYOUT-012 |
 | `blog/` (name `blog`) | Blog listing | Django view `blog_list_view` (`views.py:508-510`) | `storefront/blog_list.html` extends `storefront/base.html` | Existing — Django template override | Absent | `tests/test_storefront/test_storefront_api.py` (`test_page_and_blog_endpoints` — API level) | No Vue route exists for the blog | FR-THEME-LAYOUT-001, FR-THEME-LAYOUT-010, AC-THEME-LAYOUT-012 |
 | `blog/<slug:slug>/` (name `blog_detail`) | Blog post | Django view `blog_detail_view` (`views.py:513-516`) | `storefront/blog_detail.html` extends `storefront/base.html` | Existing — Django template override | Absent | `tests/test_storefront/test_storefront_api.py` (API level) | No Vue route exists for blog posts | FR-THEME-LAYOUT-001, FR-THEME-LAYOUT-010, AC-THEME-LAYOUT-012 |
 
@@ -177,6 +183,10 @@ routes below."
 | `/:pathMatch(.*)*` | `NotFoundView.vue` | No Django counterpart | Absent (SPA-only not-found view) | Absent |
 
 No Vue route exists for home, category, product, search, blog, or CMS pages.
+The routes required in V1 but not yet implemented — brand listing, brand
+detail, the customer address book, and the dedicated Contact Us page (§4.2,
+§4.5, §4.6) — are likewise absent from the Vue router; each becomes a Vue
+route when it is migrated.
 
 ## 5. Theme Coverage as Implemented
 
@@ -215,9 +225,11 @@ No Vue route exists for home, category, product, search, blog, or CMS pages.
    home, product listing/category/brand, product details, search, cart,
    checkout and order confirmation, registration/login/account, wishlist,
    compare, order history/details, contact and informational/CMS pages, and
-   blog/news. Of these, **brand pages and address management have no
-   implementation at all**, and there is **no dedicated contact page** (only
-   the CMS catch-all route). The Vue path covers none of the content pages.
+   blog/news. As approved on 2026-10-22, **brand listing and brand detail
+   pages, the customer address book, and a dedicated Contact Us page are
+   required in V1** and are recorded as required-but-not-implemented routes
+   in §4.2, §4.5, and §4.6. The Vue path still covers none of the content
+   pages.
 
 ## 6. Widget Zone (Plugin Hook) Coverage as Implemented
 
@@ -254,6 +266,19 @@ Findings:
    `ContentBlock` records are likewise not rendered by the storefront.
 5. **No zone exists on** category, product detail, search, blog, CMS, account,
    checkout, wishlist, compare, or order detail pages.
+6. **Actual Vue rendering is now a binding requirement.** As approved on
+   2026-10-22, a zone declared for a route in this record must be rendered by
+   the Vue storefront on that route, an enabled plugin's contribution must
+   appear in the rendered output, and a route without a contribution must
+   render the zone's documented empty or fallback state
+   (`FR-EXT-001`, `AC-THEME-LAYOUT-009`, `AC-ZONE-003`), verified with Vitest
+   (`NFR-TEST-001`). The zone identifiers, capabilities, and ordering remain
+   open design decisions (`UD-006`, `UD-007`); the rendering obligation does
+   not. The routes required in V1 but not yet implemented (§4.2 brand
+   listing/brand detail, §4.5 address book, §4.6 Contact Us) will require
+   their own zone coverage once the zone registry is defined, and their
+   "Absent" zone state in this record reflects the current implementation,
+   not a reduced requirement.
 
 ## 7. Gaps and Unverified Items
 
@@ -266,7 +291,7 @@ Findings:
 | G-3 | Plugin hook zones exist only in the Django path; the SPA renders no plugin content | §6 finding 3 |
 | G-4 | Theme activation is environment-driven, not persisted or administratively actionable | `base.py:80`; `themes.py:9-10`; `CF-003` in `REQUIREMENTS.md` §6.1 |
 | G-5 | Theme CSS is not linked by the core Django layout | `base.html:11`; `src/themes/default/static/css/theme.css` unreferenced |
-| G-6 | Brand pages, address management, and a contact page are required by the approved route list but have no implementation | §4.2, §4.5, §4.6 |
+| G-6 | Brand listing/detail, the customer address book, and a dedicated Contact Us page are required in V1 (approved 2026-10-22) but have no implementation; the brand routes also need brand logo/SEO data and public filtering of inactive brands | §4.2, §4.5, §4.6 |
 | G-7 | No filtering/sorting/paging on the category page (API supports it) | `views.py:81-90`; `catalog/api.py:92-94` |
 | G-8 | No 404/500 templates; error pages are outside theme coverage | §4.7 |
 | G-9 | The SPA build output is git-ignored and not reproducible from a clone | `.gitignore`; `vite.config.js` |
@@ -313,9 +338,11 @@ Findings:
      route class.
   3. A test asserting that every zone declared in the coverage record is
      either rendered or explicitly marked as not applicable.
-  4. A test for the SPA rendering path (there is no JavaScript test runner in
-     the repository — `src/frontend/package.json` has no test script; **Not
-     verified** whether a frontend test harness exists).
+  4. A test for the SPA rendering path. **Vitest is the approved framework
+     for Vue component and Widget Zone tests** (approved decision 2026-10-22;
+     `NFR-TEST-001`, `AC-ZONE-003`), but the frontend project currently has
+     no test script and no test runner — `src/frontend/package.json` has no
+     `test` script — so the harness itself is part of the outstanding work.
 
 ## 9. Traceability
 
@@ -343,7 +370,10 @@ explicitly scope it out) is a scope decision for the user.
 - Every route pattern in §4 was read from `src/apps/storefront/urls.py` and
   traced to its view in `src/apps/storefront/views.py`; every template path
   cited was verified to exist under
-  `src/apps/storefront/templates/storefront/`.
+  `src/apps/storefront/templates/storefront/`. The rows marked as required
+  but not yet implemented (§4.2 brand listing and brand detail, §4.5 address
+  book, §4.6 Contact Us) are **proposed** route paths and names, not existing
+  routes; the final route naming remains an architecture decision (`UD-001`).
 - Every hook name and location was verified by searching `{% plugin_hook %}`
   usage across all templates and `get_storefront_hooks()` across all plugins.
 - Every file path in this document was listed from the working tree before
@@ -360,17 +390,33 @@ explicitly scope it out) is a scope decision for the user.
   citations taken from the repository, not execution results. No migration
   was run and no database was modified.
 
-## 11. Open Questions for the User
+## 11. Resolved Decisions and Remaining Questions
 
-1. Should the **brand page** and **customer address management** be
-   implemented as storefront pages, or explicitly recorded as outside theme
-   coverage for V1 (per the `FR-THEME-LAYOUT-001` requirement that any route
-   outside coverage be documented)?
-2. Is a dedicated **contact page** required, or is the CMS catch-all route
-   considered sufficient?
-3. Should the **Vue SPA become the renderer for content pages** (S1 in
-   `ARCHITECTURE.md` §6.2) before the theme/Widget Zone work, or after it?
-4. Should the **hook API docstring** (`src/apps/storefront/hooks.py:5-7`) be
+**Resolved by approved decision (2026-10-22):**
+
+1. **Brand page** — brand listing and brand detail pages are required in V1
+   (`FR-CAT-006` – `FR-CAT-007`); they are recorded as required routes in
+   §4.2, not as routes outside theme coverage.
+2. **Customer address management** — a customer-managed address book is
+   required in V1 (`FR-CUST-002`, `FR-CHK-001`); it is recorded as a
+   required route in §4.5.
+3. **Contact page** — a dedicated Contact Us route and page are required in
+   V1; the CMS catch-all route is explicitly not accepted as a substitute
+   (`FR-CONTACT-001`). Recorded in §4.6.
+4. **Renderer and sequencing** — the Vue storefront is the target renderer
+   for the supported routes, and the approved sequence is that preliminary
+   Theme and Widget Zone work may precede the content-page migration while
+   **completion** of the full Theme and Widget Zone system follows it
+   (`PROJECT_SCOPE.md` §6.5, `REQUIREMENTS.md` §6.1 CF-010). Route-by-route
+   migration state and actual Widget Zone rendering state are tracked in
+   this record.
+5. **Vue test framework** — Vitest is the approved framework for Vue
+   component and Widget Zone tests (`NFR-TEST-001`, `AC-ZONE-003`); the
+   frontend project currently has no test runner (§8).
+
+**Remaining questions:**
+
+1. Should the **hook API docstring** (`src/apps/storefront/hooks.py:5-7`) be
    corrected to match the verified behavior, or should SPA hook consumption be
    scheduled as work?
 

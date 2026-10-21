@@ -1,9 +1,16 @@
 # Architecture Specification
 
 **Document:** `specs/ARCHITECTURE.md`\
-**Version:** 0.7\
+**Version:** 0.8\
 **Status:** Draft — prepared for final user review. This document is **not
 approved** and must not be treated as an authorization to implement.
+Revision 0.8 records the approved 2026-10-22 decisions: the customer-owned
+reusable address entity as distinct from the order address snapshot, public
+brand API filtering of inactive brands, contact-inquiry storage and
+notification using the existing notification capabilities, the Vue Widget
+Zone rendering contract with Vitest-based verification, and the approved
+Theme/Widget Zone implementation sequence. It adds no new architecture
+decision beyond the approved scope and introduces no implementation.
 Revision 0.7 adds §10.5, the V1 Redis/Celery resilience policy (Option B:
 explicit user-decided failure handling plus accompanying architectural
 recommendations), records the Transactional Outbox
@@ -14,8 +21,8 @@ of the four capabilities, corrected verified As-Is evidence (shipping module
 facts, app count), and fixed internal cross-references. Release-scope
 approval of the baseline documents is not final approval of this
 architecture.\
-**Last updated:** 2026-10-21\
-**Basis:** `PROJECT_SCOPE.md` v0.9 and `REQUIREMENTS.md` v0.10 (approved by
+**Last updated:** 2026-10-22\
+**Basis:** `PROJECT_SCOPE.md` v0.10 and `REQUIREMENTS.md` v0.11 (approved by
 the user), plus direct inspection of the current repository.
 
 ## 1. Architecture Purpose and Status
@@ -270,6 +277,11 @@ only what materially affects architecture):
 - **Verified.** Dependency management: `requirements/base.txt`
   (Django 5.2, DRF, django-environ, mssql-django, redis, django-redis,
   celery[redis], gunicorn, cryptography, Pillow), `requirements/dev.txt`.
+- **Verified (gap).** Frontend test tooling: the Vue project
+  (`src/frontend/package.json`, §2.4) has a `build` script only and **no
+  test script or test runner**. Vitest is the approved framework for Vue
+  component and Widget Zone tests (approved decision 2026-10-22; NFR-TEST-001,
+  AC-ZONE-003), so the harness is not yet in place.
 
 ### 2.8 Current Architecture Diagram (As-Is, Verified Only)
 
@@ -409,6 +421,9 @@ Zones), not the domain model or service layer.
 | G9 | Performance verification | Targets approved (NFR-PERF-001–003); no test tooling | Reproducible baseline load test + LCP lab method | UD-018 |
 | G10 | Cache/jobs necessity | Redis/Celery configured; cache mainly used by brute-force protection | Validated necessity and operational design | §10.3 |
 | G11 | Deployment | No manifests; gunicorn dep only | Defined topology (one origin, D14) in deployment design | Later phase |
+| G12 | Brand pages | `Brand` model has name/slug/description/is_active only; `BrandViewSet` exposes all brands to anonymous list/retrieve; no storefront brand route or page | Brand listing and brand detail pages with brand logo and SEO metadata; public brand surfaces expose active brands only | FR-CAT-006 – FR-CAT-007; data model + public query behavior + new Vue routes |
+| G13 | Customer address book | No customer-owned address entity; only the order-scoped `OrderAddress` snapshot; checkout collects raw address form fields | Reusable customer-owned address entity with default address, staff read-only admin access, and checkout selection copied into the order snapshot | FR-CUST-002, FR-CHK-001; new data entity + API + Vue page |
+| G14 | Contact Us page | No contact route, view, or inquiry model; the CMS catch-all is not a contact page | Dedicated contact route and page with validated input, stored inquiry, and notification through the existing notification capabilities | FR-CONTACT-001; new route, page, inquiry record, notification wiring |
 
 ## 6. Incremental Evolution Strategy (Proposed)
 
@@ -472,6 +487,14 @@ flowchart LR
 - **S2:** introduce theme resolution/fallback (UD-003/004/005) and convert
   plugin UI to Vue Widget Zones (UD-006/007); server-rendered fragments
   remain the interim mechanism until a zone's components exist.
+  **Approved sequence constraint (2026-10-22; `PROJECT_SCOPE.md` §6.5,
+  `REQUIREMENTS.md` §6.1 CF-010):** preliminary theme and zone groundwork
+  (registry contract, resolution rules, package format, individual route
+  migrations) may be prepared before the content-route migration is
+  complete, but **completion of the full Theme and Widget Zone system
+  follows the migration of the relevant content pages to Vue**. A zone is
+  complete only when the Vue storefront renders it, including the plugin
+  contribution and the no-contribution fallback (FR-EXT-001, AC-ZONE-003).
 - **S3:** implement explicit per-currency price storage/resolution and
   payment-currency validation on top of existing pricing/order models
   (UD-015/016) — independent of S1/S2 (M4).
@@ -499,6 +522,25 @@ flowchart LR
   contract, ordering, and fallback** are proposed concepts whose exact
   definitions remain UD-006/007. Plugins reach storefront UI only through
   zones; no arbitrary core replacement (PROJECT_SCOPE §7).
+- **Widget Zone rendering contract (To-Be, approved delivery obligation):
+  a zone is a declared region of a Vue page or shared component that the
+  storefront **actually renders**. For every route listed with a zone in
+  the coverage record, the Vue storefront renders the zone region; an
+  enabled plugin's contribution appears in the rendered output; a route with
+  no plugin contribution renders the zone's documented empty or fallback
+  state without an error (FR-EXT-001, FR-EXT-002, AC-ZONE-003). A zone that
+  exists only in documentation, or a contribution that is fetched but never
+  rendered, does not satisfy the requirement. Zone identifiers, capabilities,
+  ordering, and conflict resolution remain UD-006/007 design decisions; the
+  rendering obligation above is fixed by the approved requirements.
+  **Verification:** Vue component and Widget Zone behavior is verified with
+  **Vitest** as the approved frontend test framework, asserting zone
+  rendering, plugin contribution, and the no-contribution fallback per
+  route (NFR-TEST-001, AC-ZONE-003). The Vue project currently has no test
+  script or test runner (§2.7), so the test harness is part of the work that
+  the zone work must establish. The current server-rendered hook fragments
+  (`apps/storefront/hooks.py`) remain the interim mechanism for a route or
+  zone that has not yet been migrated and are retired per zone.
 - **Trust:** themes and plugins are untrusted presentation/extension code
   until the trust model is specified (UD-011); in-process plugins hold full
   Django privileges (risk R1).
@@ -532,6 +574,40 @@ flowchart LR
   are never converted or substituted (FR-PAY-002, AC-PAY-002/003). Provider
   capabilities are pluggable data, not platform assumptions.
 - **Refunds:** deferred (UD-017); existing models stay dormant (G6).
+- **Customer address book (To-Be):** a reusable, customer-owned address
+  entity (FR-CUST-002) is **distinct from the order address snapshot**. The
+  existing `OrderAddress` model (`apps/orders/models.py`) is an order-scoped
+  snapshot of the address used for an order; it is not the customer's saved
+  address and is not edited when a saved address changes. The saved-address
+  entity is customer-scoped, supports a default address, is managed by the
+  owning customer, and is **read-only for store staff in Django Admin** — an
+  administrative boundary enforced by the admin registration, not by the
+  template layer. Checkout copies the selected saved address into the order
+  snapshot (FR-CHK-001, AC-CHK-002), so a later change or deletion of the
+  saved address cannot alter an existing order.
+- **Contact inquiries (To-Be):** a stored inquiry record for the Contact Us
+  page (FR-CONTACT-001) plus a notification sent through the **existing**
+  notification capabilities — `core/notifications/interface.py`
+  (`NotificationProvider`, channels email/inapp/webhook/sms),
+  `core/notifications/registry.py`, and the `apps/notifications` services
+  (`queue_notification`, `send_message`, `NotificationTemplate`,
+  `NotificationMessage`, `Notification`) with the providers in
+  `apps/notifications/providers.py`. No new notification mechanism is
+  introduced. The inquiry record and the notification are separate
+  responsibilities: the inquiry is the durable customer-facing artifact, and
+  the notification is the store-facing signal that may fail or be retried
+  independently (NFR-REL-001). CAPTCHA behavior for the form remains
+  governed by the open decision (UD-021).
+- **Brand information and public exposure:** brand data is a reusable
+  catalog entity (name, description, logo, SEO metadata — FR-CAT-007).
+  Public brand surfaces (listing and detail, including their API responses)
+  expose **active brands only**; inactive or unknown brands are not exposed
+  publicly (FR-CAT-006, AC-CAT-006). The current `BrandViewSet`
+  (`src/apps/catalog/api.py`) returns all brands for anonymous list and
+  retrieve access and the current `Brand` model has no logo or SEO fields, so
+  both the data model and the public query behavior require change
+  (§5, G12). SEO metadata follows the existing `SEOMixin` pattern already
+  used by CMS pages (`src/apps/cms/models.py`).
 - **Identity & access:** custom user/customer model, roles/permissions,
   custom permission backend (§2.2); ownership isolation server-enforced.
 - **Store/theme/plugin configuration:** store settings, currencies,
@@ -562,6 +638,14 @@ flowchart LR
 - **Default permission posture risk:** DRF's default permission class is
   `AllowAny` with per-view overrides (§2.1); a per-endpoint authorization
   audit is required during security design (risk R3b in §12).
+- **Customer address ownership (To-Be):** address-book reads and writes are
+  enforced server-side against the authenticated customer (FR-CUST-002); the
+  storefront API exposes only the requesting customer's addresses, and store
+  staff receive read-only access through the Django Admin registration.
+  Selecting an address that belongs to another customer at checkout is
+  rejected rather than silently accepted (FR-CHK-001, AC-CHK-002). The
+  per-endpoint audit in risk R3b must include the new address-book and
+  contact endpoints.
 
 ## 10. Performance, Security, and Operational Considerations
 
@@ -837,7 +921,7 @@ SPA/API/Admin.
 
 ## 13. Requirements Traceability
 
-Component→requirement mapping (IDs from `REQUIREMENTS.md` v0.10,
+Component→requirement mapping (IDs from `REQUIREMENTS.md` v0.11,
 approved; all exist there):
 
 | Architecture element | Requirements |
@@ -847,12 +931,14 @@ approved; all exist there):
 | Bootstrap (G7) | TR-STACK-004 |
 | Django Admin (§2.1, §4) | TR-STACK-007, FR-ADMIN-001–003, AC-ADMIN-003, AC-THEME-LAYOUT-013 |
 | Theme architecture (§7) | FR-THEME-001–002, FR-THEME-LAYOUT-001–012 |
-| Plugin engine / Widget Zones (§7) | FR-PLUG-001, FR-EXT-001–004 |
+| Plugin engine / Widget Zones (§7) | FR-PLUG-001, FR-EXT-001–004, AC-ZONE-003 |
 | Catalog & variants (§8) | FR-CAT-001–005 |
+| Brand pages and brand data (§8, G12) | FR-CAT-006–007, AC-CAT-006–007 |
 | Inventory (§8) | FR-CAT-004, NFR-REL-001 |
 | Pricing / explicit currency / i18n (§8, §2.7) | FR-CUR-001–007, FR-SET-001, FR-DISC-001, FR-I18N-001–003 |
-| Cart / checkout / orders / payments (§8) | FR-CART-001, FR-CHK-001, FR-ORD-001, FR-PAY-001–002, FR-SHIP-001, NFR-REL-001 |
-| Identity & access (§9) | FR-CUST-001, NFR-SEC-001, FR-ADMIN-002 |
+| Cart / checkout / orders / payments (§8) | FR-CART-001, FR-CHK-001, AC-CHK-001 – AC-CHK-002, FR-ORD-001, FR-PAY-001–002, FR-SHIP-001, NFR-REL-001 |
+| Identity & access (§9) | FR-CUST-001–002, AC-CUST-002, NFR-SEC-001, FR-ADMIN-002 |
+| Contact inquiries and notification (§8, G14) | FR-CONTACT-001, AC-CONTACT-001, FR-NOTIF-001, NFR-REL-001 |
 | Persistence strategy (§2.1) | TR-DB-001–006 |
 | Performance (§10.1) | NFR-PERF-001–003, AC-PERF-001–003 |
 | Scheduled tasks / events / CAPTCHA / SMS concerns (§10.4; resilience §10.5) | FR-PLUG-002, FR-EVT-001–004, FR-CAPTCHA-001–006, FR-SMS-001–005 |
