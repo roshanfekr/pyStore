@@ -16,7 +16,11 @@ AC-CHK-002 (checkout address selection and order address snapshot),
 FR-CONTACT-001 and AC-CONTACT-001 (dedicated Contact Us page), the amended
 FR-EXT-001 and AC-THEME-LAYOUT-009 with AC-ZONE-003 (actual Vue Widget Zone
 rendering and its Vitest-based verification), and the approved Theme and
-Widget Zone implementation sequence recorded in section 6.1 (CF-010);
+Widget Zone implementation sequence recorded in section 6.1 (CF-010). The
+same revision clarifies the theme page-component coverage in
+FR-THEME-LAYOUT-004, cross-references the Contact Us inquiry notification in
+FR-NOTIF-001, and records the residual Contact Us questions as an open
+decision (section 6.2, UD-023);
 awaiting final review)
 
 **Version:** 0.11
@@ -219,7 +223,10 @@ Currency terms used below:
 ### 1.10 Notifications
 - FR-NOTIF-001: Notification support covers relevant storefront and order
   events, with notifications delivered through configured channels and visible
-  to the intended recipient.
+  to the intended recipient. A valid Contact Us inquiry produces a
+  notification through the same configured channels and the platform's
+  existing notification capabilities (FR-CONTACT-001); this requirement adds
+  no notification mechanism of its own.
 
 ### 1.11 Reports & Audit
 - FR-REP-001: Reports and audit logs provide authorized administrators with
@@ -324,9 +331,12 @@ introduced by these requirements.
 
 - **FR-THEME-LAYOUT-004: Theme-Specific Page Components.** A theme must be
   able to provide its own Vue page component for an individual page type,
-  including home, category/listing, product details, search, cart, checkout,
-  customer account, wishlist, compare, order history, and informational pages.
-  The system must select the appropriate page component automatically based on
+  including home, category/listing, product details, brand listing and brand
+  detail, search, cart, checkout, customer account, customer address book,
+  wishlist, compare, order history, Contact Us, and informational pages. The
+  brand, address book, and contact page types correspond to the storefront
+  routes required by FR-CAT-006, FR-CUST-002, and FR-CONTACT-001. The
+  system must select the appropriate page component automatically based on
   the current Vue route, route name, page type, or another documented
   application convention. A theme must be able to override one page component
   while continuing to use the theme's root layout and shared components, and
@@ -542,10 +552,12 @@ UD-022).
   information and a contact form. Form input is validated on the server, and
   invalid input is rejected with clear feedback and creates no inquiry. A
   valid inquiry is stored, and a notification is sent using the platform's
-  existing notification capabilities. The Contact Us page is a distinct route
-  and is not satisfied by a generic informational/CMS page. CAPTCHA behavior
-  for the contact form is governed by the open CAPTCHA form-policy decision
-  (section 6.2, UD-021).
+  existing notification capabilities (FR-NOTIF-001). The Contact Us page is a
+  distinct route and is not satisfied by a generic informational/CMS page.
+  CAPTCHA behavior for the contact form is governed by the open CAPTCHA
+  form-policy decision (section 6.2, UD-021). The administrative visibility,
+  retention, and notification configuration of stored inquiries remain open
+  (section 6.2, UD-023).
 
 ## 2. Technical Requirements
 
@@ -1256,6 +1268,16 @@ resolved. A lower phase may resolve it sooner.
   policy details — one-time-code, expiration, resend, attempt-limit, and
   abuse-prevention rules (FR-SMS-003) and administrative activation scope
   (FR-SMS-004) — to be decided when that release is planned.
+- **UD-023 — Contact Inquiry Administration and Retention (before detailed
+  design).** The Contact Us capability requires that a valid inquiry is
+  stored and that a notification is sent through the platform's existing
+  notification capabilities (FR-CONTACT-001, FR-NOTIF-001). The following
+  remain open and are not answered by this decision: where and how store
+  staff can view stored contact inquiries; how long inquiries are retained
+  and when they are deleted; and how notification recipients and delivery
+  channels are configured. No retention period, recipient address, delivery
+  channel, or administrative permission is selected by this revision. See
+  FR-CONTACT-001, FR-NOTIF-001, and AC-CONTACT-001.
 
 ### 6.3 Resolved Decisions
 
