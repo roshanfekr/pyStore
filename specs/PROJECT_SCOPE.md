@@ -1,11 +1,11 @@
 # Project Scope --- Plugin-Based E-commerce Platform
 
 **Document:** `specs/PROJECT_SCOPE.md`\
-**Version:** 0.8 (draft adding four newly identified capability directions —
-plugin-defined scheduled tasks, an extensible application event/consumer
-mechanism, configurable CAPTCHA with Google reCAPTCHA support, and
-SMS-compatible registration — to the previously recorded decisions,
-including the proposed V1 performance baseline)\
+**Version:** 0.9 (draft recording the approved V1 release assignment of the
+four capability directions — plugin-defined scheduled tasks, the
+application event/consumer mechanism, Google reCAPTCHA, and SMS-compatible
+registration — on top of the previously recorded decisions, including the
+proposed V1 performance baseline)\
 **Status:** Draft pending final review. The core scope remains approved; this
 revision records the user-approved decisions on the Vue/Vite theme system,
 SQL Server with Django ORM, Widget Zones, the initial Django Admin interface,
@@ -13,9 +13,11 @@ multi-currency pricing, multilingual/RTL support, the deferral of refunds and
 automatic currency conversion to a future release, and the rule that payment
 providers must support the order currency. It additionally records the
 approved direction to adopt proposed, provisional V1 performance targets
-(section 8.1) and the four capability directions of 2026-10-21 (section 3),
-whose initial-release-versus-future-release assignment requires explicit
-confirmation.\
+(section 8.1) and the approved 2026-10-21 release assignment of the four
+capability directions (section 3): scheduled tasks, the event/consumer
+mechanism, and Google reCAPTCHA are included in V1; SMS architectural
+compatibility is required in V1 while actual SMS delivery and
+phone-number verification are deferred to a later release.\
 **Last updated:** 2026-10-21
 
 ## 1. Project Vision
@@ -107,16 +109,41 @@ The platform is intended to cover the following capabilities:
 -   Customer registration extensibility compatible with future SMS-based
     verification: customer phone-number data and its verification status
     are representable where required, and SMS message delivery is possible
-    through a provider-agnostic boundary. Actual SMS-based verification is
-    a separate capability and is not approved for the initial release by
-    this statement.
+    through a provider-agnostic boundary. Actual SMS message delivery and
+    the phone-number verification workflow are deferred to a later release
+    by approved decision; V1 preserves this architectural compatibility
+    only.
 
-**Release assignment of the four capability directions above (2026-10-21)
-is not decided.** Their inclusion in the initial release versus a future
-release requires explicit user confirmation; corresponding requirements are
-recorded in `REQUIREMENTS.md` (FR-PLUG-002, FR-EVT-001 – FR-EVT-004,
-FR-CAPTCHA-001 – FR-CAPTCHA-006, FR-SMS-001 – FR-SMS-005) and open decisions
-in its section 6.2 (UD-019 – UD-022). Nothing in these statements authorizes
+**Approved release assignment (2026-10-21).** The user has approved the
+initial-release assignment of these capability directions, limited to the
+requirements already documented in `REQUIREMENTS.md` — no broader or
+unspecified functionality is approved:
+
+-   **Plugin-defined scheduled tasks — included in V1** (FR-PLUG-002):
+    plugins register scheduled tasks with supported schedules or intervals,
+    executed through shared platform infrastructure, with observable
+    execution status and diagnosable failures.
+-   **Application event and consumer mechanism — included in V1**
+    (FR-EVT-001 – FR-EVT-004): independent consumers, supported entity
+    lifecycle events, relevant business events, and the agreed
+    synchronous/asynchronous delivery behavior. No delivery guarantee
+    beyond the documented requirements (no exactly-once, guaranteed, or
+    durable delivery) is approved.
+-   **Google reCAPTCHA — included in V1** (FR-CAPTCHA-001 – FR-CAPTCHA-006):
+    integration, administrative configuration, and server-side token
+    verification as documented.
+-   **SMS — architectural compatibility required in V1** (FR-SMS-001,
+    FR-SMS-002): registration and identity flows must not preclude future
+    SMS-based verification, with representable phone data/verification
+    status and a provider-agnostic SMS delivery boundary. **Actual SMS
+    message delivery and the phone-number verification workflow are
+    deferred to a later release by approved decision** (FR-SMS-003,
+    FR-SMS-004 apply only when that release is delivered); SMS delivery
+    and verification are not V1 acceptance requirements.
+
+Residual technical design questions (form policies, delivery guarantees,
+task administration, future SMS policies) remain open in `REQUIREMENTS.md`
+section 6.2 (UD-019 – UD-022). Nothing in these statements authorizes
 implementation.
 
 ## 4. Product Variants and Attribute Combinations
@@ -470,6 +497,10 @@ specific server configuration is prescribed by this scope.
 -   Automatic exchange-rate retrieval and automatic price conversion in v1;
     deferred to a future release by approved decision. V1 uses only
     explicitly configured currency prices.
+-   Actual SMS message delivery and the SMS-based registration /
+    phone-number verification workflow in v1; deferred to a later release
+    by approved decision. V1 preserves architectural compatibility only
+    (section 3).
 
 ## 10. Project Principles
 
@@ -503,9 +534,12 @@ records the approved direction to adopt the proposed V1 performance baseline
 in section 8.1 as provisional, testable goals for the initial release; it
 does not claim those targets have been achieved and does not approve any
 test infrastructure or implementation. The four capability directions added
-on 2026-10-21 (section 3) are recorded as scope-level directions whose
-release assignment still requires user confirmation. The revised scope and
-requirements remain in Draft pending final user review and approval.
+on 2026-10-21 (section 3) have received an approved release assignment:
+scheduled tasks, the event/consumer mechanism, and Google reCAPTCHA are
+included in V1, and SMS architectural compatibility is required in V1 while
+SMS delivery and phone-number verification are deferred to a later release.
+The revised scope and requirements remain in Draft pending final user
+review and approval.
 
 No architecture design, implementation task breakdown, or code
 generation should begin until the user explicitly approves the relevant

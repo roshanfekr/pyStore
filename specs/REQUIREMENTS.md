@@ -4,16 +4,18 @@
 Widget Zones, Django Admin, multi-currency, multilingual/RTL, refund-deferral,
 explicit-currency-pricing, and payment-currency decisions, adding the
 approved proposed V1 performance targets as NFR-PERF-001 – NFR-PERF-003 and
-AC-PERF-001 – AC-PERF-003, and adding the 2026-10-21 capability requirements
-FR-PLUG-002, FR-EVT-001 – FR-EVT-004, FR-CAPTCHA-001 – FR-CAPTCHA-006, and
-FR-SMS-001 – FR-SMS-005 whose release assignment is pending confirmation;
+AC-PERF-001 – AC-PERF-003, and recording the approved 2026-10-21 release
+assignment of the 2026-10-21 capability requirements: FR-PLUG-002,
+FR-EVT-001 – FR-EVT-004, and FR-CAPTCHA-001 – FR-CAPTCHA-006 are included
+in V1; FR-SMS-001 – FR-SMS-005 require V1 architectural compatibility with
+SMS delivery and phone-number verification deferred to a later release;
 awaiting final review)
 
-**Version:** 0.9
+**Version:** 0.10
 
 **Last updated:** 2026-10-21
 
-**Authority:** Derived from `PROJECT_SCOPE.md` version 0.8. Where this
+**Authority:** Derived from `PROJECT_SCOPE.md` version 0.9. Where this
 document and the revised scope differ, the conflict must be reported and
 resolved rather than silently changing either document. See section 6.
 
@@ -202,10 +204,12 @@ Currency terms used below:
   execution outcomes must be diagnosable. The design must account for
   unintended overlapping executions and repeated execution. Enabling and
   disabling a plugin's tasks follows the plugin lifecycle (FR-PLUG-001).
-  Administrative configuration of individual task schedules is not
-  established by this requirement and remains open (section 6.2, UD-019).
-  No scheduler library, task schema, queue name, or worker topology is
-  prescribed by this requirement.
+  Included in V1 by approved decision (2026-10-21; section 6.1, CF-009),
+  limited to this requirement's documented scope. Administrative
+  configuration of individual task schedules is not established by this
+  requirement and remains open (section 6.2, UD-019). No scheduler library,
+  task schema, queue name, or worker topology is prescribed by this
+  requirement.
 - FR-THEME-001: Theme installation, configuration, activation, and
   deactivation are supported. Theme activation is an authorized administrative
   action. A theme can expose configurable settings, and the configured values
@@ -389,10 +393,11 @@ introduced by these requirements.
 
 The conceptual reference for this section is nopCommerce's
 `IConsumer<TEvent>` pattern; it is inspiration for loose coupling and must
-not be understood as a requirement to copy its implementation or API. The
-release assignment of this capability (initial release versus a future
-release) requires user confirmation (section 6.1, CF-009; section 6.2,
-UD-019 – UD-022).
+not be understood as a requirement to copy its implementation or API.
+**Release assignment (approved 2026-10-21):** this capability is included
+in V1 (section 6.1, CF-009). The delivery-guarantee and catalog details
+remain open technical decisions (section 6.2, UD-020); no exactly-once,
+guaranteed, or durable delivery is promised beyond FR-EVT-004.
 
 - FR-EVT-001: The platform provides an extensible mechanism for publishing
   application events. Publishers must not depend directly on the consumers
@@ -422,8 +427,11 @@ UD-019 – UD-022).
 
 ### 1.15 CAPTCHA Protection
 
-The release assignment of this capability requires user confirmation
-(section 6.1, CF-009; section 6.2, UD-021).
+**Release assignment (approved 2026-10-21):** Google reCAPTCHA integration
+and its documented configuration and server-side verification requirements
+are included in V1 (section 6.1, CF-009). Which forms require CAPTCHA, the
+reCAPTCHA type/version, and the failure policy remain open technical
+decisions (section 6.2, UD-021).
 
 - FR-CAPTCHA-001: CAPTCHA protection is configurable for applicable public
   forms. Administrators can enable or disable CAPTCHA and configure which
@@ -454,10 +462,14 @@ The release assignment of this capability requires user confirmation
 
 ### 1.16 Customer Registration Extensibility (SMS Compatibility)
 
-This section records architectural compatibility only. Actual SMS-based
-verification is not approved for the initial release by this revision; its
-release assignment requires user confirmation (section 6.1, CF-009;
-section 6.2, UD-022).
+**Release assignment (approved 2026-10-21):** V1 must preserve an
+architecture compatible with future SMS-based registration or
+phone-number verification (FR-SMS-001, FR-SMS-002). **Actual SMS message
+delivery and the phone-number verification workflow are deferred to a
+later release by approved decision** (FR-SMS-003, FR-SMS-004): they are
+not V1 requirements and must not be treated as V1 acceptance criteria.
+Policy details for the deferred capability remain open (section 6.2,
+UD-022).
 
 - FR-SMS-001: Registration and customer identity flows must not prevent
   future SMS-based verification. Customer phone-number data and its
@@ -467,12 +479,12 @@ section 6.2, UD-022).
   possible through a provider-agnostic delivery boundary, so that different
   SMS providers can be integrated without changing customer-facing
   registration or verification flows.
-- FR-SMS-003 (Conditional — not approved for v1 by this revision): When
+- FR-SMS-003 (Deferred to a later release by approved decision): When
   SMS-based verification is delivered, it must include one-time codes, code
   expiration, resend restrictions, attempt limits, and abuse-prevention
-  measures. These are requirements for that future capability, not an
-  approval of its release.
-- FR-SMS-004 (Conditional — not approved for v1 by this revision): When
+  measures. These are requirements for that future capability, not V1
+  requirements.
+- FR-SMS-004 (Deferred to a later release by approved decision): When
   SMS-based verification is delivered, administrative settings and
   activation policies, including enable/disable behavior and the flows it
   applies to, must be provided where appropriate.
@@ -807,10 +819,12 @@ traceability tables in section 5).
 - **AC-SMS-002** (`FR-SMS-002`): A different SMS provider can be integrated
   behind the delivery boundary without changing customer-facing
   registration or verification flows.
-- **AC-SMS-003** (`FR-SMS-003`, `FR-SMS-004` — conditional): Verified only
-  if and when the SMS-verification release is approved: one-time codes,
-  expiration, resend restrictions, and attempt limits are enforced, and
-  administrative activation policies apply.
+- **AC-SMS-003** (`FR-SMS-003`, `FR-SMS-004` — deferred to a later release
+  by approved decision): Out of scope for V1 acceptance. Verified only when
+  the deferred SMS-verification capability is delivered in a future
+  release: one-time codes, expiration, resend restrictions, and attempt
+  limits are enforced, and administrative activation policies apply. V1
+  verification must not require SMS delivery or phone-number verification.
 
 ### 4.3 Technical and Non-Functional Acceptance
 
@@ -1016,10 +1030,15 @@ CF-002 and UD-001 and must be classified in the coverage record.
   (`core/notifications/interface.py`, `apps/notifications/providers.py`);
   and a customer phone field with validation (`apps/identity/models.py`).
   Missing: plugin task scheduling/registration, any CAPTCHA integration,
-  phone-verification status, and SMS verification flows. The V1-versus-
-  future-release assignment of these capabilities is **not decided** and
-  requires explicit user confirmation (section 6.2, UD-019 – UD-022); this
-  revision does not implement anything.
+  phone-verification status, and SMS verification flows. **Release
+  assignment (approved by the user on 2026-10-21):** scheduled tasks
+  (FR-PLUG-002), the event/consumer mechanism (FR-EVT-001 – FR-EVT-004),
+  and Google reCAPTCHA (FR-CAPTCHA-001 – FR-CAPTCHA-006) are included in
+  V1; SMS architectural compatibility is required in V1 (FR-SMS-001,
+  FR-SMS-002) while actual SMS delivery and phone-number verification are
+  deferred to a later release (FR-SMS-003, FR-SMS-004). Remaining technical
+  questions stay open in section 6.2 (UD-019 – UD-022); this revision does
+  not implement anything.
 
 ### 6.2 Unresolved Decisions for Architecture/Design
 
@@ -1097,32 +1116,38 @@ resolved. A lower phase may resolve it sooner.
   Establishing these details during architecture and implementation planning
   does not delay business-level approval of the performance requirements.
 - **UD-019 — Scheduled-task administration and overlap policy (before
-  detailed design; release assignment requires confirmation).** Decide
-  whether administrators can configure individual plugin task schedules and
-  defaults, how overlapping and repeated executions are prevented or
-  handled, and the observability granularity for plugin task executions.
-  The release assignment of plugin-defined scheduled tasks (FR-PLUG-002) in
-  v1 versus a future release also requires confirmation (CF-009).
+  detailed design).** *Release-scope portion resolved — approved
+  2026-10-21:* plugin-defined scheduled tasks (FR-PLUG-002) are included in
+  V1 (CF-009). *Remaining open:* whether administrators can configure
+  individual plugin task schedules and defaults, how overlapping and
+  repeated executions are prevented or handled, and the observability
+  granularity for plugin task executions.
 - **UD-020 — Event delivery guarantees and event catalog (before detailed
-  design).** Define the documented event catalog and publication
-  boundaries (FR-EVT-003); classify each event type as synchronous
-  in-operation or asynchronous (FR-EVT-004); and define failure handling,
-  retry and duplicate-delivery policy, and transaction consistency per
-  event type. Guarantees such as exactly-once or durable delivery are not
-  established unless explicitly approved.
+  design).** *Release-scope portion resolved — approved 2026-10-21:* the
+  event/consumer mechanism (FR-EVT-001 – FR-EVT-004) is included in V1
+  (CF-009). *Remaining open:* the documented event catalog and publication
+  boundaries (FR-EVT-003); classification of each event type as synchronous
+  in-operation or asynchronous (FR-EVT-004); failure handling, retry and
+  duplicate-delivery policy, and transaction consistency per event type.
+  Guarantees such as exactly-once or durable delivery are not established
+  unless explicitly approved.
 - **UD-021 — CAPTCHA form policy and provider selection (before detailed
-  design).** Decide which public forms require CAPTCHA (FR-CAPTCHA-001),
-  the Google reCAPTCHA type/version or alternative provider
-  (FR-CAPTCHA-002, FR-CAPTCHA-006), and the failure policy for invalid
-  tokens and verification-service outages (FR-CAPTCHA-005).
-- **UD-022 — SMS verification release assignment (user confirmation
-  required).** Decide whether and when SMS-based verification is delivered
-  (v1 versus a future release). If delivered, define one-time-code,
-  expiration, resend, attempt-limit, and abuse-prevention policies
-  (FR-SMS-003) and administrative activation scope (FR-SMS-004).
-  SMS-compatible registration architecture (FR-SMS-001, FR-SMS-002) is in
-  scope as compatibility; actual SMS verification is not approved by this
-  revision.
+  design).** *Release-scope portion resolved — approved 2026-10-21:* Google
+  reCAPTCHA integration (FR-CAPTCHA-001 – FR-CAPTCHA-006) is included in
+  V1 (CF-009). *Remaining open:* which public forms require CAPTCHA
+  (FR-CAPTCHA-001), the Google reCAPTCHA type/version or alternative
+  provider (FR-CAPTCHA-002, FR-CAPTCHA-006), and the failure policy for
+  invalid tokens and verification-service outages (FR-CAPTCHA-005).
+- **UD-022 — SMS verification release assignment (release-scope portion
+  resolved — approved 2026-10-21).** Approved outcome: V1 preserves
+  architectural compatibility with future SMS-based registration and
+  phone-number verification (FR-SMS-001, FR-SMS-002); actual SMS message
+  delivery and the phone-number verification workflow are deferred to a
+  later release (FR-SMS-003, FR-SMS-004), and V1 acceptance must not
+  require them (AC-SMS-003). *Remaining open:* the deferred capability's
+  policy details — one-time-code, expiration, resend, attempt-limit, and
+  abuse-prevention rules (FR-SMS-003) and administrative activation scope
+  (FR-SMS-004) — to be decided when that release is planned.
 
 ### 6.3 Resolved Decisions
 
@@ -1190,8 +1215,11 @@ to adopt the proposed V1 performance baseline (NFR-PERF-001 – NFR-PERF-003,
 section 6.3 UD-012); these targets are provisional baseline goals, and no
 claim is made that they have been achieved. The 2026-10-21 capability
 requirements (FR-PLUG-002, FR-EVT-001 – FR-EVT-004, FR-CAPTCHA-001 –
-FR-CAPTCHA-006, FR-SMS-001 – FR-SMS-005) are recorded with their release
-assignment explicitly pending user confirmation (CF-009, UD-019 – UD-022).
+FR-CAPTCHA-006, FR-SMS-001 – FR-SMS-005) received an approved release
+assignment on 2026-10-21 (section 6.1 CF-009): the first three groups are
+included in V1, and SMS compatibility is required in V1 with SMS delivery
+and phone-number verification deferred to a later release; residual
+technical questions remain open (UD-019 – UD-022).
 The revised requirements remain
 in Draft pending final review and approval. This document does not approve
 architecture, detailed design, dependencies, database changes, migration
