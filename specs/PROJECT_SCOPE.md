@@ -1,10 +1,11 @@
 # Project Scope --- Plugin-Based E-commerce Platform
 
 **Document:** `specs/PROJECT_SCOPE.md`\
-**Version:** 0.7 (draft adding the proposed V1 performance baseline to the
-previously recorded Vue theme, SQL Server, Widget Zones, Django Admin,
-multi-currency pricing, multilingual/RTL, refund-deferral,
-explicit-currency-pricing, and payment-currency decisions)\
+**Version:** 0.8 (draft adding four newly identified capability directions —
+plugin-defined scheduled tasks, an extensible application event/consumer
+mechanism, configurable CAPTCHA with Google reCAPTCHA support, and
+SMS-compatible registration — to the previously recorded decisions,
+including the proposed V1 performance baseline)\
 **Status:** Draft pending final review. The core scope remains approved; this
 revision records the user-approved decisions on the Vue/Vite theme system,
 SQL Server with Django ORM, Widget Zones, the initial Django Admin interface,
@@ -12,8 +13,10 @@ multi-currency pricing, multilingual/RTL support, the deferral of refunds and
 automatic currency conversion to a future release, and the rule that payment
 providers must support the order currency. It additionally records the
 approved direction to adopt proposed, provisional V1 performance targets
-(section 8.1), which remain subject to final review.\
-**Last updated:** 2026-10-20
+(section 8.1) and the four capability directions of 2026-10-21 (section 3),
+whose initial-release-versus-future-release assignment requires explicit
+confirmation.\
+**Last updated:** 2026-10-21
 
 ## 1. Project Vision
 
@@ -88,6 +91,33 @@ The platform is intended to cover the following capabilities:
 -   Reports and audit logs.
 -   Plugin installation and management.
 -   Theme installation, configuration, and activation.
+-   Plugin-defined scheduled/background tasks: plugins can declare tasks
+    that the platform's central application infrastructure schedules and
+    executes, with manageable, observable execution and diagnosable
+    outcomes.
+-   An extensible application event and consumer mechanism: application
+    components and plugins can publish application events and register
+    consumers for event types they are interested in, so publishers and
+    consumers remain loosely coupled. The concept is inspired by
+    nopCommerce's event-consumer pattern; it is implemented
+    project-specifically and is not a copy of its API.
+-   Configurable CAPTCHA protection for applicable public forms, including
+    support for Google reCAPTCHA, with administrative
+    enable/disable/configuration and server-side token verification.
+-   Customer registration extensibility compatible with future SMS-based
+    verification: customer phone-number data and its verification status
+    are representable where required, and SMS message delivery is possible
+    through a provider-agnostic boundary. Actual SMS-based verification is
+    a separate capability and is not approved for the initial release by
+    this statement.
+
+**Release assignment of the four capability directions above (2026-10-21)
+is not decided.** Their inclusion in the initial release versus a future
+release requires explicit user confirmation; corresponding requirements are
+recorded in `REQUIREMENTS.md` (FR-PLUG-002, FR-EVT-001 – FR-EVT-004,
+FR-CAPTCHA-001 – FR-CAPTCHA-006, FR-SMS-001 – FR-SMS-005) and open decisions
+in its section 6.2 (UD-019 – UD-022). Nothing in these statements authorizes
+implementation.
 
 ## 4. Product Variants and Attribute Combinations
 
@@ -472,8 +502,10 @@ release and that payment providers must support the order currency. It also
 records the approved direction to adopt the proposed V1 performance baseline
 in section 8.1 as provisional, testable goals for the initial release; it
 does not claim those targets have been achieved and does not approve any
-test infrastructure or implementation. The revised scope and requirements
-remain in Draft pending final user review and approval.
+test infrastructure or implementation. The four capability directions added
+on 2026-10-21 (section 3) are recorded as scope-level directions whose
+release assignment still requires user confirmation. The revised scope and
+requirements remain in Draft pending final user review and approval.
 
 No architecture design, implementation task breakdown, or code
 generation should begin until the user explicitly approves the relevant

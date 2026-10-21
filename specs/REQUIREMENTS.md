@@ -2,17 +2,20 @@
 
 **Status:** Draft (revision reflecting the approved Vue theme, SQL Server,
 Widget Zones, Django Admin, multi-currency, multilingual/RTL, refund-deferral,
-explicit-currency-pricing, and payment-currency decisions, and adding the
+explicit-currency-pricing, and payment-currency decisions, adding the
 approved proposed V1 performance targets as NFR-PERF-001 – NFR-PERF-003 and
-AC-PERF-001 – AC-PERF-003; awaiting final review)
+AC-PERF-001 – AC-PERF-003, and adding the 2026-10-21 capability requirements
+FR-PLUG-002, FR-EVT-001 – FR-EVT-004, FR-CAPTCHA-001 – FR-CAPTCHA-006, and
+FR-SMS-001 – FR-SMS-005 whose release assignment is pending confirmation;
+awaiting final review)
 
-**Version:** 0.8
+**Version:** 0.9
 
-**Last updated:** 2026-10-20
+**Last updated:** 2026-10-21
 
-**Authority:** Derived from `PROJECT_SCOPE.md` version 0.7. Where this document
-and the revised scope differ, the conflict must be reported and resolved
-rather than silently changing either document. See section 6.
+**Authority:** Derived from `PROJECT_SCOPE.md` version 0.8. Where this
+document and the revised scope differ, the conflict must be reported and
+resolved rather than silently changing either document. See section 6.
 
 **Normative language:** “Must” denotes a requirement; “should” denotes an
 expected practice whose omission requires justification. Requirement and
@@ -192,6 +195,17 @@ Currency terms used below:
 - FR-PLUG-001: Plugin installation and management are supported. Plugins can
   be discovered, installed, enabled, disabled, and removed through the
   established plugin lifecycle without requiring manual edits to core files.
+- FR-PLUG-002: Plugins can declare or register scheduled/background tasks
+  that the central application infrastructure schedules and executes. Task
+  declarations may support configured schedules or execution intervals.
+  Task execution must be manageable and observable, and failures and
+  execution outcomes must be diagnosable. The design must account for
+  unintended overlapping executions and repeated execution. Enabling and
+  disabling a plugin's tasks follows the plugin lifecycle (FR-PLUG-001).
+  Administrative configuration of individual task schedules is not
+  established by this requirement and remains open (section 6.2, UD-019).
+  No scheduler library, task schema, queue name, or worker topology is
+  prescribed by this requirement.
 - FR-THEME-001: Theme installation, configuration, activation, and
   deactivation are supported. Theme activation is an authorized administrative
   action. A theme can expose configurable settings, and the configured values
@@ -370,6 +384,102 @@ introduced by these requirements.
 - Requirements in this section do not prescribe the final component names,
   resolution implementation, manifest schema, build integration, or layout
   variant algorithm.
+
+### 1.14 Application Events and Consumers
+
+The conceptual reference for this section is nopCommerce's
+`IConsumer<TEvent>` pattern; it is inspiration for loose coupling and must
+not be understood as a requirement to copy its implementation or API. The
+release assignment of this capability (initial release versus a future
+release) requires user confirmation (section 6.1, CF-009; section 6.2,
+UD-019 – UD-022).
+
+- FR-EVT-001: The platform provides an extensible mechanism for publishing
+  application events. Publishers must not depend directly on the consumers
+  of the events they publish.
+- FR-EVT-002: Application components and plugins can register consumers for
+  the event types they are interested in. Multiple independent consumers can
+  respond to the same event, and the presence, absence, or failure of one
+  consumer must not prevent other consumers from being invoked or break the
+  publishing operation, subject to FR-EVT-004's documented delivery
+  behavior for that event type.
+- FR-EVT-003: Supported event types and their publication boundaries are
+  defined and documented. Supported types may include relevant entity
+  lifecycle events, such as entity creation and modification, and business
+  events, such as an order-paid-style event, where applicable. Database
+  record changes must not automatically produce public events: only
+  documented publication points emit events, and the supported event
+  catalog is the contract between publishers and consumers.
+- FR-EVT-004: For each supported event type, the required delivery behavior
+  is documented and distinguished between: (a) events that must be handled
+  synchronously within the current operation, and (b) events that may be
+  processed asynchronously. Failure handling, retries, duplicate delivery,
+  and transaction consistency must be considered and documented per event
+  type. No guarantee of immediate delivery, exactly-once execution, or
+  durable delivery is made beyond what is explicitly established for a
+  given event type; those guarantees are open decisions (section 6.2,
+  UD-020).
+
+### 1.15 CAPTCHA Protection
+
+The release assignment of this capability requires user confirmation
+(section 6.1, CF-009; section 6.2, UD-021).
+
+- FR-CAPTCHA-001: CAPTCHA protection is configurable for applicable public
+  forms. Administrators can enable or disable CAPTCHA and configure which
+  forms it applies to and the provider settings those forms require. Which
+  forms require CAPTCHA is not decided by this requirement (section 6.2,
+  UD-021).
+- FR-CAPTCHA-002: Google reCAPTCHA is supported as a CAPTCHA provider. This
+  requirement does not fix a reCAPTCHA type or version; that selection is a
+  design decision (UD-021). No reCAPTCHA version is an approved project
+  decision at this time.
+- FR-CAPTCHA-003: Submitted CAPTCHA tokens are verified server-side.
+  Client-side presence or appearance of a CAPTCHA widget must not be
+  treated as verification, and protected operations must reject submissions
+  that do not pass server-side verification.
+- FR-CAPTCHA-004: CAPTCHA secret credentials are stored and handled
+  securely and must not be exposed in logs, rendered pages, frontend
+  clients, or public API responses (see NFR-SEC-001).
+- FR-CAPTCHA-005: Invalid or missing CAPTCHA tokens and CAPTCHA
+  verification-service failures are handled in a defined, predictable way
+  that preserves the protected form's security intent. The exact failure
+  policy — for example, rejecting submissions versus allowing a graceful
+  fallback during a provider outage — is a design decision (section 6.2,
+  UD-021) and must not be decided silently in implementation.
+- FR-CAPTCHA-006: CAPTCHA integration uses an extensible provider boundary.
+  Protected forms must not be unnecessarily coupled to one specific
+  provider; adding or replacing a CAPTCHA provider must not require
+  modifying every protected form.
+
+### 1.16 Customer Registration Extensibility (SMS Compatibility)
+
+This section records architectural compatibility only. Actual SMS-based
+verification is not approved for the initial release by this revision; its
+release assignment requires user confirmation (section 6.1, CF-009;
+section 6.2, UD-022).
+
+- FR-SMS-001: Registration and customer identity flows must not prevent
+  future SMS-based verification. Customer phone-number data and its
+  verification status must be representable where required by the agreed
+  scope.
+- FR-SMS-002: SMS message delivery for verification purposes must be
+  possible through a provider-agnostic delivery boundary, so that different
+  SMS providers can be integrated without changing customer-facing
+  registration or verification flows.
+- FR-SMS-003 (Conditional — not approved for v1 by this revision): When
+  SMS-based verification is delivered, it must include one-time codes, code
+  expiration, resend restrictions, attempt limits, and abuse-prevention
+  measures. These are requirements for that future capability, not an
+  approval of its release.
+- FR-SMS-004 (Conditional — not approved for v1 by this revision): When
+  SMS-based verification is delivered, administrative settings and
+  activation policies, including enable/disable behavior and the flows it
+  applies to, must be provided where appropriate.
+- FR-SMS-005: Existing registration and authentication behavior
+  (FR-CUST-001) remains unchanged by this section unless a separately
+  approved requirement changes it. SMS compatibility must not alter current
+  registration, login, email verification, or password flows.
 
 ## 2. Technical Requirements
 
@@ -661,6 +771,46 @@ traceability tables in section 5).
 - **AC-EXT-003** (`FR-EXT-004`): A plugin can contribute a navigation item or
   link with documented ordering, visibility, and permission behavior without
   editing core or theme components.
+- **AC-PLUG-002** (`FR-PLUG-002`): An enabled plugin registers a scheduled
+  task; the platform executes it according to its configured schedule or
+  interval; executions and failures are observable and diagnosable; and
+  concurrent or repeated executions follow the documented policy.
+- **AC-EVT-001** (`FR-EVT-001`, `FR-EVT-002`): Publishing a documented
+  business event invokes every registered independent consumer; the
+  publisher does not import or directly depend on its consumers; and a
+  consumer's absence or removal does not break the publishing operation or
+  other consumers.
+- **AC-EVT-002** (`FR-EVT-003`): The documented event catalog lists the
+  supported event types and their publication points; documented entity
+  creation/modification and order-paid-style events are published at their
+  documented points; record changes outside those points publish nothing.
+- **AC-EVT-003** (`FR-EVT-004`): Each event type's delivery classification
+  (synchronous in-operation versus asynchronous) and its failure, retry, and
+  duplicate-delivery policy are documented and match observed behavior.
+- **AC-CAPTCHA-001** (`FR-CAPTCHA-001` – `FR-CAPTCHA-003`): With CAPTCHA
+  enabled for a configured form, a submission without a valid,
+  server-verified token is rejected, and a submission with a valid token is
+  processed.
+- **AC-CAPTCHA-002** (`FR-CAPTCHA-004`): CAPTCHA secret credentials never
+  appear in rendered pages, frontend clients or bundles, logs, or public
+  API responses.
+- **AC-CAPTCHA-003** (`FR-CAPTCHA-005`): Invalid-token submissions and
+  CAPTCHA verification-service failures follow the documented failure
+  policy.
+- **AC-CAPTCHA-004** (`FR-CAPTCHA-006`): An alternative CAPTCHA provider can
+  be integrated through the provider boundary without modifying each
+  protected form.
+- **AC-SMS-001** (`FR-SMS-001`, `FR-SMS-005`): The existing
+  registration/authentication flow behaves unchanged, and a customer record
+  can represent a phone number and its verification status where the
+  agreed scope requires it.
+- **AC-SMS-002** (`FR-SMS-002`): A different SMS provider can be integrated
+  behind the delivery boundary without changing customer-facing
+  registration or verification flows.
+- **AC-SMS-003** (`FR-SMS-003`, `FR-SMS-004` — conditional): Verified only
+  if and when the SMS-verification release is approved: one-time codes,
+  expiration, resend restrictions, and attempt limits are enforced, and
+  administrative activation policies apply.
 
 ### 4.3 Technical and Non-Functional Acceptance
 
@@ -741,8 +891,11 @@ traceability tables in section 5).
 | FR-REV-001 | PROJECT_SCOPE §3 | AC-REV-001 |
 | FR-NOTIF-001 | PROJECT_SCOPE §3 | AC-NOTIF-001 |
 | FR-REP-001 | PROJECT_SCOPE §3 | AC-REP-001 |
-| FR-PLUG-001 | PROJECT_SCOPE §3, §6.2 | AC-PLUG-001 |
+| FR-PLUG-001 – FR-PLUG-002 | PROJECT_SCOPE §3, §6.2 | AC-PLUG-001, AC-PLUG-002 |
 | FR-THEME-001, FR-THEME-002 | PROJECT_SCOPE §3, §6 | AC-THEME-001, AC-THEME-002 |
+| FR-EVT-001 – FR-EVT-004 | PROJECT_SCOPE §3 | AC-EVT-001 – AC-EVT-003 |
+| FR-CAPTCHA-001 – FR-CAPTCHA-006 | PROJECT_SCOPE §3 | AC-CAPTCHA-001 – AC-CAPTCHA-004 |
+| FR-SMS-001 – FR-SMS-005 | PROJECT_SCOPE §3 | AC-SMS-001 – AC-SMS-003 |
 | FR-EXT-001 – FR-EXT-004 | PROJECT_SCOPE §6.2 – §7 | AC-EXT-001, AC-ZONE-001 – AC-ZONE-002, AC-EXT-003, AC-THEME-LAYOUT-009 – AC-THEME-LAYOUT-010 |
 | FR-THEME-LAYOUT-001 – FR-THEME-LAYOUT-012 | PROJECT_SCOPE §6 | AC-THEME-LAYOUT-001 – AC-THEME-LAYOUT-015 |
 | TR-STACK-001 – TR-STACK-007 | PROJECT_SCOPE §2 | AC-STACK-001, AC-ADMIN-003 |
@@ -850,6 +1003,23 @@ CF-002 and UD-001 and must be classified in the coverage record.
   work. The approved explicit-pricing and payment-currency decisions (section
   6.3, UD-009 and UD-016) make per-currency explicit price storage and
   provider currency-capability data v1 needs.
+- **CF-009 — Newly identified capability directions (added 2026-10-21).**
+  Four capabilities were added to scope and requirements: plugin-defined
+  scheduled tasks (FR-PLUG-002), an extensible application event/consumer
+  mechanism (FR-EVT-001 – FR-EVT-004), configurable CAPTCHA with Google
+  reCAPTCHA support (FR-CAPTCHA-001 – FR-CAPTCHA-006), and SMS-compatible
+  registration (FR-SMS-001 – FR-SMS-005). Verified implementation evidence:
+  an in-process event dispatcher with synchronous and Celery-based
+  asynchronous dispatch and plugin event-handler registration
+  (`core/events`, `core/plugins/manager.py`); an SMS channel in the
+  notification-provider registry with a logging-only placeholder provider
+  (`core/notifications/interface.py`, `apps/notifications/providers.py`);
+  and a customer phone field with validation (`apps/identity/models.py`).
+  Missing: plugin task scheduling/registration, any CAPTCHA integration,
+  phone-verification status, and SMS verification flows. The V1-versus-
+  future-release assignment of these capabilities is **not decided** and
+  requires explicit user confirmation (section 6.2, UD-019 – UD-022); this
+  revision does not implement anything.
 
 ### 6.2 Unresolved Decisions for Architecture/Design
 
@@ -926,6 +1096,33 @@ resolved. A lower phase may resolve it sooner.
   LCP; and whether real-user monitoring is introduced in a later release.
   Establishing these details during architecture and implementation planning
   does not delay business-level approval of the performance requirements.
+- **UD-019 — Scheduled-task administration and overlap policy (before
+  detailed design; release assignment requires confirmation).** Decide
+  whether administrators can configure individual plugin task schedules and
+  defaults, how overlapping and repeated executions are prevented or
+  handled, and the observability granularity for plugin task executions.
+  The release assignment of plugin-defined scheduled tasks (FR-PLUG-002) in
+  v1 versus a future release also requires confirmation (CF-009).
+- **UD-020 — Event delivery guarantees and event catalog (before detailed
+  design).** Define the documented event catalog and publication
+  boundaries (FR-EVT-003); classify each event type as synchronous
+  in-operation or asynchronous (FR-EVT-004); and define failure handling,
+  retry and duplicate-delivery policy, and transaction consistency per
+  event type. Guarantees such as exactly-once or durable delivery are not
+  established unless explicitly approved.
+- **UD-021 — CAPTCHA form policy and provider selection (before detailed
+  design).** Decide which public forms require CAPTCHA (FR-CAPTCHA-001),
+  the Google reCAPTCHA type/version or alternative provider
+  (FR-CAPTCHA-002, FR-CAPTCHA-006), and the failure policy for invalid
+  tokens and verification-service outages (FR-CAPTCHA-005).
+- **UD-022 — SMS verification release assignment (user confirmation
+  required).** Decide whether and when SMS-based verification is delivered
+  (v1 versus a future release). If delivered, define one-time-code,
+  expiration, resend, attempt-limit, and abuse-prevention policies
+  (FR-SMS-003) and administrative activation scope (FR-SMS-004).
+  SMS-compatible registration architecture (FR-SMS-001, FR-SMS-002) is in
+  scope as compatibility; actual SMS verification is not approved by this
+  revision.
 
 ### 6.3 Resolved Decisions
 
@@ -991,7 +1188,11 @@ deferred to a future release and that payment providers must support the
 order currency (section 6.3). It additionally records the approved direction
 to adopt the proposed V1 performance baseline (NFR-PERF-001 – NFR-PERF-003,
 section 6.3 UD-012); these targets are provisional baseline goals, and no
-claim is made that they have been achieved. The revised requirements remain
+claim is made that they have been achieved. The 2026-10-21 capability
+requirements (FR-PLUG-002, FR-EVT-001 – FR-EVT-004, FR-CAPTCHA-001 –
+FR-CAPTCHA-006, FR-SMS-001 – FR-SMS-005) are recorded with their release
+assignment explicitly pending user confirmation (CF-009, UD-019 – UD-022).
+The revised requirements remain
 in Draft pending final review and approval. This document does not approve
 architecture, detailed design, dependencies, database changes, migration
 work, test infrastructure, or implementation. No architecture/design or

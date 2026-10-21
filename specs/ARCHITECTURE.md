@@ -1,11 +1,15 @@
 # Architecture Specification
 
 **Document:** `specs/ARCHITECTURE.md`\
-**Version:** 0.3\
+**Version:** 0.4\
 **Status:** Draft — proposed for user review. This document is **not approved**
-and must not be treated as an authorization to implement.\
-**Last updated:** 2026-10-20\
-**Basis:** `PROJECT_SCOPE.md` v0.7 and `REQUIREMENTS.md` v0.8 (both Draft),
+and must not be treated as an authorization to implement. Revision 0.4 adds
+concise architectural concerns for the four capability directions recorded
+on 2026-10-21 (plugin-defined scheduled tasks, application events/consumers,
+CAPTCHA, SMS-compatible registration — §10.4); their release assignment is
+pending confirmation and nothing here approves their implementation.\
+**Last updated:** 2026-10-21\
+**Basis:** `PROJECT_SCOPE.md` v0.8 and `REQUIREMENTS.md` v0.9 (both Draft),
 plus direct inspection of the current repository.
 
 ## 1. Architecture Purpose and Status
@@ -591,6 +595,61 @@ flowchart LR
   later deployment design decision; the Vite dev server is never assumed in
   production.
 
+### 10.4 Newly Identified Capability Concerns (2026-10-21)
+
+Architectural concerns for the four capability directions recorded in
+`REQUIREMENTS.md` v0.9 (FR-PLUG-002, FR-EVT-001 – FR-EVT-004,
+FR-CAPTCHA-001 – FR-CAPTCHA-006, FR-SMS-001 – FR-SMS-005). Their release
+assignment (v1 vs. later) is pending confirmation (CF-009, UD-019 –
+UD-022); none of this is implemented by the architecture documents, and no
+detailed design is started here.
+
+**Plugin-defined scheduled tasks (FR-PLUG-002, UD-019).**
+*Verified:* Celery beat configuration hook (`CELERY_BEAT_SCHEDULE` in
+`config/settings/base.py`, `config/celery.py`); a generic job-task
+decorator with retries/backoff/logging (`core/jobs/base.py`); plugin
+registration machinery (`core/plugins/manager.py`). *Missing:* a
+plugin-facing task declaration/scheduling registry, schedule and
+overlap management, and execution observability for plugin tasks.
+*To-Be concern:* a central task scheduling/execution capability that
+enabled plugins declare into; implementation and administration model are
+open (UD-019).
+
+**Application events and consumers (FR-EVT-001 – FR-EVT-004, UD-020).**
+*Verified:* a typed in-process publish/subscribe dispatcher with
+synchronous dispatch (per-handler failure logging) and Celery-based
+asynchronous dispatch (`core/events/dispatcher.py`, `core/events/base.py`,
+`core/events/tasks.py`, `core/events/registry.py`); domain event types
+including `OrderPaid` and entity-lifecycle events such as
+`ProductCreated`/`InventoryChanged` (`apps/*/events.py`); plugin
+event-handler registration (`core/plugins/manager.py`). *Partial:* no
+documented event catalog or publication-boundary contract; failed handlers
+are logged but not retried; duplicate-delivery and transaction-consistency
+policies undocumented. *To-Be concern:* the existing dispatcher is the
+proposed foundation; the event catalog, publication boundaries, and
+per-event delivery classification must be defined (UD-020).
+
+**CAPTCHA integration (FR-CAPTCHA-001 – FR-CAPTCHA-006, UD-021).**
+*Missing:* no CAPTCHA/reCAPTCHA code, dependency, or configuration exists
+anywhere inspected (src, tests, requirements, `.env.example`). *To-Be
+concern:* a provider-agnostic CAPTCHA integration boundary with
+server-side token verification and secure secret handling aligned to the
+existing settings/credentials mechanisms (`core/settings`); no provider
+version or form policy is selected here (UD-021).
+
+**SMS-compatible registration (FR-SMS-001 – FR-SMS-005, UD-022).**
+*Partial (verified):* the notification-provider registry supports an
+`sms` channel with a logging-only placeholder provider; real SMS gateways
+are expected from plugins (`core/notifications/interface.py`,
+`apps/notifications/providers.py`); `identity.User.phone` exists with
+validation (`apps/identity/models.py`). *Missing:* phone-verification
+status, one-time-code/verification flows, and administrative activation
+policies. *To-Be concern:* registration and identity flows must not
+preclude SMS verification (compatibility only); the provider-agnostic SMS
+delivery boundary is proposed to build on the existing
+`NotificationProvider` registry. Release assignment requires user
+confirmation (UD-022).
+
 ## 11. Architecture Decision Table
 
 Approved constraints (§2.1 of the baseline: Django/DRF, Vue/Vite, Bootstrap,
@@ -631,6 +690,10 @@ Tracked against `REQUIREMENTS.md` §6 (authoritative identifiers):
 | UD-013/014 | SQL Server version validation; portability checks | Architecture/design |
 | UD-015 | Per-currency price storage/resolution | Architecture/design |
 | UD-018 | Performance test environment/tooling/workload | Architecture & implementation planning |
+| UD-019 | Scheduled-task administration/overlap policy; release assignment of plugin tasks | Detailed design; release confirmation needed |
+| UD-020 | Event catalog, publication boundaries, delivery guarantees per event type | Detailed design |
+| UD-021 | CAPTCHA form policy, reCAPTCHA type/version, failure policy | Detailed design |
+| UD-022 | SMS verification release assignment and policy | User confirmation |
 | — | Cookie security/HTTPS/expiration/CSRF integration detail (follows D8) | Detailed design |
 | — | Non-browser client authentication mechanism | Open consideration |
 | — | Redis/Celery operational validation (D7) | Before final approval |
@@ -667,6 +730,7 @@ there):
 | Identity & access (§9) | FR-CUST-001, NFR-SEC-001, FR-ADMIN-002 |
 | Persistence strategy (§2.1) | TR-DB-001–006 |
 | Performance (§10.1) | NFR-PERF-001–003, AC-PERF-001–003 |
+| Scheduled tasks / events / CAPTCHA / SMS concerns (§10.4) | FR-PLUG-002, FR-EVT-001–004, FR-CAPTCHA-001–006, FR-SMS-001–005 |
 | Core kernel / boundaries (§4) | NFR-MAINT-001, NFR-EXT-001, NFR-TEST-001 |
 | Deferred items (§8) | FR-CUR-003, FR-CUR-008 (AC-CUR-003, AC-CUR-008) |
 | Accessibility (UI-level, later specs) | NFR-ACC-001 |
@@ -696,6 +760,9 @@ time via the requirement groups above; no requirement IDs were invented.
 - [ ] Open decisions and risks (§12) assigned resolution points.
 - [ ] Requirements conflicts (G4, G6, G7) acknowledged with migration paths
       — no baseline change made silently.
+- [ ] Newly identified capability concerns (§10.4: plugin scheduled tasks,
+      events/consumers, CAPTCHA, SMS-compatible registration) reviewed and
+      their release assignment confirmed (UD-019 – UD-022).
 
 Approval of this document authorizes detailed design (SDD Phase 4) only;
 implementation remains gated per `specs/README.md` §7.
