@@ -34,6 +34,7 @@ def calculate_cart(cart, *, customer=None) -> CartCalculation:
             customer=customer,
             store=cart.store,
             quantity=item.quantity,
+            currency=cart.currency or cart.store.default_currency,
         )
         line_total = (unit_price * item.quantity).quantize(Decimal("0.0001"))
         lines.append(

@@ -66,6 +66,51 @@ class ScheduledPrice(models.Model):
         ordering = ["-start_at"]
 
 
+class ProductPrice(models.Model):
+    """Explicit per-currency price for a product or variant (FR-CUR-002).
+
+    The stored base price (``Product.price`` / ``ProductVariant.price``) is
+    the price in the store's base currency and remains effective until an
+    explicit price for the requested currency exists. No exchange-rate
+    conversion is ever performed (FR-CUR-003, FR-CUR-004).
+    """
+
+    product = models.ForeignKey(
+        "catalog.Product", related_name="currency_prices", on_delete=models.CASCADE
+    )
+    variant = models.ForeignKey(
+        "catalog.ProductVariant", null=True, blank=True, related_name="currency_prices",
+        on_delete=models.CASCADE,
+    )
+    currency = models.CharField(max_length=10)
+    price = models.DecimalField(max_digits=18, decimal_places=4)
+
+    class Meta:
+        verbose_name = "Product price"
+        verbose_name_plural = "Product prices"
+        ordering = ["product", "currency"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["product", "currency"],
+                condition=models.Q(variant__isnull=True),
+                name="uniq_product_price_base",
+            ),
+            models.UniqueConstraint(
+                fields=["product", "variant", "currency"],
+                condition=models.Q(variant__isnull=False),
+                name="uniq_product_price_variant",
+            ),
+        ]
+
+    def __str__(self):
+        target = self.variant.sku if self.variant_id else self.product.name
+        return f"{target} {self.currency} {self.price}"
+
+    def save(self, *args, **kwargs):
+        self.currency = self.currency.upper().strip()
+        super().save(*args, **kwargs)
+
+
 class Discount(BaseModel):
     TYPE_PERCENTAGE = "percentage"
     TYPE_FIXED_AMOUNT = "fixed_amount"

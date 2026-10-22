@@ -122,6 +122,7 @@ def test_adding_row_through_formset_creates_variant(client, admin_user, product)
     data.update(_empty_management("variants"))
     data.update(_empty_management("specifications"))
     data.update(_empty_management("seo"))
+    data.update(_empty_management("productprices"))
     data.update(
         {
             "variants-TOTAL_FORMS": "1",
@@ -147,6 +148,7 @@ def test_delete_checkbox_removes_variant(client, admin_user, product, variant):
     data = _base_product_data(product)
     data.update(_empty_management("specifications"))
     data.update(_empty_management("seo"))
+    data.update(_empty_management("productprices"))
     data.update(
         {
             "variants-TOTAL_FORMS": "1",

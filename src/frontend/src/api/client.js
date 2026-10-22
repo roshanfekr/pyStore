@@ -8,6 +8,19 @@
 const TOKEN_KEY = 'pystore.token'
 const API_BASE = '/api/v1'
 
+// The store the SPA is browsing, learned from the bootstrap payload and sent
+// with every request (X-Store) so carts and checkout target the same store
+// the server-rendered pages resolve by domain.
+let storeSlug = ''
+
+export function setStoreSlug(slug) {
+  storeSlug = (slug || '').trim()
+}
+
+export function getStoreSlug() {
+  return storeSlug
+}
+
 export function getToken() {
   return localStorage.getItem(TOKEN_KEY)
 }
@@ -44,6 +57,9 @@ export async function api(path, { method = 'GET', body, headers = {} } = {}) {
   const csrf = getCookie('csrftoken')
   if (csrf) {
     finalHeaders['X-CSRFToken'] = csrf
+  }
+  if (storeSlug && !finalHeaders['X-Store']) {
+    finalHeaders['X-Store'] = storeSlug
   }
 
   const response = await fetch(`${API_BASE}${path}`, {

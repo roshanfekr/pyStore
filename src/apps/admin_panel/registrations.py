@@ -66,6 +66,7 @@ from apps.pricing.models import (
     DiscountUsage,
     PriceList,
     PriceListEntry,
+    ProductPrice,
     ProductTaxSetting,
     ScheduledPrice,
     TaxClass,
@@ -262,6 +263,14 @@ class ProductSpecificationInline(TranslatableInlineMixin, admin.TabularInline):
     inline_i18n_title_key = "admin.inline.catalog.productspecification"
 
 
+class ProductPriceInline(admin.TabularInline):
+    """Explicit per-currency prices (FR-CUR-002) for the product and its variants."""
+
+    model = ProductPrice
+    extra = 0
+    fields = ("variant", "currency", "price")
+
+
 class ProductSEOInline(TranslatableInlineMixin, admin.StackedInline):
     model = ProductSEO
     extra = 0
@@ -331,7 +340,7 @@ class ProductAdmin(PyStoreModelAdmin):
     }
     # Product images are managed from a Bootstrap dialog on the change page
     # (see admin_panel/catalog/product/change_form.html) instead of an inline.
-    inlines = [ProductVariantInline, ProductSpecificationInline, ProductSEOInline]
+    inlines = [ProductVariantInline, ProductSpecificationInline, ProductPriceInline, ProductSEOInline]
     actions = ["publish_products", "unpublish_products"]
     # ``product_images.js`` is loaded from admin/catalog/product/change_form.html
     # (only the change page has the dialog). Declaring it here as well would load
@@ -729,6 +738,15 @@ class ScheduledPriceAdmin(PyStoreModelAdmin):
     list_filter = ("is_active",)
 
 
+class ProductPriceAdmin(PyStoreModelAdmin):
+    """Explicit per-currency prices (FR-CUR-002): no conversion, one row per
+    product or variant and currency."""
+
+    list_display = ("product", "variant", "currency", "price")
+    list_filter = ("currency",)
+    search_fields = ("product__name", "product__sku", "variant__sku")
+
+
 class DiscountAdmin(GranularPermissionAdmin):
     perm_map = {"add": "discounts.manage", "change": "discounts.manage", "delete": "discounts.manage"}
     list_display = ("name", "coupon_code", "discount_type", "value", "scope", "used_count", "is_active")
@@ -1008,6 +1026,7 @@ def register_all(admin_site):
         PriceList: PriceListAdmin,
         PriceListEntry: PriceListEntryAdmin,
         ScheduledPrice: ScheduledPriceAdmin,
+        ProductPrice: ProductPriceAdmin,
         Discount: DiscountAdmin,
         DiscountUsage: DiscountUsageAdmin,
         TaxClass: TaxClassAdmin,

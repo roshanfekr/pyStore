@@ -62,6 +62,7 @@ async function applyCoupon() {
     </table>
 
     <div class="card">
+      <div v-if="cart.currency">Currency: {{ cart.currency }}</div>
       <div>Subtotal: {{ cart.subtotal }}</div>
       <div v-if="cart.coupon_code">Coupon {{ cart.coupon_code }}: -{{ cart.discount_amount }}</div>
       <div><strong>Total: {{ cart.total }}</strong></div>

@@ -5,15 +5,19 @@ from apps.cart.models import Cart, CartItem
 from apps.catalog.models import DIGITAL_TYPES, Product
 from apps.inventory.models import InventoryItem
 from apps.pricing.discounts import get_discount_by_coupon, validate_discount
-from apps.pricing.engine import resolve_product_price
+from apps.pricing.engine import CurrencyPriceUnavailable, resolve_product_price
 from core.exceptions import ConflictError, NotFoundError, ValidationError
 
 
-def get_or_create_cart(store, *, user=None, session_key=None) -> Cart:
+def get_or_create_cart(store, *, user=None, session_key=None, currency=None) -> Cart:
+    currency = (currency or store.default_currency or "").strip().upper()
     if user is not None:
         cart = Cart.objects.filter(store=store, user=user, status=Cart.STATUS_ACTIVE).first()
         if cart is None:
-            cart = Cart.objects.create(store=store, user=user, status=Cart.STATUS_ACTIVE)
+            cart = Cart.objects.create(
+                store=store, user=user, status=Cart.STATUS_ACTIVE,
+                currency=currency,
+            )
         return cart
     if not session_key:
         raise ValidationError(
@@ -24,9 +28,43 @@ def get_or_create_cart(store, *, user=None, session_key=None) -> Cart:
     ).first()
     if cart is None:
         cart = Cart.objects.create(
-            store=store, session_key=session_key, status=Cart.STATUS_ACTIVE
+            store=store,
+            session_key=session_key,
+            status=Cart.STATUS_ACTIVE,
+            currency=currency,
         )
     return cart
+
+
+def cart_currency(cart: Cart) -> str:
+    """Effective cart currency: legacy carts are base-currency carts."""
+    return cart.currency or cart.store.default_currency
+
+
+def ensure_cart_currency(cart: Cart, currency: str | None) -> None:
+    """Keep one currency per cart (FR-CUR-005).
+
+    An empty cart adopts the requested currency; a cart with lines keeps its
+    currency and refuses a different one instead of silently re-pricing the
+    lines or mixing currencies. The customer's selected currency is never
+    changed silently (AC-CUR-009).
+    """
+    if not currency:
+        return
+    code = currency.strip().upper()
+    if cart_currency(cart) == code:
+        if cart.currency != code:
+            cart.currency = code
+            cart.save(update_fields=["currency"])
+        return
+    if cart.items.exists():
+        raise ValidationError(
+            f"Your cart is in {cart_currency(cart)}; empty it or switch back to"
+            f" {cart_currency(cart)} to continue",
+            code="cart.currency_mismatch",
+        )
+    cart.currency = code
+    cart.save(update_fields=["currency"])
 
 
 def get_cart(store, *, user=None, session_key=None) -> Cart | None:
@@ -67,8 +105,14 @@ def _validate_add(cart: Cart, product: Product, variant, quantity: int) -> None:
     if variant is not None and not variant.is_active:
         raise ValidationError("This variant is not available", code="cart.variant_inactive")
 
+    currency = cart_currency(cart)
     try:
-        resolve_product_price(product, variant, store=cart.store, quantity=quantity)
+        resolve_product_price(product, variant, store=cart.store, quantity=quantity, currency=currency)
+    except CurrencyPriceUnavailable:
+        raise ValidationError(
+            f"This product is not available in {currency}",
+            code="cart.price_unavailable",
+        ) from None
     except ValueError:
         raise ValidationError(
             "Product price is not configured", code="cart.no_price"
@@ -91,7 +135,11 @@ def add_to_cart(cart: Cart, product: Product, quantity: int = 1, variant=None) -
     _validate_add(cart, product, variant, quantity)
 
     unit_price = resolve_product_price(
-        product, variant, store=cart.store, quantity=quantity
+        product,
+        variant,
+        store=cart.store,
+        quantity=quantity,
+        currency=cart_currency(cart),
     )
     item = cart.items.filter(product=product, variant=variant).first()
     if item is None:

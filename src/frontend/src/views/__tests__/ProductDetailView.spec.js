@@ -36,13 +36,14 @@ const PRODUCT = {
   meta_description: 'A sturdy hammer.',
 }
 
-function variant(sku, color, size, price, inStock, quantity) {
+function variant(sku, color, size, price, inStock, quantity, image = '') {
   return {
     id: sku.length,
     sku,
     price,
     price_value: price,
     compare_at_price: '',
+    image,
     in_stock: inStock,
     available_quantity: quantity,
     attributes: { color, size },
@@ -83,7 +84,7 @@ const VARIANT_PRODUCT = {
     },
   ],
   variants: [
-    variant('SHIRT-RED-M', '#ff0000', 'M', '120 تومان', true, 4),
+    variant('SHIRT-RED-M', '#ff0000', 'M', '120 تومان', true, 4, '/media/catalog/variants/red.png'),
     variant('SHIRT-BLUE-M', '#0000ff', 'M', '90 تومان', false, 0),
     variant('SHIRT-RED-L', '#ff0000', 'L', '130 تومان', true, 2),
     variant('SHIRT-GREEN-L', '#00ff00', 'L', '140 تومان', true, 1),
@@ -140,10 +141,23 @@ describe('ProductDetailView', () => {
     api.mockResolvedValueOnce(VARIANT_PRODUCT)
     const wrapper = mountProduct()
     await vi.waitFor(() => expect(wrapper.find('img.product-detail-image').exists()).toBe(true))
+    // The selected combination's own image leads the gallery (FR-CAT-002).
+    expect(wrapper.find('img.product-detail-image').attributes('src')).toBe(
+      '/media/catalog/variants/red.png',
+    )
+    expect(wrapper.findAll('.product-detail-thumb')).toHaveLength(3)
+  })
+
+  it('falls back to the product images when the variant has no image', async () => {
+    api.mockResolvedValueOnce(VARIANT_PRODUCT)
+    const wrapper = mountProduct()
+    await vi.waitFor(() => expect(wrapper.find('img.product-detail-image').exists()).toBe(true))
+
+    await wrapper.find('#variant-select').setValue('SHIRT-RED-L')
+
     expect(wrapper.find('img.product-detail-image').attributes('src')).toBe(
       '/media/catalog/products/shirt.png',
     )
-    expect(wrapper.findAll('.product-detail-thumb')).toHaveLength(2)
   })
 
   it('falls back to the initial when the product has no image', async () => {

@@ -20,6 +20,9 @@ class Cart(BaseModel):
     )
     session_key = models.CharField(max_length=64, null=True, blank=True)
     status = models.CharField(max_length=16, choices=STATUS_CHOICES, default=STATUS_ACTIVE)
+    # One currency per cart (FR-CUR-005). ``None`` means a legacy cart priced
+    # in the store's base currency.
+    currency = models.CharField(max_length=10, null=True, blank=True)
     coupon = models.ForeignKey(
         "pricing.Discount", null=True, blank=True, related_name="carts", on_delete=models.SET_NULL
     )

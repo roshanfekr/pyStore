@@ -62,6 +62,7 @@ def _theme_css_urls() -> list[str]:
 
 
 def _storefront_bootstrap(request) -> dict:
+    store = _current_store(request)
     branding = get_theme_config()
     branding.setdefault("site_name", "pyStore")
 
@@ -102,6 +103,7 @@ def _storefront_bootstrap(request) -> dict:
         compare_count = CompareItem.objects.filter(user=request.user).count()
 
     return {
+        "store": {"slug": store.slug, "name": store.name},
         "theme": {"name": get_active_theme_name(), "config": branding, "css": _theme_css_urls()},
         "branding": branding,
         "menu": menu_items,
@@ -155,14 +157,15 @@ class StorefrontProductSerializer(serializers.ModelSerializer):
         ]
 
 
-def _resolved_price(product: Product, variant: ProductVariant | None = None):
+def _resolved_price(product: Product, variant: ProductVariant | None = None, context: dict | None = None):
     """Price resolved through the pricing registry (plugin modifiers included).
 
-    ``None`` is returned when no price is configured, so the storefront can
-    state that the price is unavailable instead of inventing one.
+    ``None`` is returned when no price is configured for the requested
+    currency, so the storefront can state that the price is unavailable
+    instead of inventing one (FR-CUR-004).
     """
     try:
-        return resolve_price(product, variant)
+        return resolve_price(product, variant, context)
     except ValueError:
         return None
 
@@ -201,6 +204,7 @@ class StorefrontProductVariantSerializer(serializers.ModelSerializer):
     price = serializers.SerializerMethodField()
     price_value = serializers.SerializerMethodField()
     compare_at_price = serializers.SerializerMethodField()
+    image = serializers.SerializerMethodField()
     in_stock = serializers.SerializerMethodField()
     available_quantity = serializers.SerializerMethodField()
     attributes = serializers.SerializerMethodField()
@@ -208,7 +212,7 @@ class StorefrontProductVariantSerializer(serializers.ModelSerializer):
     class Meta:
         model = ProductVariant
         fields = [
-            "id", "sku", "price", "price_value", "compare_at_price",
+            "id", "sku", "price", "price_value", "compare_at_price", "image",
             "in_stock", "available_quantity", "attributes", "is_default",
         ]
 
@@ -218,6 +222,9 @@ class StorefrontProductVariantSerializer(serializers.ModelSerializer):
     def _currency(self):
         return self.context.get("currency")
 
+    def _currency_code(self):
+        return self.context.get("currency_code") or ""
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self._price_cache = {}
@@ -225,7 +232,8 @@ class StorefrontProductVariantSerializer(serializers.ModelSerializer):
 
     def _price(self, obj):
         if obj.pk not in self._price_cache:
-            self._price_cache[obj.pk] = _resolved_price(self._product(), obj)
+            context = {"currency": self._currency_code(), "store": self.context.get("store")}
+            self._price_cache[obj.pk] = _resolved_price(self._product(), obj, context)
         return self._price_cache[obj.pk]
 
     def _available(self, obj):
@@ -242,6 +250,12 @@ class StorefrontProductVariantSerializer(serializers.ModelSerializer):
 
     def get_compare_at_price(self, obj):
         return format_money(obj.compare_at_price, self._currency())
+
+    def get_image(self, obj):
+        try:
+            return obj.image.url if obj.image else ""
+        except ValueError:
+            return ""
 
     def get_in_stock(self, obj):
         return _is_in_stock(self._available(obj))
@@ -293,6 +307,12 @@ class StorefrontProductDetailSerializer(serializers.ModelSerializer):
     def _currency(self):
         return self.context.get("currency")
 
+    def _currency_code(self):
+        return self.context.get("currency_code") or ""
+
+    def _pricing_context(self):
+        return {"currency": self._currency_code(), "store": self.context.get("store")}
+
     def _active_variants(self):
         return [variant for variant in self.instance.variants.all() if variant.is_active]
 
@@ -328,11 +348,11 @@ class StorefrontProductDetailSerializer(serializers.ModelSerializer):
 
     def get_price(self, obj):
         variant = self._selected_variant()
-        return format_money(_resolved_price(obj, variant), self._currency())
+        return format_money(_resolved_price(obj, variant, self._pricing_context()), self._currency())
 
     def get_price_value(self, obj):
         variant = self._selected_variant()
-        price = _resolved_price(obj, variant)
+        price = _resolved_price(obj, variant, self._pricing_context())
         return str(price) if price is not None else ""
 
     def get_compare_at_price(self, obj):
@@ -388,11 +408,17 @@ class ProductDetailView(APIView):
         )
         if product is None:
             raise NotFoundError("Product not found", code="catalog.product_not_found")
-        currency = get_currency(
-            get_active_currency_code(request.COOKIES.get(settings.CURRENCY_COOKIE_NAME))
+        currency_code = get_active_currency_code(
+            request.COOKIES.get(settings.CURRENCY_COOKIE_NAME)
         )
         serializer = StorefrontProductDetailSerializer(
-            product, context={"currency": currency, "product": product}
+            product,
+            context={
+                "currency_code": currency_code,
+                "currency": get_currency(currency_code),
+                "product": product,
+                "store": _current_store(request),
+            },
         )
         return Response(serializer.data)
 

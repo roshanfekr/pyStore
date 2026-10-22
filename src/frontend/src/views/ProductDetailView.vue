@@ -1,5 +1,5 @@
 <script setup>
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 
 import ProductMedia from '@/components/ProductMedia.vue'
@@ -61,6 +61,19 @@ const images = computed(() => product.value?.images ?? [])
 const currentVariant = computed(
   () => variants.value.find((variant) => variant.sku === selectedSku.value) ?? null,
 )
+
+// The combination's own image leads the gallery when the variant defines one;
+// otherwise the product's images are used (FR-CAT-002).
+const displayImages = computed(() => {
+  const variantImage = currentVariant.value?.image
+  const base = images.value
+  if (!variantImage) return base
+  return [{ id: `variant-${currentVariant.value.sku}`, url: variantImage, alt: '' }, ...base]
+})
+
+watch(currentVariant, () => {
+  activeImage.value = 0
+})
 
 const displayPrice = computed(() =>
   currentVariant.value ? currentVariant.value.price : product.value?.price ?? '',
@@ -155,17 +168,17 @@ async function addToCart() {
   <article v-else-if="product" class="product-detail">
     <div class="product-detail-media">
       <ProductMedia
-        v-if="images.length"
+        v-if="displayImages.length"
         class="product-detail-image"
-        :image="images[activeImage]"
+        :image="displayImages[activeImage]"
         :name="product.name"
         :lazy="false"
       />
       <ProductMedia v-else class="product-detail-image" :name="product.name" />
 
-      <div v-if="images.length > 1" class="product-detail-thumbs">
+      <div v-if="displayImages.length > 1" class="product-detail-thumbs">
         <button
-          v-for="(image, index) in images"
+          v-for="(image, index) in displayImages"
           :key="image.id"
           type="button"
           class="product-detail-thumb"

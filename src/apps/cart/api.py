@@ -8,7 +8,9 @@ from apps.cart.models import Cart, CartItem
 from apps.cart.services import (
     add_to_cart,
     attach_coupon,
+    cart_currency,
     clear_cart,
+    ensure_cart_currency,
     get_or_create_cart,
     remove_coupon,
     remove_item,
@@ -29,6 +31,7 @@ class CartItemSerializer(serializers.ModelSerializer):
 
 class CartSerializer(serializers.Serializer):
     id = serializers.IntegerField(read_only=True)
+    currency = serializers.SerializerMethodField()
     lines = serializers.SerializerMethodField()
     subtotal = serializers.SerializerMethodField()
     discount_amount = serializers.SerializerMethodField()
@@ -40,6 +43,9 @@ class CartSerializer(serializers.Serializer):
             customer = cart.user
             self._calc = calculate_cart(cart, customer=customer)
         return self._calc
+
+    def get_currency(self, cart):
+        return cart_currency(cart)
 
     def get_lines(self, cart):
         calculation = self._calculation(cart)
@@ -85,11 +91,14 @@ def resolve_cart(request, *, create: bool = False) -> Cart | None:
     """Resolve the active cart for the caller.
 
     Authenticated callers get their cart; guests use the API session or an
-    ``X-Cart-Session`` header value as the session key.
+    ``X-Cart-Session`` header value as the session key. The cart is scoped to
+    the ``X-Store`` store and is priced in the active currency.
     """
     if request.user.is_authenticated:
         if create:
-            return get_or_create_cart(_store(request), user=request.user)
+            return get_or_create_cart(
+                _store(request), user=request.user, currency=_active_currency(request)
+            )
         return _get_cart(request, user=request.user)
     session_key = request.headers.get("X-Cart-Session") or request.session.session_key
     if not session_key:
@@ -99,8 +108,19 @@ def resolve_cart(request, *, create: bool = False) -> Cart | None:
         else:
             return None
     if create:
-        return get_or_create_cart(_store(request), session_key=session_key)
+        return get_or_create_cart(
+            _store(request), session_key=session_key, currency=_active_currency(request)
+        )
     return _get_cart(request, session_key=session_key)
+
+
+def _active_currency(request) -> str:
+    """Active currency for the request (currency cookie, shared with the SPA)."""
+    from django.conf import settings
+
+    from apps.stores.services import get_active_currency_code
+
+    return get_active_currency_code(request.COOKIES.get(settings.CURRENCY_COOKIE_NAME))
 
 
 def _store(request):
@@ -144,6 +164,7 @@ class CartItemsView(APIView):
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data
         cart = resolve_cart(request, create=True)
+        ensure_cart_currency(cart, _active_currency(request))
         product = Product.objects.filter(slug=data["product"]).first()
         if product is None:
             raise NotFoundError("Product not found", code="cart.product_not_found")

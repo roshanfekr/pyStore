@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 
-import { api, setToken } from '@/api/client'
+import { api, setStoreSlug, setToken } from '@/api/client'
 
 // Global storefront state: theme/branding/menu bootstrap data, the cart and the
 // current customer. Loaded once by App.vue on startup.
@@ -12,6 +12,7 @@ export const useStorefrontStore = defineStore('storefront', {
   }),
 
   getters: {
+    store: (state) => state.bootstrap?.store ?? { slug: '', name: '' },
     branding: (state) => state.bootstrap?.branding ?? { site_name: 'pyStore' },
     menu: (state) => state.bootstrap?.menu ?? [],
     widgets: (state) => state.bootstrap?.widgets ?? [],
@@ -29,6 +30,7 @@ export const useStorefrontStore = defineStore('storefront', {
   actions: {
     async loadBootstrap() {
       this.bootstrap = await api('/storefront/bootstrap')
+      setStoreSlug(this.store.slug)
     },
     async refreshCart() {
       try {

@@ -239,7 +239,8 @@ class OrderCreationStep(CheckoutStep):
             coupon_code=context.coupon_code or "",
             shipping_method=context.shipping_method_code,
             payment_method=context.payment_method_code,
-            currency=cart.store.default_currency,
+            # The order keeps the currency the cart was priced in (FR-CUR-006).
+            currency=cart.currency or cart.store.default_currency,
         )
 
         for line in context.lines:

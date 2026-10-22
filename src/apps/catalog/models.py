@@ -157,6 +157,9 @@ class ProductVariant(BaseModel):
     length = models.DecimalField(max_digits=12, decimal_places=4, null=True, blank=True)
     width = models.DecimalField(max_digits=12, decimal_places=4, null=True, blank=True)
     height = models.DecimalField(max_digits=12, decimal_places=4, null=True, blank=True)
+    # Combination-specific image (FR-CAT-002). Without one, the storefront
+    # falls back to the product's own images.
+    image = models.ImageField(upload_to="catalog/variants/%Y/%m/", null=True, blank=True)
     is_default = models.BooleanField(default=False)
     is_active = models.BooleanField(default=True)
 
@@ -167,6 +170,16 @@ class ProductVariant(BaseModel):
 
     def __str__(self):
         return self.sku
+
+    def clean(self):
+        super().clean()
+        image = self.image
+        if image and getattr(image, "name", "") and image._committed is False:
+            # Fresh upload only; stored files were validated when saved.
+            # Name, extension and size checks reusing the shared media service.
+            from apps.media.services import validate_upload
+
+            validate_upload(image)
 
 
 ATTRIBUTE_VALUE_TYPES = [

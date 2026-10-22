@@ -10,7 +10,8 @@ from apps.catalog.services import (
     set_product_attribute,
     set_variant_attributes,
 )
-from apps.stores.services import create_store
+from apps.pricing.models import ProductPrice
+from apps.stores.services import create_store, upsert_currency
 
 pytestmark = [pytest.mark.django_db]
 
@@ -197,3 +198,43 @@ def test_cart_accepts_an_active_variant(api_client, store, variant_product):
     )
     assert response.status_code == 201
     assert response.data["subtotal"] == "240.0000"
+
+
+def test_product_detail_shows_the_explicit_currency_price(api_client, store, published_product):
+    upsert_currency("US Dollar", "USD", symbol="$", decimal_places=2)
+    ProductPrice.objects.create(product=published_product, currency="USD", price=Decimal("18.0000"))
+
+    client = api_client
+    client.cookies["pystore_currency"] = "USD"
+    response = client.get(f"/api/v1/storefront/products/{published_product.slug}")
+
+    assert response.status_code == 200
+    assert response.data["currency"]["code"] == "USD"
+    assert response.data["price"] == "18.00 $"
+    assert response.data["price_value"] == "18.0000"
+
+
+def test_product_detail_reports_no_price_when_the_currency_has_none(api_client, store, published_product):
+    upsert_currency("US Dollar", "USD", symbol="$", decimal_places=2)
+
+    client = api_client
+    client.cookies["pystore_currency"] = "USD"
+    response = client.get(f"/api/v1/storefront/products/{published_product.slug}")
+
+    assert response.status_code == 200
+    # No conversion is invented for a currency without an explicit price
+    # (FR-CUR-004): the price is reported as unavailable.
+    assert response.data["price"] == ""
+    assert response.data["price_value"] == ""
+
+
+def test_product_detail_shows_the_variant_image(api_client, store, variant_product):
+    variant = variant_product.variants.get(sku="SHIRT-RED-M")
+    variant.image = "catalog/variants/2026/10/red.png"
+    variant.save()
+
+    response = api_client.get(f"/api/v1/storefront/products/{variant_product.slug}")
+    assert response.status_code == 200
+    by_sku = {variant["sku"]: variant for variant in response.data["variants"]}
+    assert by_sku["SHIRT-RED-M"]["image"].endswith("catalog/variants/2026/10/red.png")
+    assert by_sku["SHIRT-BLUE-M"]["image"] == ""
